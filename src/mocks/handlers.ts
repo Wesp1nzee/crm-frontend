@@ -1,5 +1,6 @@
 import { http, HttpResponse } from 'msw';
-import type { Case, Client, Expert, Document, Invoice, Payment } from '../entities/case/types';
+import type { Case, Client, Document, Invoice, Payment } from '../entities/case/types';
+import type { Expert, Assignment } from '../entities/expert/types';
 
 const mockCases: Case[] = [
   {
@@ -83,6 +84,47 @@ const mockClients: Client[] = [
   { id: '2', name: 'ИП Иванов И.И.', email: 'ivanov@mail.ru', phone: '+7 926 123-45-67' },
   { id: '3', name: 'ПАО "Газпром"', email: 'contracts@gazprom.ru', phone: '+7 495 719-30-01' },
   { id: '4', name: 'ООО "Рога и копыта"', email: 'info@rogaikopyta.ru', phone: '+7 812 555-12-34' },
+];
+
+const mockExperts: Expert[] = [
+  {
+    id: '1',
+    name: 'Петров Петр Петрович',
+    email: 'petrov@expert.ru',
+    phone: '+7 495 111-22-33',
+    specialization: ['Строительно-техническая экспертиза', 'Пожарно-техническая экспертиза'],
+    status: 'active',
+    workload: 2,
+    createdAt: '2023-01-15T00:00:00Z',
+  },
+  {
+    id: '2',
+    name: 'Сидорова Анна Ивановна',
+    email: 'sidorova@expert.ru',
+    phone: '+7 495 222-33-44',
+    specialization: ['Оценочная экспертиза', 'Автотехническая экспертиза'],
+    status: 'active',
+    workload: 1,
+    createdAt: '2023-02-20T00:00:00Z',
+  },
+];
+
+const mockAssignments: Assignment[] = [
+  {
+    id: '1',
+    caseId: '1',
+    expertId: '1',
+    assignedAt: '2024-01-15T00:00:00Z',
+    assignedBy: 'Генеральный директор',
+    notes: 'Срочное дело',
+  },
+  {
+    id: '2',
+    caseId: '2',
+    expertId: '2',
+    assignedAt: '2024-01-20T00:00:00Z',
+    assignedBy: 'Генеральный директор',
+  },
 ];
 
 const mockDocuments: Document[] = [
@@ -204,6 +246,8 @@ const mockPayments: Payment[] = [
 let documentIdCounter = 5;
 let invoiceIdCounter = 6;
 let paymentIdCounter = 3;
+let expertIdCounter = 3;
+let assignmentIdCounter = 3;
 
 export const handlers = [
   http.get('*/api/cases', () => {
@@ -213,6 +257,17 @@ export const handlers = [
   http.get('*/api/cases/:id', ({ params }) => {
     const case_ = mockCases.find(c => c.id === params.id);
     return case_ ? HttpResponse.json(case_) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.post('*/api/cases', async ({ request }) => {
+    const data = await request.json() as Omit<Case, 'id' | 'createdAt'>;
+    const newCase: Case = {
+      ...data,
+      id: String(mockCases.length + 1),
+      createdAt: new Date().toISOString(),
+    };
+    mockCases.push(newCase);
+    return HttpResponse.json(newCase);
   }),
 
   http.put('*/api/cases/:id', async ({ params, request }) => {
@@ -227,6 +282,86 @@ export const handlers = [
 
   http.get('*/api/clients', () => {
     return HttpResponse.json(mockClients);
+  }),
+
+  // Эксперты
+  http.get('*/api/experts', () => {
+    return HttpResponse.json(mockExperts);
+  }),
+
+  http.get('*/api/experts/:id', ({ params }) => {
+    const expert = mockExperts.find(e => e.id === params.id);
+    return expert ? HttpResponse.json(expert) : new HttpResponse(null, { status: 404 });
+  }),
+
+  http.post('*/api/experts', async ({ request }) => {
+    const data = await request.json() as Omit<Expert, 'id' | 'createdAt' | 'workload'>;
+    const newExpert: Expert = {
+      ...data,
+      id: String(expertIdCounter++),
+      workload: 0,
+      createdAt: new Date().toISOString(),
+    };
+    mockExperts.push(newExpert);
+    return HttpResponse.json(newExpert);
+  }),
+
+  http.put('*/api/experts/:id', async ({ params, request }) => {
+    const updates = await request.json() as Partial<Expert>;
+    const expertIndex = mockExperts.findIndex(e => e.id === params.id);
+    if (expertIndex >= 0) {
+      mockExperts[expertIndex] = { ...mockExperts[expertIndex], ...updates };
+      return HttpResponse.json(mockExperts[expertIndex]);
+    }
+    return new HttpResponse(null, { status: 404 });
+  }),
+
+  http.delete('*/api/experts/:id', ({ params }) => {
+    const index = mockExperts.findIndex(e => e.id === params.id);
+    if (index >= 0) {
+      mockExperts.splice(index, 1);
+      return new HttpResponse(null, { status: 204 });
+    }
+    return new HttpResponse(null, { status: 404 });
+  }),
+
+  // Назначения
+  http.get('*/api/assignments', () => {
+    return HttpResponse.json(mockAssignments);
+  }),
+
+  http.post('*/api/assignments', async ({ request }) => {
+    const data = await request.json() as Omit<Assignment, 'id' | 'assignedAt'>;
+    const newAssignment: Assignment = {
+      ...data,
+      id: String(assignmentIdCounter++),
+      assignedAt: new Date().toISOString(),
+    };
+    mockAssignments.push(newAssignment);
+    
+    // Обновляем дело
+    const caseIndex = mockCases.findIndex(c => c.id === data.caseId);
+    if (caseIndex >= 0) {
+      mockCases[caseIndex].assignedExpertId = data.expertId;
+    }
+    
+    return HttpResponse.json(newAssignment);
+  }),
+
+  http.delete('*/api/assignments/case/:caseId', ({ params }) => {
+    const index = mockAssignments.findIndex(a => a.caseId === params.caseId);
+    if (index >= 0) {
+      mockAssignments.splice(index, 1);
+      
+      // Убираем назначение из дела
+      const caseIndex = mockCases.findIndex(c => c.id === params.caseId);
+      if (caseIndex >= 0) {
+        delete mockCases[caseIndex].assignedExpertId;
+      }
+      
+      return new HttpResponse(null, { status: 204 });
+    }
+    return new HttpResponse(null, { status: 404 });
   }),
 
   http.get('*/api/documents', () => {

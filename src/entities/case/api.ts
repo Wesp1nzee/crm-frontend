@@ -1,5 +1,6 @@
 import { api } from '../../shared/api/axios';
 import type { Case, Client, Document, Invoice, Payment } from './types';
+import type { Expert, Assignment } from '../expert/types';
 
 export const casesApi = {
   getCases: () => api.get<Case[]>('/cases'),
@@ -29,4 +30,18 @@ export const invoicesApi = {
 export const paymentsApi = {
   getPayments: () => api.get<Payment[]>('/payments'),
   createPayment: (data: Omit<Payment, 'id'>) => api.post<Payment>('/payments', data),
+};
+
+export const expertsApi = {
+  getExperts: () => api.get<Expert[]>('/experts'),
+  getExpert: (id: string) => api.get<Expert>(`/experts/${id}`),
+  createExpert: (data: Omit<Expert, 'id' | 'createdAt' | 'workload'>) => api.post<Expert>('/experts', data),
+  updateExpert: (id: string, data: Partial<Expert>) => api.put<Expert>(`/experts/${id}`, data),
+  deleteExpert: (id: string) => api.delete(`/experts/${id}`),
+};
+
+export const assignmentsApi = {
+  assignCase: (data: Omit<Assignment, 'id' | 'assignedAt'>) => api.post<Assignment>('/assignments', data),
+  unassignCase: (caseId: string) => api.delete(`/assignments/case/${caseId}`),
+  getAssignments: () => api.get<Assignment[]>('/assignments'),
 };

@@ -1,9 +1,10 @@
 import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import {
+  Home,
   Gavel,
   People,
-  Task,
+  Engineering,
   Description,
   AccountBalance,
   Assessment,
@@ -13,8 +14,10 @@ const drawerWidth = 240;
 const miniDrawerWidth = 64;
 
 const menuItems = [
+  { text: 'Главная', path: '/', icon: <Home /> },
   { text: 'Дела', path: '/cases', icon: <Gavel /> },
   { text: 'Клиенты', path: '/clients', icon: <People /> },
+  { text: 'Эксперты', path: '/experts', icon: <Engineering /> },
   { text: 'Документы', path: '/documents', icon: <Description /> },
   { text: 'Финансы', path: '/finance', icon: <AccountBalance /> },
   { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
@@ -48,7 +51,7 @@ export function Sidebar({ open }: SidebarProps) {
             <ListItemButton
               component={Link}
               to={item.path}
-              selected={location.pathname === item.path}
+              selected={location.pathname === item.path || (item.path === '/' && location.pathname === '/')}
               sx={{
                 minHeight: 48,
                 justifyContent: open ? 'initial' : 'center',

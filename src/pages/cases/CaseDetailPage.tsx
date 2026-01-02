@@ -10,10 +10,15 @@ import {
   Select,
   MenuItem,
   Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
 } from '@mui/material';
 import { useParams } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { useCase, useUpdateCase } from '../../shared/hooks/useCases';
+import { useCase, useUpdateCase, useExperts, useAssignCase, useUnassignCase } from '../../shared/hooks/useCases';
 import type { Case } from '../../entities/case/types';
 import { useState } from 'react';
 
@@ -31,8 +36,15 @@ const statusLabels: Record<Case['status'], string> = {
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const { data: case_, isLoading, error } = useCase(id!);
+  const { data: experts } = useExperts();
   const updateCase = useUpdateCase();
+  const assignCase = useAssignCase();
+  const unassignCase = useUnassignCase();
+  
   const [status, setStatus] = useState<Case['status']>();
+  const [assignDialogOpen, setAssignDialogOpen] = useState(false);
+  const [selectedExpertId, setSelectedExpertId] = useState('');
+  const [assignmentNotes, setAssignmentNotes] = useState('');
 
   if (isLoading) {
     return (
@@ -55,6 +67,28 @@ export function CaseDetailPage() {
       updateCase.mutate({ id: case_.id, data: { status } });
     }
   };
+
+  const handleAssignExpert = async () => {
+    if (selectedExpertId) {
+      await assignCase.mutateAsync({
+        caseId: case_.id,
+        expertId: selectedExpertId,
+        assignedBy: 'Генеральный директор',
+        notes: assignmentNotes || undefined,
+      });
+      setAssignDialogOpen(false);
+      setSelectedExpertId('');
+      setAssignmentNotes('');
+    }
+  };
+
+  const handleUnassignExpert = async () => {
+    if (confirm('Отменить назначение эксперта?')) {
+      await unassignCase.mutateAsync(case_.id);
+    }
+  };
+
+  const assignedExpert = experts?.find(e => e.id === case_.assignedExpertId);
 
   return (
     <Box>
@@ -124,6 +158,31 @@ export function CaseDetailPage() {
                 </Button>
               )}
             </Box>
+            
+            <Box sx={{ mb: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                Назначенный эксперт
+              </Typography>
+              <Box display="flex" alignItems="center" gap={1}>
+                {assignedExpert ? (
+                  <>
+                    <Typography variant="body1">{assignedExpert.name}</Typography>
+                    <Button size="small" color="error" onClick={handleUnassignExpert}>
+                      Отменить
+                    </Button>
+                  </>
+                ) : (
+                  <Button 
+                    variant="outlined" 
+                    size="small" 
+                    onClick={() => setAssignDialogOpen(true)}
+                  >
+                    Назначить эксперта
+                  </Button>
+                )}
+              </Box>
+            </Box>
+            
             <Box sx={{ mb: 2 }}>
               <Typography variant="body2" color="text.secondary">
                 Дата начала
@@ -154,6 +213,47 @@ export function CaseDetailPage() {
           </Grid>
         </Grid>
       </Paper>
+
+      {/* Диалог назначения эксперта */}
+      <Dialog open={assignDialogOpen} onClose={() => setAssignDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Назначить эксперта</DialogTitle>
+        <DialogContent>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+            <FormControl fullWidth>
+              <InputLabel>Эксперт</InputLabel>
+              <Select
+                value={selectedExpertId}
+                label="Эксперт"
+                onChange={(e) => setSelectedExpertId(e.target.value)}
+              >
+                {experts?.filter(e => e.status === 'active').map((expert) => (
+                  <MenuItem key={expert.id} value={expert.id}>
+                    {expert.name} ({expert.specialization.join(', ')})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+            <TextField
+              label="Примечание"
+              multiline
+              rows={3}
+              fullWidth
+              value={assignmentNotes}
+              onChange={(e) => setAssignmentNotes(e.target.value)}
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setAssignDialogOpen(false)}>Отмена</Button>
+          <Button
+            onClick={handleAssignExpert}
+            variant="contained"
+            disabled={!selectedExpertId || assignCase.isPending}
+          >
+            Назначить
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

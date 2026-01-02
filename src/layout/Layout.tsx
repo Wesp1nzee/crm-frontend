@@ -13,12 +13,24 @@ export function Layout() {
   };
 
   return (
-    <Box sx={{ display: 'flex' }}>
+    <Box sx={{ display: 'flex', minHeight: '100vh', width: '100%' }}>
       <Topbar onMenuClick={handleMenuClick} />
       <Sidebar open={sidebarOpen} />
-      <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
+      <Box 
+        component="main" 
+        sx={{ 
+          flexGrow: 1, 
+          p: 3,
+          width: '100%',
+          minWidth: 0,
+          display: 'flex',
+          flexDirection: 'column'
+        }}
+      >
         <Toolbar />
-        <Breadcrumbs />
+        <Box sx={{ mb: 2 }}>
+          <Breadcrumbs />
+        </Box>
         <Outlet />
       </Box>
     </Box>

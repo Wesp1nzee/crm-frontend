@@ -21,11 +21,7 @@ export interface Client {
   phone: string;
 }
 
-export interface Expert {
-  id: string;
-  name: string;
-  specialization: string;
-}
+
 
 export interface Document {
   id: string;
