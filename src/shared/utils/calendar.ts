@@ -62,24 +62,20 @@ export const getEventTypeLabel = (type: CalendarEvent['type']) => {
 
 export const formatDateHeader = (date: Date, view: CalendarView) => {
   const dayjsDate = dayjs(date);
-  
   switch (view) {
-    case 'month':
-      return dayjsDate.format('MMMM YYYY');
+    case 'month': return dayjsDate.format('MMMM YYYY');
     case 'week':
       const weekStart = dayjsDate.startOf('week');
       const weekEnd = dayjsDate.endOf('week');
       return `${weekStart.format('DD MMM')} - ${weekEnd.format('DD MMM YYYY')}`;
-    case 'day':
-      return dayjsDate.format('DD MMMM YYYY');
-    default:
-      return '';
+    case 'day': return dayjsDate.format('DD MMMM YYYY');
+    default: return '';
   }
 };
 
-export const getCurrentTimePosition = () => {
+// Исправленная позиция текущего времени (возвращает пиксели для точности)
+export const getCurrentTimePosition = (hourHeight: number = 60) => {
   const now = dayjs();
-  const hours = now.hour();
-  const minutes = now.minute();
-  return ((hours * 60 + minutes) / (24 * 60)) * 100;
+  const minutes = now.hour() * 60 + now.minute();
+  return minutes * (hourHeight / 60);
 };
