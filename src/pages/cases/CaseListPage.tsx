@@ -74,6 +74,7 @@ export function CaseListPage() {
     startDate: dayjs().format('YYYY-MM-DD'),
     deadline: dayjs().add(30, 'day').format('YYYY-MM-DD'),
     cost: 0,
+    assignedExpertId: '',
   });
 
   const handleSubmit = async () => {
@@ -263,6 +264,21 @@ export function CaseListPage() {
               value={formData.cost}
               onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
             />
+            <FormControl fullWidth>
+              <InputLabel>Эксперт (необязательно)</InputLabel>
+              <Select
+                value={formData.assignedExpertId}
+                label="Эксперт (необязательно)"
+                onChange={(e) => setFormData({ ...formData, assignedExpertId: e.target.value })}
+              >
+                <MenuItem value="">Без назначения</MenuItem>
+                {experts?.filter(e => e.status === 'active').map((expert) => (
+                  <MenuItem key={expert.id} value={expert.id}>
+                    {expert.name} ({expert.specialization.join(', ')})
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
           </Box>
         </DialogContent>
         <DialogActions>

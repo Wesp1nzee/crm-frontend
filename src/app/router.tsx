@@ -8,6 +8,8 @@ import { ExpertsPage } from '../pages/experts/ExpertsPage';
 import { DocumentsPage } from '../pages/documents/DocumentsPage';
 import { FinancePage } from '../pages/finance/FinancePage';
 import { ReportsPage } from '../pages/reports/ReportsPage';
+import { ProfilePage } from '../pages/profile/ProfilePage';
+import { SettingsPage } from '../pages/settings/SettingsPage';
 
 export const router = createBrowserRouter([
   {
@@ -15,6 +17,8 @@ export const router = createBrowserRouter([
     element: <Layout />,
     children: [
       { index: true, element: <HomePage /> },
+      { path: 'profile', element: <ProfilePage /> },
+      { path: 'settings', element: <SettingsPage /> },
       { path: 'cases', element: <CaseListPage /> },
       { path: 'cases/:id', element: <CaseDetailPage /> },
       { path: 'clients', element: <ClientListPage /> },
