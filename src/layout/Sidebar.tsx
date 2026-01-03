@@ -8,6 +8,7 @@ import {
   Description,
   AccountBalance,
   Assessment,
+  CalendarMonth,
 } from '@mui/icons-material';
 
 const drawerWidth = 240;
@@ -21,6 +22,7 @@ const menuItems = [
   { text: 'Документы', path: '/documents', icon: <Description /> },
   { text: 'Финансы', path: '/finance', icon: <AccountBalance /> },
   { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
+  { text: 'Календарь', path: '/calendar', icon: <CalendarMonth /> },
 ];
 
 interface SidebarProps {
