@@ -11,6 +11,7 @@ import { ReportsPage } from '../pages/reports/ReportsPage';
 import { ProfilePage } from '../pages/profile/ProfilePage';
 import { SettingsPage } from '../pages/settings/SettingsPage';
 import { CalendarPage } from '../pages/calendar/CalendarPage';
+import { CalculatePage } from '../pages/calculate';
 
 export const router = createBrowserRouter([
   {
@@ -28,6 +29,7 @@ export const router = createBrowserRouter([
       { path: 'finance', element: <FinancePage /> },
       { path: 'reports', element: <ReportsPage /> },
       { path: 'calendar', element: <CalendarPage /> },
+      { path: 'calculate', element: <CalculatePage /> },
     ],
   },
 ]);

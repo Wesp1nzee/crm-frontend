@@ -169,11 +169,10 @@ export function CalendarGrid({ currentDate, view, events, onDateClick, onEventCl
                   />
                 )}
 
-                {/* Рендеринг событий поверх колонки */}
                 {dayEvents.map((event) => {
                   const start = event.time ? dayjs(`${dayjs(event.date).format('YYYY-MM-DD')} ${event.time}`) : dayjs(event.date).hour(9);
                   const topPos = (start.hour() * 60 + start.minute()) * (HOUR_HEIGHT / 60);
-                  const duration = 60; // Можно заменить на event.duration, если есть в данных
+                  const duration = 60;
 
                   return (
                     <Box
