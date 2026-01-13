@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import {
   Box,
   Paper,
@@ -11,14 +11,12 @@ import {
   Divider,
   Button,
   Badge,
-  Drawer,
   useMediaQuery,
   useTheme,
   Chip,
   Avatar,
   Collapse,
   TextField,
-  InputAdornment,
   FormControlLabel,
   Switch,
   Tooltip
@@ -33,10 +31,6 @@ import {
   Add,
   Menu,
   ArrowBack,
-  Star,
-  StarBorder,
-  ExpandMore,
-  ExpandLess,
   Search,
   AttachFile,
   Send as SendIcon,
@@ -316,24 +310,19 @@ const App = () => {
   );
 
   return (
-    <Box sx={{ display: 'flex', height: '100vh' }}>
-      <Drawer
-        variant={isMobile ? 'temporary' : 'permanent'}
-        open={mobileOpen}
-        onClose={() => setMobileOpen(false)}
-        sx={{
-          width: 280,
+    <Box sx={{ display: 'flex', height: 'calc(100vh - 64px)' }}>
+      <Paper 
+        sx={{ 
+          width: 280, 
           flexShrink: 0,
-          '& .MuiDrawer-paper': {
-            width: 280,
-            boxSizing: 'border-box',
-            borderRight: 1,
-            borderColor: 'divider',
-          },
+          borderRight: 1,
+          borderColor: 'divider',
+          borderRadius: 0,
+          display: { xs: mobileOpen ? 'block' : 'none', sm: 'block' }
         }}
       >
         {drawer}
-      </Drawer>
+      </Paper>
 
       {!selectedThread ? (
         <>
@@ -342,7 +331,6 @@ const App = () => {
             sx={{
               flexGrow: 1,
               p: 3,
-              width: { sm: `calc(100% - ${280}px)` },
             }}
           >
             <Paper sx={{ p: 2, mb: 2, borderRadius: 2 }}>
