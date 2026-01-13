@@ -12,9 +12,12 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemSecondaryAction,
   IconButton,
   Chip,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from '@mui/material';
 import {
   Calculate,
@@ -26,7 +29,7 @@ import {
 import dayjs from 'dayjs';
 import { CalculationCard } from './CalculationCard';
 import { EmptyState } from './EmptyState';
-import type { CalculationTable, CalculationType } from './types';
+import type { CalculationTable } from './types';
 
 const calculationTypes = [
   {
@@ -45,11 +48,18 @@ const calculationTypes = [
   },
 ];
 
+// Список доступных справочников
+const dictionaries = [
+  { id: 'leifer_2024_apartments', title: 'Лейфер 2024 Квартиры' },
+];
+
 export function CalculatePage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [listDialogOpen, setListDialogOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('');
   const [tableName, setTableName] = useState('');
+  const [selectedDictionary, setSelectedDictionary] = useState<string>('');
+  
   const [tables, setTables] = useState<CalculationTable[]>([
     {
       id: '1',
@@ -71,6 +81,8 @@ export function CalculatePage() {
 
   const handleCreateTable = (typeId: string) => {
     setSelectedType(typeId);
+    setTableName('');
+    setSelectedDictionary(''); // Сбрасываем при открытии
     setCreateDialogOpen(true);
   };
 
@@ -81,19 +93,23 @@ export function CalculatePage() {
 
   const handleSaveTable = () => {
     if (!tableName.trim()) return;
+    if (selectedType === 'leifer' && !selectedDictionary) return;
 
     const newTable: CalculationTable = {
       id: Date.now().toString(),
       name: tableName,
       type: selectedType,
+      // Сохраняем информацию о справочнике в объект, если нужно (расширьте тип CalculationTable при необходимости)
+      dictionary: selectedType === 'leifer' ? selectedDictionary : undefined,
       createdAt: new Date().toISOString(),
       lastModified: new Date().toISOString(),
       status: 'draft',
-    };
+    } as any; // Приведение к any, если в CalculationTable еще нет поля dictionary
 
     setTables([...tables, newTable]);
     setCreateDialogOpen(false);
     setTableName('');
+    setSelectedDictionary('');
     setSelectedType('');
   };
 
@@ -111,9 +127,12 @@ export function CalculatePage() {
     return tables.filter(table => table.type === typeId);
   };
 
+  // Проверка валидности формы создания
+  const isFormInvalid = !tableName.trim() || (selectedType === 'leifer' && !selectedDictionary);
+
   return (
     <Box>
-      <Typography variant="h4" gutterBottom>
+      <Typography variant="h4" gutterBottom sx={{ fontWeight: 'bold' }}>
         Расчеты и оценка
       </Typography>
       
@@ -141,9 +160,9 @@ export function CalculatePage() {
           Создать новую таблицу расчетов
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 1 }}>
+          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
             {selectedType && (
-              <Box display="flex" alignItems="center" mb={3} p={2} bgcolor="grey.50" borderRadius={1}>
+              <Box display="flex" alignItems="center" p={2} bgcolor="grey.50" borderRadius={1}>
                 <Box sx={{ color: getTypeInfo(selectedType)?.color, mr: 2 }}>
                   {getTypeInfo(selectedType)?.icon}
                 </Box>
@@ -166,16 +185,35 @@ export function CalculatePage() {
               placeholder="Например: Оценка квартиры на ул. Ленина"
               autoFocus
             />
+
+            {/* ВЫБОР СПРАВОЧНИКА: Показывается только для Лейфера */}
+            {selectedType === 'leifer' && (
+              <FormControl fullWidth>
+                <InputLabel id="dictionary-select-label">Выберите справочник</InputLabel>
+                <Select
+                  labelId="dictionary-select-label"
+                  value={selectedDictionary}
+                  label="Выберите справочник"
+                  onChange={(e) => setSelectedDictionary(e.target.value)}
+                >
+                  {dictionaries.map((dict) => (
+                    <MenuItem key={dict.id} value={dict.id}>
+                      {dict.title}
+                    </MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
+            )}
           </Box>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ p: 2, px: 3 }}>
           <Button onClick={() => setCreateDialogOpen(false)}>
             Отмена
           </Button>
           <Button
             onClick={handleSaveTable}
             variant="contained"
-            disabled={!tableName.trim()}
+            disabled={isFormInvalid}
           >
             Создать
           </Button>
@@ -226,7 +264,7 @@ export function CalculatePage() {
                       </Box>
                     }
                   />
-                  <ListItemSecondaryAction>
+                  <ListItemText>
                     <Box display="flex" gap={1}>
                       <IconButton size="small" title="Просмотр">
                         <Visibility />
@@ -243,7 +281,7 @@ export function CalculatePage() {
                         <Delete />
                       </IconButton>
                     </Box>
-                  </ListItemSecondaryAction>
+                  </ListItemText>
                 </ListItem>
               ))
             )}
