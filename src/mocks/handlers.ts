@@ -1,4 +1,5 @@
 import { http, HttpResponse } from 'msw';
+import dayjs from 'dayjs';
 import type { Case, Client, Document, Invoice, Payment } from '../entities/case/types';
 import type { Expert, Assignment } from '../entities/expert/types';
 
@@ -287,6 +288,81 @@ export const handlers = [
   // Эксперты
   http.get('*/api/experts', () => {
     return HttpResponse.json(mockExperts);
+  }),
+
+  // Mail API
+  http.get('*/api/mail/folders', () => {
+    const folders = [
+      { id: 'inbox', name: 'Входящие', type: 'inbox', unreadCount: 5 },
+      { id: 'sent', name: 'Отправленные', type: 'sent', unreadCount: 0 },
+      { id: 'drafts', name: 'Черновики', type: 'drafts', unreadCount: 0 },
+      { id: 'archive', name: 'Архив', type: 'archive', unreadCount: 0 },
+    ];
+    return HttpResponse.json(folders);
+  }),
+
+  http.get('*/api/mail/threads', () => {
+    const threads = [
+      {
+        id: '1',
+        subject: 'Срочно: Осмотр объекта по делу ЭКС-2024-001',
+        participants: ['client@stroyinvest.ru', 'director@company.ru'],
+        mails: [],
+        lastActivity: new Date().toISOString(),
+        isRead: false,
+      },
+      {
+        id: '2', 
+        subject: 'Запрос дополнительных документов',
+        participants: ['ivanov@mail.ru', 'director@company.ru'],
+        mails: [],
+        lastActivity: dayjs().subtract(2, 'hour').toISOString(),
+        isRead: true,
+      },
+    ];
+    return HttpResponse.json(threads);
+  }),
+
+  http.get('*/api/mail/threads/:id', ({ params }) => {
+    const thread = {
+      id: params.id,
+      subject: 'Срочно: Осмотр объекта по делу ЭКС-2024-001',
+      participants: ['client@stroyinvest.ru', 'director@company.ru'],
+      lastActivity: new Date().toISOString(),
+      isRead: false,
+      mails: [
+        {
+          id: '1',
+          threadId: params.id as string,
+          from: 'client@stroyinvest.ru',
+          to: ['director@company.ru'],
+          subject: 'Срочно: Осмотр объекта по делу ЭКС-2024-001',
+          body: 'Добрый день! Просим назначить осмотр объекта на ближайшее время. Дело срочное.',
+          attachments: [],
+          receivedAt: dayjs().subtract(1, 'hour').toISOString(),
+          isRead: false,
+          isStarred: false,
+          isArchived: false,
+          priority: 'high',
+        },
+        {
+          id: '2',
+          threadId: params.id as string,
+          from: 'director@company.ru',
+          to: ['client@stroyinvest.ru'],
+          subject: 'Re: Срочно: Осмотр объекта по делу ЭКС-2024-001',
+          body: 'Здравствуйте! Осмотр назначен на завтра в 10:00. Эксперт Петров П.П. свяжется с вами.',
+          attachments: [],
+          receivedAt: new Date().toISOString(),
+          sentAt: new Date().toISOString(),
+          isRead: true,
+          isStarred: false,
+          isArchived: false,
+          priority: 'normal',
+        },
+      ],
+    };
+    return HttpResponse.json(thread);
   }),
 
   http.get('*/api/experts/:id', ({ params }) => {

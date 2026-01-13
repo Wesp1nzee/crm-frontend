@@ -42,6 +42,14 @@ export const useUpdateCase = () => {
   });
 };
 
+export const useClient = (id: string) => {
+  return useQuery({
+    queryKey: ['client', id],
+    queryFn: () => clientsApi.getClients().then(res => res.data.find(c => c.id === id)),
+    enabled: !!id,
+  });
+};
+
 export const useClients = () => {
   return useQuery({
     queryKey: ['clients'],
