@@ -11,7 +11,7 @@ import { ReportsPage } from '../pages/reports/ReportsPage';
 import { ProfilePage } from '../pages/profile/ProfilePage';
 import { SettingsPage } from '../pages/settings/SettingsPage';
 import { CalendarPage } from '../pages/calendar/CalendarPage';
-import { CalculatePage } from '../pages/calculate';
+import { CalculatePage, LeiferTablePage } from '../pages/calculate';
 
 export const router = createBrowserRouter([
   {
@@ -30,6 +30,7 @@ export const router = createBrowserRouter([
       { path: 'reports', element: <ReportsPage /> },
       { path: 'calendar', element: <CalendarPage /> },
       { path: 'calculate', element: <CalculatePage /> },
+      { path: 'calculate/leifer', element: <LeiferTablePage /> },
     ],
   },
 ]);

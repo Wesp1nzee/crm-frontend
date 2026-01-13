@@ -26,6 +26,7 @@ import {
   Edit,
   Visibility,
 } from '@mui/icons-material';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { CalculationCard } from './CalculationCard';
 import { EmptyState } from './EmptyState';
@@ -54,6 +55,7 @@ const dictionaries = [
 ];
 
 export function CalculatePage() {
+  const navigate = useNavigate();
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [listDialogOpen, setListDialogOpen] = useState(false);
   const [selectedType, setSelectedType] = useState<string>('');
@@ -80,6 +82,10 @@ export function CalculatePage() {
   ]);
 
   const handleCreateTable = (typeId: string) => {
+    if (typeId === 'leifer') {
+      navigate('/calculate/leifer');
+      return;
+    }
     setSelectedType(typeId);
     setTableName('');
     setSelectedDictionary(''); // Сбрасываем при открытии
