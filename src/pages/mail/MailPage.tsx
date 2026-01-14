@@ -5,7 +5,6 @@ import {
   List,
   ListItem,
   ListItemText,
-  ListItemIcon,
   Typography,
   IconButton,
   Divider,
@@ -15,11 +14,9 @@ import {
   useTheme,
   Chip,
   Avatar,
-  Collapse,
   TextField,
   FormControlLabel,
   Switch,
-  Tooltip,
   Drawer
 } from '@mui/material';
 import {
@@ -35,9 +32,7 @@ import {
   Search,
   AttachFile,
   Send as SendIcon,
-  MoreVert,
-  Markunread,
-  DoneAll
+  MoreVert
 } from '@mui/icons-material';
 import { MailComposer } from './MailComposer';
 
@@ -50,7 +45,7 @@ const MailPage = () => {
   const [selectedFolder, setSelectedFolder] = useState('inbox');
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
 
-  const [folders, setFolders] = useState([
+  const [folders] = useState([
     { id: 'inbox', name: 'Входящие', type: 'inbox', unreadCount: 5 },
     { id: 'sent', name: 'Отправленные', type: 'sent', unreadCount: 0 },
     { id: 'drafts', name: 'Черновики', type: 'drafts', unreadCount:  2 },
@@ -58,7 +53,7 @@ const MailPage = () => {
     { id: 'spam', name: 'Спам', type: 'spam', unreadCount: 3 }
   ]);
   
-  const [threads, setThreads] = useState([
+  const [threads] = useState([
     {
       id: '1',
       subject: 'Срочно:  Осмотр объекта по делу ЭКС-2024-001',
