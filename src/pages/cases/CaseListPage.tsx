@@ -22,6 +22,7 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  Tooltip,
 } from '@mui/material';
 import {
   Add,
@@ -75,6 +76,16 @@ export function CaseListPage() {
     deadline: dayjs().add(30, 'day').format('YYYY-MM-DD'),
     cost: 0,
     assignedExpertId: '',
+    plaintiff: '', // Истец
+    defendant: '', // Ответчик
+    depositAmount: 0, // Депозит
+    cashAmount: 0, // Наличные
+    bankTransferAmount: 0, // Безнал
+    remainingDebt: 0, // Остаток долга
+    completionDate: '', // Окончена
+    expertNotes: '', // Роспись эксперта
+    archiveStatus: '', // Архив
+    remarks: '', // Примечание
   });
 
   const handleSubmit = async () => {
@@ -84,6 +95,7 @@ export function CaseListPage() {
         status: 'new' as Case['status'],
         startDate: new Date(formData.startDate).toISOString(),
         deadline: new Date(formData.deadline).toISOString(),
+        completionDate: formData.completionDate ? new Date(formData.completionDate).toISOString() : null,
       });
       setDialogOpen(false);
       navigate(`/cases/${newCase.id}`);
@@ -109,6 +121,8 @@ export function CaseListPage() {
   }
 
   const isOverdue = (deadline: string) => dayjs(deadline).isBefore(dayjs(), 'day');
+  const formatDate = (date: string) => date ? dayjs(date).format('DD.MM.YYYY') : '-';
+  const formatCurrency = (value: number) => value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
   
   const filteredCases = expertFilter 
     ? cases?.filter(c => c.assignedExpertId === expertFilter)
@@ -117,6 +131,18 @@ export function CaseListPage() {
   const expertName = expertFilter 
     ? experts?.find(e => e.id === expertFilter)?.name
     : null;
+
+  // Функция для получения имени клиента по ID
+  const getClientName = (clientId: string) => {
+    const client = clients?.find(c => c.id === clientId);
+    return client ? client.name : 'Не указан';
+  };
+
+  // Функция для получения имени эксперта по ID
+  const getExpertName = (expertId: string) => {
+    const expert = experts?.find(e => e.id === expertId);
+    return expert ? expert.name : 'Не назначен';
+  };
 
   return (
     <Box>
@@ -145,30 +171,44 @@ export function CaseListPage() {
       </Box>
       
       <TableContainer component={Paper}>
-        <Table>
+        <Table
+          sx={{
+            '& .MuiTableCell-root': {
+              border: '1px solid rgba(224, 224, 224, 1)', // Восстанавливаем границы
+            },
+          }}
+        >
           <TableHead>
             <TableRow>
-              <TableCell>Номер дела</TableCell>
-              <TableCell>Суд</TableCell>
-              <TableCell>Тип экспертизы</TableCell>
-              <TableCell>Объект</TableCell>
               <TableCell>Статус</TableCell>
-              <TableCell>Срок</TableCell>
-              <TableCell>Стоимость</TableCell>
+              <TableCell>№ п/п</TableCell>
+              <TableCell>№</TableCell>
+              <TableCell>Дата</TableCell>
+              <TableCell>Вид</TableCell>
+              <TableCell>Заказчик/суд</TableCell>
+              <TableCell>Судья</TableCell>
+              <TableCell>Истец</TableCell>
+              <TableCell>Ответчик</TableCell>
+              <TableCell>№ дела</TableCell>
+              <TableCell>Стоим.</TableCell>
+              <TableCell>Безнал</TableCell>
+              <TableCell>Наличные</TableCell>
+              <TableCell>Остаток долга</TableCell>
+              <TableCell>Срок установленный судом/договором</TableCell>
+              <TableCell>Окончена</TableCell>
+              <TableCell>Роспись эксперта</TableCell>
+              <TableCell>Архив</TableCell>
+              <TableCell>Примечание</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredCases?.map((case_) => (
+            {filteredCases?.map((case_, index) => (
               <TableRow
                 key={case_.id}
                 hover
                 sx={{ cursor: 'pointer' }}
                 onClick={() => navigate(`/cases/${case_.id}`)}
               >
-                <TableCell>{case_.caseNumber}</TableCell>
-                <TableCell>{case_.authority}</TableCell>
-                <TableCell>{case_.caseType}</TableCell>
-                <TableCell>{case_.objectAddress}</TableCell>
                 <TableCell>
                   <Chip
                     label={statusLabels[case_.status]}
@@ -176,15 +216,39 @@ export function CaseListPage() {
                     size="small"
                   />
                 </TableCell>
+                <TableCell>{index + 1}</TableCell>
+                <TableCell>{case_.caseNumber || '-'}</TableCell>
+                <TableCell>{formatDate(case_.startDate)}</TableCell>
+                <TableCell>{case_.caseType || '-'}</TableCell>
+                <TableCell>{getClientName(case_.clientId)}</TableCell>
+                <TableCell>{case_.authority || '-'}</TableCell>
+                <TableCell>
+                  <Tooltip title={case_.plaintiff || 'Не указан'}>
+                    <span>{case_.plaintiff || '-'}</span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell>
+                  <Tooltip title={case_.defendant || 'Не указан'}>
+                    <span>{case_.defendant || '-'}</span>
+                  </Tooltip>
+                </TableCell>
+                <TableCell>{case_.caseNumber || '-'}</TableCell>
+                <TableCell>{formatCurrency(case_.cost)}</TableCell>
+                <TableCell>{formatCurrency(case_.bankTransferAmount || 0)}</TableCell>
+                <TableCell>{formatCurrency(case_.cashAmount || 0)}</TableCell>
+                <TableCell>{formatCurrency(case_.remainingDebt || 0)}</TableCell>
                 <TableCell>
                   <Typography
                     color={isOverdue(case_.deadline) ? 'error' : 'inherit'}
                     fontWeight={isOverdue(case_.deadline) ? 'bold' : 'normal'}
                   >
-                    {dayjs(case_.deadline).format('DD.MM.YYYY')}
+                    {formatDate(case_.deadline)}
                   </Typography>
                 </TableCell>
-                <TableCell>{case_.cost.toLocaleString()} ₽</TableCell>
+                <TableCell>{formatDate(case_.completionDate)}</TableCell>
+                <TableCell>{case_.expertNotes || '-'}</TableCell>
+                <TableCell>{case_.archiveStatus || '-'}</TableCell>
+                <TableCell>{case_.remarks || '-'}</TableCell>
               </TableRow>
             ))}
           </TableBody>
@@ -239,6 +303,18 @@ export function CaseListPage() {
               value={formData.objectAddress}
               onChange={(e) => setFormData({ ...formData, objectAddress: e.target.value })}
             />
+            <TextField
+              label="Истец"
+              fullWidth
+              value={formData.plaintiff}
+              onChange={(e) => setFormData({ ...formData, plaintiff: e.target.value })}
+            />
+            <TextField
+              label="Ответчик"
+              fullWidth
+              value={formData.defendant}
+              onChange={(e) => setFormData({ ...formData, defendant: e.target.value })}
+            />
             <Box display="flex" gap={2}>
               <TextField
                 label="Дата начала"
@@ -263,6 +339,61 @@ export function CaseListPage() {
               fullWidth
               value={formData.cost}
               onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
+            />
+            <TextField
+              label="Депозит (Безнал, ₽)"
+              type="number"
+              fullWidth
+              value={formData.bankTransferAmount}
+              onChange={(e) => setFormData({ ...formData, bankTransferAmount: Number(e.target.value) })}
+            />
+            <TextField
+              label="Депозит (Наличные, ₽)"
+              type="number"
+              fullWidth
+              value={formData.cashAmount}
+              onChange={(e) => setFormData({ ...formData, cashAmount: Number(e.target.value) })}
+            />
+            <TextField
+              label="Остаток долга (₽)"
+              type="number"
+              fullWidth
+              value={formData.remainingDebt}
+              onChange={(e) => setFormData({ ...formData, remainingDebt: Number(e.target.value) })}
+            />
+            <TextField
+              label="Окончена (дата)"
+              type="date"
+              fullWidth
+              value={formData.completionDate}
+              onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
+              InputLabelProps={{ shrink: true }}
+            />
+            <TextField
+              label="Роспись эксперта"
+              fullWidth
+              value={formData.expertNotes}
+              onChange={(e) => setFormData({ ...formData, expertNotes: e.target.value })}
+            />
+            <FormControl fullWidth>
+              <InputLabel>Архив</InputLabel>
+              <Select
+                value={formData.archiveStatus}
+                label="Архив"
+                onChange={(e) => setFormData({ ...formData, archiveStatus: e.target.value })}
+              >
+                <MenuItem value="">Не архивировано</MenuItem>
+                <MenuItem value="archived">Архивировано</MenuItem>
+                <MenuItem value="pending">На утверждении</MenuItem>
+              </Select>
+            </FormControl>
+            <TextField
+              label="Примечание"
+              multiline
+              rows={3}
+              fullWidth
+              value={formData.remarks}
+              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
             />
             <FormControl fullWidth>
               <InputLabel>Эксперт (необязательно)</InputLabel>
