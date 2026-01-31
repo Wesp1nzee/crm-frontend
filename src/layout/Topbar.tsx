@@ -71,10 +71,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     setProfileAnchor(null);
   };
 
-  const handleLogout = async () => {
-    await logout.mutateAsync();
-    navigate('/login');
-  };
+const handleLogout = () => {
+  logout.mutateAsync();
+};
 
   const markAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));

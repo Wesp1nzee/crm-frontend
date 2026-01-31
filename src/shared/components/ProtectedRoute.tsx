@@ -7,7 +7,10 @@ interface ProtectedRouteProps {
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: user, isLoading, error } = useAuth();
+  const { data: user, isLoading, error, isError } = useAuth();
+
+  // Проверяем, является ли ошибка ошибкой аутентификации
+  const isAuthError = isError && (error as any)?.response?.status === 401;
 
   if (isLoading) {
     return (
@@ -17,11 +20,13 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  if (error || !user) {
+  // Если есть ошибка аутентификации или нет пользователя
+  if (isAuthError || !user) {
     return <Navigate to="/login" replace />;
   }
 
-  if (!user.can_authenticate) {
+  // Проверка дополнительного условия
+  if (!user?.can_authenticate) {
     return <Navigate to="/login" replace />;
   }
 
