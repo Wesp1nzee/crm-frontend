@@ -4,6 +4,7 @@ import { CircularProgress, Box } from '@mui/material';
 import { Layout } from '../layout/Layout';
 import { LoginPage } from '../pages/auth/LoginPage';
 import { ProtectedRoute } from '../shared/components/ProtectedRoute';
+import { RoleGuard } from '../shared/components/RoleGuard';
 
 const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.HomePage })));
 const CaseListPage = lazy(() => import('../pages/cases/CaseListPage').then(m => ({ default: m.CaseListPage })));
@@ -45,14 +46,14 @@ export const router = createBrowserRouter([
       { path: 'cases', element: <Suspense fallback={<PageLoader />}><CaseListPage /></Suspense> },
       { path: 'cases/:id', element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense> },
       { path: 'clients', element: <Suspense fallback={<PageLoader />}><ClientListPage /></Suspense> },
-      { path: 'experts', element: <Suspense fallback={<PageLoader />}><ExpertsPage /></Suspense> },
+      { path: 'experts', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ExpertsPage /></RoleGuard></Suspense> },
       { path: 'documents', element: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense> },
-      { path: 'finance', element: <Suspense fallback={<PageLoader />}><FinancePage /></Suspense> },
-      { path: 'reports', element: <Suspense fallback={<PageLoader />}><ReportsPage /></Suspense> },
+      { path: 'finance', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><FinancePage /></RoleGuard></Suspense> },
+      { path: 'reports', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ReportsPage /></RoleGuard></Suspense> },
       { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
       { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
       { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
-      { path: 'mail', element: <Suspense fallback={<PageLoader />}><MailPage /></Suspense> },
+      { path: 'mail', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><MailPage /></RoleGuard></Suspense> },
     ],
   },
 ]);

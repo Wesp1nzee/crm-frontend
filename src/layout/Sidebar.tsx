@@ -12,6 +12,7 @@ import {
   Calculate,
   Email
 } from '@mui/icons-material';
+import { usePermissions } from '../shared/hooks/usePermissions';
 
 const drawerWidth = 240;
 const miniDrawerWidth = 64;
@@ -35,6 +36,9 @@ interface SidebarProps {
 
 export function Sidebar({ open }: SidebarProps) {
   const location = useLocation();
+  const { canAccessRoute } = usePermissions();
+
+  const filteredMenuItems = menuItems.filter(item => canAccessRoute(item.path));
 
   return (
     <Drawer
@@ -52,7 +56,7 @@ export function Sidebar({ open }: SidebarProps) {
     >
       <Toolbar />
       <List>
-        {menuItems.map((item) => (
+        {filteredMenuItems.map((item) => (
           <ListItem key={item.path} disablePadding>
             <ListItemButton
               component={Link}

@@ -28,8 +28,20 @@ import {
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useCases, useInvoices } from '../shared/hooks/useCases';
+import { usePermissions } from '../shared/hooks/usePermissions';
+import { ExpertHomePage } from './ExpertHomePage';
 
 export function HomePage() {
+  const { isExpert } = usePermissions();
+
+  if (isExpert) {
+    return <ExpertHomePage />;
+  }
+
+  return <AdminHomePage />;
+}
+
+function AdminHomePage() {
   const navigate = useNavigate();
   const { data: cases } = useCases();
   const { data: invoices } = useInvoices();
