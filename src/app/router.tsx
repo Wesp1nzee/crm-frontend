@@ -13,11 +13,21 @@ import { SettingsPage } from '../pages/settings/SettingsPage';
 import { CalendarPage } from '../pages/calendar/CalendarPage';
 import { CalculatePage, LeiferTablePage } from '../pages/calculate';
 import { MailPage } from '../pages/mail/MailPage';
+import { LoginPage } from '../pages/auth/LoginPage';
+import { ProtectedRoute } from '../shared/components/ProtectedRoute';
 
 export const router = createBrowserRouter([
   {
+    path: '/login',
+    element: <LoginPage />,
+  },
+  {
     path: '/',
-    element: <Layout />,
+    element: (
+      <ProtectedRoute>
+        <Layout />
+      </ProtectedRoute>
+    ),
     children: [
       { index: true, element: <HomePage /> },
       { path: 'profile', element: <ProfilePage /> },

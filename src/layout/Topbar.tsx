@@ -2,6 +2,7 @@ import { AppBar, Toolbar, Typography, TextField, Badge, IconButton, Box, Menu, M
 import { Search, Notifications, AccountCircle, Menu as MenuIcon, Settings, ExitToApp, Person, Dashboard, CheckCircle, Warning, Info } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useAuth, useLogout } from '../shared/hooks/useAuth';
 import dayjs from 'dayjs';
 
 interface TopbarProps {
@@ -46,6 +47,8 @@ const mockNotifications: Notification[] = [
 
 export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
+  const { data: user } = useAuth();
+  const logout = useLogout();
   const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState(mockNotifications);
@@ -66,6 +69,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   const handleProfileClose = () => {
     setProfileAnchor(null);
+  };
+
+  const handleLogout = async () => {
+    await logout.mutateAsync();
+    navigate('/login');
   };
 
   const markAsRead = (id: string) => {
@@ -231,14 +239,14 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         >
           <Box sx={{ px: 2, py: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
             <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main' }}>
-              ГД
+              {user?.full_name?.charAt(0) || 'U'}
             </Avatar>
             <Box>
               <Typography variant="subtitle1" fontWeight="bold">
-                Генеральный директор
+                {user?.full_name || 'Пользователь'}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                director@company.ru
+                {user?.email || 'user@example.com'}
               </Typography>
             </Box>
           </Box>
@@ -256,7 +264,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             <ListItemText primary="Настройки" />
           </MenuItem>
           <Divider />
-          <MenuItem onClick={handleProfileClose} sx={{ color: 'error.main' }}>
+          <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
             <ListItemIcon>
               <ExitToApp color="error" />
             </ListItemIcon>
