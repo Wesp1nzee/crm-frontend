@@ -1,8 +1,8 @@
 // src/shared/hooks/useCases.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { casesApi, clientsApi, documentsApi, invoicesApi, paymentsApi, expertsApi, assignmentsApi } from '../../entities/case/api';
+import { casesApi, clientsApi, documentsApi, invoicesApi, paymentsApi, assignmentsApi } from '../../entities/case/api';
 import type { Case, GetCasesQuery, GetCasesResponse } from '../../entities/case/types';
-import type { Expert, Assignment } from '../../entities/expert/types';
+import type { Assignment } from '../../entities/expert/types';
 
 // Получение списка дел с пагинацией и фильтрацией
 export const useCases = (params: GetCasesQuery = {}) => {
@@ -116,54 +116,6 @@ export const usePayments = () => {
   });
 };
 
-// Эксперты
-export const useExperts = () => {
-  return useQuery({
-    queryKey: ['experts'],
-    queryFn: () => expertsApi.getExperts().then(res => res.data),
-  });
-};
-
-export const useExpert = (id: string) => {
-  return useQuery({
-    queryKey: ['expert', id],
-    queryFn: () => expertsApi.getExpert(id).then(res => res.data),
-    enabled: !!id,
-  });
-};
-
-export const useCreateExpert = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Omit<Expert, 'id' | 'createdAt' | 'workload'>) =>
-      expertsApi.createExpert(data).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['experts'] });
-    },
-  });
-};
-
-export const useUpdateExpert = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, data }: { id: string; data: Partial<Expert> }) =>
-      expertsApi.updateExpert(id, data).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['experts'] });
-    },
-  });
-};
-
-export const useDeleteExpert = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => expertsApi.deleteExpert(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['experts'] });
-    },
-  });
-};
-
 // Назначения
 export const useAssignments = () => {
   return useQuery({
@@ -180,7 +132,7 @@ export const useAssignCase = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
-      queryClient.invalidateQueries({ queryKey: ['experts'] });
+      // Запрос на обновление списка экспертов будет в отдельном хуке
     },
   });
 };
@@ -192,7 +144,6 @@ export const useUnassignCase = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['assignments'] });
       queryClient.invalidateQueries({ queryKey: ['cases'] });
-      queryClient.invalidateQueries({ queryKey: ['experts'] });
     },
   });
 };
