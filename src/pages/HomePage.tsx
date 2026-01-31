@@ -43,16 +43,19 @@ export function HomePage() {
 
 function AdminHomePage() {
   const navigate = useNavigate();
-  const { data: cases } = useCases();
+  const { data: casesResponse } = useCases(); // Получаем весь объект ответа
   const { data: invoices } = useInvoices();
 
-  const activeCases = cases?.filter(c => !['done', 'closed'].includes(c.status)) || [];
+  // Извлекаем массив дел из объекта ответа
+  const cases = casesResponse?.items || []; // Предполагаем, что дела находятся в свойстве items
+  
+  const activeCases = cases.filter(c => !['done', 'closed'].includes(c.status));
   const overdueCases = activeCases.filter(c => dayjs(c.deadline).isBefore(dayjs(), 'day'));
-  const recentCases = cases?.slice(0, 5) || [];
+  const recentCases = cases.slice(0, 5);
   const totalRevenue = invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0) || 0;
   const pendingPayments = invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).length || 0;
 
-  const completionRate = cases?.length ? Math.round((cases.filter(c => ['done', 'closed'].includes(c.status)).length / cases.length) * 100) : 0;
+  const completionRate = cases.length ? Math.round((cases.filter(c => ['done', 'closed'].includes(c.status)).length / cases.length) * 100) : 0;
 
   return (
     <Box sx={{ width: '100%', maxWidth: 'none' }}>
@@ -181,7 +184,7 @@ function AdminHomePage() {
               <Box mb={2}>
                 <Typography variant="body2" color="text.secondary">Средняя стоимость дела</Typography>
                 <Typography variant="h6">
-                  {cases?.length ? Math.round(totalRevenue / cases.filter(c => ['done', 'closed'].includes(c.status)).length).toLocaleString() : 0} ₽
+                  {cases.length ? Math.round(totalRevenue / cases.filter(c => ['done', 'closed'].includes(c.status)).length).toLocaleString() : 0} ₽
                 </Typography>
               </Box>
               {pendingPayments > 0 && (

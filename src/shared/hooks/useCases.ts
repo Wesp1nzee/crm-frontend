@@ -1,15 +1,19 @@
+// src/shared/hooks/useCases.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { casesApi, clientsApi, documentsApi, invoicesApi, paymentsApi, expertsApi, assignmentsApi } from '../../entities/case/api';
-import type { Case } from '../../entities/case/types';
+import type { Case, GetCasesQuery, GetCasesResponse } from '../../entities/case/types';
 import type { Expert, Assignment } from '../../entities/expert/types';
 
-export const useCases = () => {
-  return useQuery({
-    queryKey: ['cases'],
-    queryFn: () => casesApi.getCases().then(res => res.data),
+// Получение списка дел с пагинацией и фильтрацией
+export const useCases = (params: GetCasesQuery = {}) => {
+  return useQuery<GetCasesResponse>({
+    queryKey: ['cases', params],
+    queryFn: () => casesApi.getCases(params).then(res => res.data),
+    placeholderData: (prevData) => prevData,
   });
 };
 
+// Получение одного дела
 export const useCase = (id: string) => {
   return useQuery({
     queryKey: ['case', id],
@@ -18,11 +22,11 @@ export const useCase = (id: string) => {
   });
 };
 
+// Создание дела
 export const useCreateCase = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
-    mutationFn: (data: Omit<Case, 'id' | 'createdAt'>) =>
+    mutationFn: (data: Omit<Case, 'id' | 'created_at' | 'updated_at'>) =>
       casesApi.createCase(data).then(res => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
@@ -30,18 +34,32 @@ export const useCreateCase = () => {
   });
 };
 
+// Обновление дела
 export const useUpdateCase = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Case> }) =>
       casesApi.updateCase(id, data).then(res => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['case'] });
     },
   });
 };
 
+// Удаление дела
+export const useDeleteCase = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (caseId: string) => casesApi.deleteCase(caseId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['cases'] });
+      queryClient.invalidateQueries({ queryKey: ['case'] });
+    },
+  });
+};
+
+// Остальные хуки остаются без изменений
 export const useClient = (id: string) => {
   return useQuery({
     queryKey: ['client', id],
@@ -66,7 +84,6 @@ export const useDocuments = () => {
 
 export const useUploadDocument = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (formData: FormData) => documentsApi.uploadDocument(formData).then(res => res.data),
     onSuccess: () => {
@@ -77,7 +94,6 @@ export const useUploadDocument = () => {
 
 export const useDeleteDocument = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (id: string) => documentsApi.deleteDocument(id),
     onSuccess: () => {
@@ -118,7 +134,6 @@ export const useExpert = (id: string) => {
 
 export const useCreateExpert = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (data: Omit<Expert, 'id' | 'createdAt' | 'workload'>) =>
       expertsApi.createExpert(data).then(res => res.data),
@@ -130,7 +145,6 @@ export const useCreateExpert = () => {
 
 export const useUpdateExpert = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: Partial<Expert> }) =>
       expertsApi.updateExpert(id, data).then(res => res.data),
@@ -142,7 +156,6 @@ export const useUpdateExpert = () => {
 
 export const useDeleteExpert = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (id: string) => expertsApi.deleteExpert(id),
     onSuccess: () => {
@@ -161,7 +174,6 @@ export const useAssignments = () => {
 
 export const useAssignCase = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (data: Omit<Assignment, 'id' | 'assignedAt'>) =>
       assignmentsApi.assignCase(data).then(res => res.data),
@@ -175,7 +187,6 @@ export const useAssignCase = () => {
 
 export const useUnassignCase = () => {
   const queryClient = useQueryClient();
-  
   return useMutation({
     mutationFn: (caseId: string) => assignmentsApi.unassignCase(caseId),
     onSuccess: () => {

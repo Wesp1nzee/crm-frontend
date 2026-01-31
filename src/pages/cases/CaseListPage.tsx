@@ -1,4 +1,5 @@
-import { useState } from 'react';
+// src/pages/cases/CaseListPage.tsx
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,407 +23,733 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  TablePagination,
+  Grid,
+  IconButton,
   Tooltip,
+  Snackbar,
+  Autocomplete
 } from '@mui/material';
 import {
   Add,
+  Edit,
+  Delete,
+  Person,
+  Business,
+  Gavel,
+  Search,
+  Close,
+  Save,
+  FilterList,
+  CalendarToday,
+  AttachFile,
+  Description
 } from '@mui/icons-material';
-import { useCases, useClients, useCreateCase, useExperts } from '../../shared/hooks/useCases';
-import type { Case } from '../../entities/case/types';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
+import { useCases, useCreateCase, useUpdateCase, useDeleteCase } from '../../shared/hooks/useCases';
+import type { 
+  Case, 
+  CaseCreateRequest, 
+  CaseUpdateRequest,
+  CaseStatus,
+  CaseType
+} from '../../entities/case/types';
+import type { ClientShort } from '../../entities/client/types';
+import type { Expert } from '../../entities/expert/types';
 
-const statusLabels: Record<Case['status'], string> = {
+// ===== КОНСТАНТЫ ДЛЯ ОТОБРАЖЕНИЯ =====
+const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   new: 'Новое',
-  accepted: 'Принято',
-  awaiting_documents: 'Ожидание документов',
-  inspection: 'Осмотр',
   in_progress: 'В работе',
-  on_check: 'На проверке',
-  done: 'Выполнено',
+  review: 'На проверке',
+  done: 'Завершено',
   closed: 'Закрыто',
+  overdue: 'Просрочено',
 };
 
-const statusColors: Record<Case['status'], 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
+const CASE_STATUS_COLORS: Record<CaseStatus, 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'success'> = {
   new: 'default',
-  accepted: 'info',
-  awaiting_documents: 'warning',
-  inspection: 'primary',
   in_progress: 'primary',
-  on_check: 'secondary',
+  review: 'secondary',
   done: 'success',
   closed: 'default',
+  overdue: 'error',
+};
+
+const CASE_TYPE_LABELS: Record<CaseType, string> = {
+  civil: 'Гражданское',
+  criminal: 'Уголовное',
+  administrative: 'Административное',
+  arbitration: 'Арбитражное',
+};
+
+const CASE_TYPE_COLORS: Record<CaseType, 'primary' | 'secondary' | 'error' | 'warning' | 'info'> = {
+  civil: 'primary',
+  criminal: 'error',
+  administrative: 'warning',
+  arbitration: 'info',
 };
 
 export function CaseListPage() {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
-  const expertFilter = searchParams.get('expert');
   
-  const { data: cases, isLoading, error } = useCases();
-  const { data: clients } = useClients();
-  const { data: experts } = useExperts();
-  const createCase = useCreateCase();
+  // ===== СОСТОЯНИЕ =====
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(20);
+  const [statusFilter, setStatusFilter] = useState<CaseStatus | 'all'>('all');
+  const [typeFilter, setTypeFilter] = useState<CaseType | 'all'>('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [editingCaseId, setEditingCaseId] = useState<string | null>(null);
+  const [deletingCaseId, setDeletingCaseId] = useState<string>('');
   
-  const [dialogOpen, setDialogOpen] = useState(false);
-  const [formData, setFormData] = useState({
+  // ===== ФОРМА =====
+  const initialFormData: CaseCreateRequest = {
     caseNumber: '',
-    authority: '',
-    clientId: '',
-    caseType: '',
-    objectType: '',
     objectAddress: '',
-    startDate: dayjs().format('YYYY-MM-DD'),
-    deadline: dayjs().add(30, 'day').format('YYYY-MM-DD'),
-    cost: 0,
-    assignedExpertId: '',
-    plaintiff: '', // Истец
-    defendant: '', // Ответчик
-    depositAmount: 0, // Депозит
-    cashAmount: 0, // Наличные
-    bankTransferAmount: 0, // Безнал
-    remainingDebt: 0, // Остаток долга
-    completionDate: '', // Окончена
-    expertNotes: '', // Роспись эксперта
-    archiveStatus: '', // Архив
-    remarks: '', // Примечание
+    description: '',
+    status: 'new',
+    type: 'civil',
+    deadline: dayjs().add(30, 'day').toISOString(),
+    clientId: '',
+    expertId: '',
+  };
+  
+  const [formData, setFormData] = useState<CaseCreateRequest>(initialFormData);
+  const [clients, setClients] = useState<ClientShort[]>([]);
+  const [experts, setExperts] = useState<Expert[]>([]);
+  
+  // ===== ХУКИ =====
+  const { 
+    data: casesResponse, 
+    isLoading, 
+    error,
+    refetch 
+  } = useCases({
+    status: statusFilter !== 'all' ? statusFilter : undefined,
+    type: typeFilter !== 'all' ? typeFilter : undefined,
+    search: searchQuery || undefined,
+    page: page + 1,
+    limit: rowsPerPage,
   });
-
-  const handleSubmit = async () => {
+  
+  const createCase = useCreateCase();
+  const updateCase = useUpdateCase();
+  const deleteCase = useDeleteCase();
+  
+  // Загружаем клиентов и экспертов
+  useEffect(() => {
+    // Здесь нужно добавить хуки для загрузки клиентов и экспертов
+    // или передать их через props если они уже загружены в родительском компоненте
+  }, []);
+  
+  // ===== УВЕДОМЛЕНИЯ =====
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: 'success' | 'error' | 'warning' | 'info';
+  }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
+  
+  // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
+  const cases = casesResponse?.items || [];
+  const totalCases = casesResponse?.total || 0;
+  
+  const formatDateTime = (date: string) => {
+    return dayjs(date).format('DD.MM.YYYY HH:mm');
+  };
+  
+  const formatDate = (date: string) => {
+    return dayjs(date).format('DD.MM.YYYY');
+  };
+  
+  const getStatusColor = (status: CaseStatus) => {
+    return CASE_STATUS_COLORS[status];
+  };
+  
+  const getTypeColor = (type: CaseType) => {
+    return CASE_TYPE_COLORS[type];
+  };
+  
+  // ===== ОБРАБОТЧИКИ =====
+  const handleCreate = async () => {
     try {
-      const newCase = await createCase.mutateAsync({
-        ...formData,
-        status: 'new' as Case['status'],
-        startDate: new Date(formData.startDate).toISOString(),
-        deadline: new Date(formData.deadline).toISOString(),
-        completionDate: formData.completionDate ? new Date(formData.completionDate).toISOString() : null,
+      await createCase.mutateAsync(formData);
+      
+      setSnackbar({
+        open: true,
+        message: `Дело "${formData.caseNumber}" успешно создано`,
+        severity: 'success',
       });
-      setDialogOpen(false);
-      navigate(`/cases/${newCase.id}`);
-    } catch (error) {
-      console.error('Error creating case:', error);
+      
+      setCreateDialogOpen(false);
+      setFormData(initialFormData);
+      refetch();
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Ошибка создания дела',
+        severity: 'error',
+      });
     }
   };
-
+  
+  const handleUpdate = async () => {
+    if (!editingCaseId) return;
+    
+    try {
+      const updateData: CaseUpdateRequest = {
+        caseNumber: formData.caseNumber,
+        objectAddress: formData.objectAddress,
+        description: formData.description,
+        status: formData.status,
+        type: formData.type,
+        deadline: formData.deadline,
+        clientId: formData.clientId,
+        expertId: formData.expertId,
+      };
+      
+      await updateCase.mutateAsync({ id: editingCaseId, data: updateData });
+      
+      setSnackbar({
+        open: true,
+        message: `Дело "${formData.caseNumber}" успешно обновлено`,
+        severity: 'success',
+      });
+      
+      setEditDialogOpen(false);
+      setFormData(initialFormData);
+      setEditingCaseId(null);
+      refetch();
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Ошибка обновления дела',
+        severity: 'error',
+      });
+    }
+  };
+  
+  const handleDelete = async () => {
+    if (!deletingCaseId) return;
+    
+    try {
+      await deleteCase.mutateAsync(deletingCaseId);
+      
+      setSnackbar({
+        open: true,
+        message: 'Дело успешно удалено',
+        severity: 'success',
+      });
+      
+      setDeleteDialogOpen(false);
+      setDeletingCaseId('');
+      refetch();
+    } catch (error: any) {
+      setSnackbar({
+        open: true,
+        message: error.response?.data?.detail || 'Ошибка удаления дела',
+        severity: 'error',
+      });
+    }
+  };
+  
+  const handleOpenCreate = () => {
+    setFormData(initialFormData);
+    setCreateDialogOpen(true);
+  };
+  
+  const handleOpenEdit = (case_: Case) => {
+    setEditingCaseId(case_.id);
+    setFormData({
+      caseNumber: case_.caseNumber,
+      objectAddress: case_.objectAddress,
+      description: case_.description,
+      status: case_.status,
+      type: case_.type,
+      deadline: case_.deadline,
+      clientId: case_.clientId,
+      expertId: case_.expertId || '',
+    });
+    setEditDialogOpen(true);
+  };
+  
+  const handleOpenDetail = (caseId: string) => {
+    navigate(`/cases/${caseId}`);
+  };
+  
+  const handleOpenDelete = (caseId: string) => {
+    setDeletingCaseId(caseId);
+    setDeleteDialogOpen(true);
+  };
+  
+  const handleCloseDialogs = () => {
+    setCreateDialogOpen(false);
+    setEditDialogOpen(false);
+    setDeleteDialogOpen(false);
+    setFormData(initialFormData);
+    setEditingCaseId(null);
+    setDeletingCaseId('');
+  };
+  
+  const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+    setPage(0);
+  };
+  
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setPage(newPage);
+  };
+  
+  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setRowsPerPage(parseInt(event.target.value, 10));
+    setPage(0);
+  };
+  
+  // ===== РЕНДЕРИНГ =====
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" mt={4}>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
         <CircularProgress />
       </Box>
     );
   }
-
+  
   if (error) {
     return (
-      <Alert severity="error">
-        Ошибка загрузки дел
+      <Alert severity="error" sx={{ mb: 2 }}>
+        Ошибка загрузки списка дел: {(error as Error).message}
       </Alert>
     );
   }
-
-  const isOverdue = (deadline: string) => dayjs(deadline).isBefore(dayjs(), 'day');
-  const formatDate = (date: string) => date ? dayjs(date).format('DD.MM.YYYY') : '-';
-  const formatCurrency = (value: number) => value.toLocaleString('ru-RU', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) + ' ₽';
   
-  const filteredCases = expertFilter 
-    ? cases?.filter(c => c.assignedExpertId === expertFilter)
-    : cases;
-    
-  const expertName = expertFilter 
-    ? experts?.find(e => e.id === expertFilter)?.name
-    : null;
-
-  // Функция для получения имени клиента по ID
-  const getClientName = (clientId: string) => {
-    const client = clients?.find(c => c.id === clientId);
-    return client ? client.name : 'Не указан';
-  };
-
-  // Функция для получения имени эксперта по ID
-  const getExpertName = (expertId: string) => {
-    const expert = experts?.find(e => e.id === expertId);
-    return expert ? expert.name : 'Не назначен';
-  };
-
   return (
     <Box>
+      {/* Заголовок и поиск */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
-          <Typography variant="h4">
-            Дела {expertName && `- ${expertName}`}
+          <Typography variant="h4" gutterBottom>
+            Дела
           </Typography>
-          {expertFilter && (
-            <Button 
-              size="small" 
-              onClick={() => navigate('/cases')}
-              sx={{ mt: 1 }}
-            >
-              Показать все дела
-            </Button>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            Всего: {totalCases} дел
+          </Typography>
         </Box>
         <Button
           variant="contained"
           startIcon={<Add />}
-          onClick={() => setDialogOpen(true)}
+          onClick={handleOpenCreate}
+          sx={{ 
+            boxShadow: 3,
+            '&:hover': { boxShadow: 6 }
+          }}
         >
           Создать дело
         </Button>
       </Box>
       
-      <TableContainer component={Paper}>
-        <Table
-          sx={{
-            '& .MuiTableCell-root': {
-              border: '1px solid rgba(224, 224, 224, 1)', // Восстанавливаем границы
-            },
-          }}
-        >
+      {/* Фильтры и поиск */}
+      <Paper sx={{ p: 2, mb: 3, boxShadow: 1 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Поиск по номеру или адресу объекта..."
+              value={searchQuery}
+              onChange={handleSearch}
+              InputProps={{
+                startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Статус</InputLabel>
+              <Select
+                value={statusFilter}
+                label="Статус"
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as CaseStatus | 'all');
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="all">Все статусы</MenuItem>
+                {Object.entries(CASE_STATUS_LABELS).map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={3}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Тип дела</InputLabel>
+              <Select
+                value={typeFilter}
+                label="Тип дела"
+                onChange={(e) => {
+                  setTypeFilter(e.target.value as CaseType | 'all');
+                  setPage(0);
+                }}
+              >
+                <MenuItem value="all">Все типы</MenuItem>
+                {Object.entries(CASE_TYPE_LABELS).map(([value, label]) => (
+                  <MenuItem key={value} value={value}>
+                    {label}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} md={2}>
+            <Box display="flex" gap={1} justifyContent="flex-end">
+              <Button
+                size="small"
+                startIcon={<FilterList />}
+                onClick={() => {
+                  setSearchQuery('');
+                  setStatusFilter('all');
+                  setTypeFilter('all');
+                  setPage(0);
+                }}
+                variant={searchQuery || statusFilter !== 'all' || typeFilter !== 'all' ? 'contained' : 'outlined'}
+              >
+                Сбросить
+              </Button>
+            </Box>
+          </Grid>
+        </Grid>
+      </Paper>
+      
+      {/* Таблица дел */}
+      <TableContainer component={Paper} sx={{ boxShadow: 1 }}>
+        <Table size="small">
           <TableHead>
-            <TableRow>
+            <TableRow sx={{ bgcolor: 'grey.50' }}>
+              <TableCell>Номер дела</TableCell>
+              <TableCell>Адрес объекта</TableCell>
+              <TableCell>Тип</TableCell>
               <TableCell>Статус</TableCell>
-              <TableCell>№ п/п</TableCell>
-              <TableCell>№</TableCell>
-              <TableCell>Дата</TableCell>
-              <TableCell>Вид</TableCell>
-              <TableCell>Заказчик/суд</TableCell>
-              <TableCell>Судья</TableCell>
-              <TableCell>Истец</TableCell>
-              <TableCell>Ответчик</TableCell>
-              <TableCell>№ дела</TableCell>
-              <TableCell>Стоим.</TableCell>
-              <TableCell>Безнал</TableCell>
-              <TableCell>Наличные</TableCell>
-              <TableCell>Остаток долга</TableCell>
-              <TableCell>Срок установленный судом/договором</TableCell>
-              <TableCell>Окончена</TableCell>
-              <TableCell>Роспись эксперта</TableCell>
-              <TableCell>Архив</TableCell>
-              <TableCell>Примечание</TableCell>
+              <TableCell>Клиент</TableCell>
+              <TableCell>Эксперт</TableCell>
+              <TableCell>Срок</TableCell>
+              <TableCell>Создано</TableCell>
+              <TableCell>Действия</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredCases?.map((case_, index) => (
-              <TableRow
-                key={case_.id}
-                hover
-                sx={{ cursor: 'pointer' }}
-                onClick={() => navigate(`/cases/${case_.id}`)}
-              >
-                <TableCell>
-                  <Chip
-                    label={statusLabels[case_.status]}
-                    color={statusColors[case_.status]}
-                    size="small"
-                  />
-                </TableCell>
-                <TableCell>{index + 1}</TableCell>
-                <TableCell>{case_.caseNumber || '-'}</TableCell>
-                <TableCell>{formatDate(case_.startDate)}</TableCell>
-                <TableCell>{case_.caseType || '-'}</TableCell>
-                <TableCell>{getClientName(case_.clientId)}</TableCell>
-                <TableCell>{case_.authority || '-'}</TableCell>
-                <TableCell>
-                  <Tooltip title={case_.plaintiff || 'Не указан'}>
-                    <span>{case_.plaintiff || '-'}</span>
-                  </Tooltip>
-                </TableCell>
-                <TableCell>
-                  <Tooltip title={case_.defendant || 'Не указан'}>
-                    <span>{case_.defendant || '-'}</span>
-                  </Tooltip>
-                </TableCell>
-                <TableCell>{case_.caseNumber || '-'}</TableCell>
-                <TableCell>{formatCurrency(case_.cost)}</TableCell>
-                <TableCell>{formatCurrency(case_.bankTransferAmount || 0)}</TableCell>
-                <TableCell>{formatCurrency(case_.cashAmount || 0)}</TableCell>
-                <TableCell>{formatCurrency(case_.remainingDebt || 0)}</TableCell>
-                <TableCell>
-                  <Typography
-                    color={isOverdue(case_.deadline) ? 'error' : 'inherit'}
-                    fontWeight={isOverdue(case_.deadline) ? 'bold' : 'normal'}
-                  >
-                    {formatDate(case_.deadline)}
-                  </Typography>
-                </TableCell>
-                <TableCell>{formatDate(case_.completionDate)}</TableCell>
-                <TableCell>{case_.expertNotes || '-'}</TableCell>
-                <TableCell>{case_.archiveStatus || '-'}</TableCell>
-                <TableCell>{case_.remarks || '-'}</TableCell>
-              </TableRow>
-            ))}
+            {cases.map((case_) => {
+              return (
+                <TableRow 
+                  key={case_.id} 
+                  hover
+                  onClick={() => handleOpenDetail(case_.id)}
+                  sx={{ cursor: 'pointer' }}
+                >
+                  <TableCell>
+                    <Box>
+                      <Typography variant="body2" fontWeight="medium">
+                        {case_.caseNumber}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Tooltip title={case_.objectAddress}>
+                      <span>
+                        {case_.objectAddress.length > 50 
+                          ? `${case_.objectAddress.substring(0, 50)}...` 
+                          : case_.objectAddress}
+                      </span>
+                    </Tooltip>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={CASE_TYPE_LABELS[case_.type]}
+                      size="small"
+                      color={getTypeColor(case_.type)}
+                      variant="outlined"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={CASE_STATUS_LABELS[case_.status]}
+                      size="small"
+                      color={getStatusColor(case_.status)}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {case_.clientName || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">
+                      {case_.expertName || '-'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1}>
+                      <CalendarToday fontSize="small" color={dayjs(case_.deadline).isBefore(dayjs(), 'day') ? 'error' : 'inherit'} />
+                      <Typography 
+                        variant="body2"
+                        color={dayjs(case_.deadline).isBefore(dayjs(), 'day') ? 'error' : 'inherit'}
+                      >
+                        {formatDate(case_.deadline)}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="caption">
+                      {formatDateTime(case_.createdAt)}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" gap={1} onClick={(e) => e.stopPropagation()}>
+                      <Tooltip title="Редактировать">
+                        <IconButton
+                          size="small"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenEdit(case_);
+                          }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Удалить">
+                        <IconButton
+                          size="small"
+                          color="error"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleOpenDelete(case_.id);
+                          }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                    </Box>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
       </TableContainer>
-
-      <Dialog open={dialogOpen} onClose={() => setDialogOpen(false)} maxWidth="md" fullWidth>
-        <DialogTitle>Создать новое дело</DialogTitle>
+      
+      {/* Пагинация */}
+      <TablePagination
+        component="div"
+        count={totalCases}
+        page={page}
+        onPageChange={handleChangePage}
+        rowsPerPage={rowsPerPage}
+        onRowsPerPageChange={handleChangeRowsPerPage}
+        labelRowsPerPage="Строк на странице:"
+        labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
+        rowsPerPageOptions={[10, 20, 50, 100]}
+        sx={{ 
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          bgcolor: 'background.paper'
+        }}
+      />
+      
+      {/* Диалог создания/редактирования дела */}
+      <Dialog
+        open={createDialogOpen || editDialogOpen}
+        onClose={handleCloseDialogs}
+        maxWidth="md"
+        fullWidth
+      >
+        <DialogTitle>
+          {editingCaseId ? 'Редактировать дело' : 'Создать новое дело'}
+        </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <TextField
-              label="Номер дела"
-              fullWidth
-              value={formData.caseNumber}
-              onChange={(e) => setFormData({ ...formData, caseNumber: e.target.value })}
-            />
-            <TextField
-              label="Суд/Орган"
-              fullWidth
-              value={formData.authority}
-              onChange={(e) => setFormData({ ...formData, authority: e.target.value })}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Клиент</InputLabel>
-              <Select
-                value={formData.clientId}
-                label="Клиент"
-                onChange={(e) => setFormData({ ...formData, clientId: e.target.value })}
-              >
-                {clients?.map((client) => (
-                  <MenuItem key={client.id} value={client.id}>
-                    {client.name}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <TextField
-              label="Тип экспертизы"
-              fullWidth
-              value={formData.caseType}
-              onChange={(e) => setFormData({ ...formData, caseType: e.target.value })}
-            />
-            <TextField
-              label="Тип объекта"
-              fullWidth
-              value={formData.objectType}
-              onChange={(e) => setFormData({ ...formData, objectType: e.target.value })}
-            />
-            <TextField
-              label="Адрес объекта"
-              fullWidth
-              value={formData.objectAddress}
-              onChange={(e) => setFormData({ ...formData, objectAddress: e.target.value })}
-            />
-            <TextField
-              label="Истец"
-              fullWidth
-              value={formData.plaintiff}
-              onChange={(e) => setFormData({ ...formData, plaintiff: e.target.value })}
-            />
-            <TextField
-              label="Ответчик"
-              fullWidth
-              value={formData.defendant}
-              onChange={(e) => setFormData({ ...formData, defendant: e.target.value })}
-            />
-            <Box display="flex" gap={2}>
-              <TextField
-                label="Дата начала"
-                type="date"
-                fullWidth
-                value={formData.startDate}
-                onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-              <TextField
-                label="Срок выполнения"
-                type="date"
-                fullWidth
-                value={formData.deadline}
-                onChange={(e) => setFormData({ ...formData, deadline: e.target.value })}
-                InputLabelProps={{ shrink: true }}
-              />
-            </Box>
-            <TextField
-              label="Стоимость (₽)"
-              type="number"
-              fullWidth
-              value={formData.cost}
-              onChange={(e) => setFormData({ ...formData, cost: Number(e.target.value) })}
-            />
-            <TextField
-              label="Депозит (Безнал, ₽)"
-              type="number"
-              fullWidth
-              value={formData.bankTransferAmount}
-              onChange={(e) => setFormData({ ...formData, bankTransferAmount: Number(e.target.value) })}
-            />
-            <TextField
-              label="Депозит (Наличные, ₽)"
-              type="number"
-              fullWidth
-              value={formData.cashAmount}
-              onChange={(e) => setFormData({ ...formData, cashAmount: Number(e.target.value) })}
-            />
-            <TextField
-              label="Остаток долга (₽)"
-              type="number"
-              fullWidth
-              value={formData.remainingDebt}
-              onChange={(e) => setFormData({ ...formData, remainingDebt: Number(e.target.value) })}
-            />
-            <TextField
-              label="Окончена (дата)"
-              type="date"
-              fullWidth
-              value={formData.completionDate}
-              onChange={(e) => setFormData({ ...formData, completionDate: e.target.value })}
-              InputLabelProps={{ shrink: true }}
-            />
-            <TextField
-              label="Роспись эксперта"
-              fullWidth
-              value={formData.expertNotes}
-              onChange={(e) => setFormData({ ...formData, expertNotes: e.target.value })}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Архив</InputLabel>
-              <Select
-                value={formData.archiveStatus}
-                label="Архив"
-                onChange={(e) => setFormData({ ...formData, archiveStatus: e.target.value })}
-              >
-                <MenuItem value="">Не архивировано</MenuItem>
-                <MenuItem value="archived">Архивировано</MenuItem>
-                <MenuItem value="pending">На утверждении</MenuItem>
-              </Select>
-            </FormControl>
-            <TextField
-              label="Примечание"
-              multiline
-              rows={3}
-              fullWidth
-              value={formData.remarks}
-              onChange={(e) => setFormData({ ...formData, remarks: e.target.value })}
-            />
-            <FormControl fullWidth>
-              <InputLabel>Эксперт (необязательно)</InputLabel>
-              <Select
-                value={formData.assignedExpertId}
-                label="Эксперт (необязательно)"
-                onChange={(e) => setFormData({ ...formData, assignedExpertId: e.target.value })}
-              >
-                <MenuItem value="">Без назначения</MenuItem>
-                {experts?.filter(e => e.status === 'active').map((expert) => (
-                  <MenuItem key={expert.id} value={expert.id}>
-                    {expert.name} ({expert.specialization.join(', ')})
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Номер дела*"
+                  value={formData.caseNumber}
+                  onChange={(e) => setFormData({ ...formData, caseNumber: e.target.value })}
+                  required
+                  autoFocus
+                  error={!formData.caseNumber.trim()}
+                  helperText={!formData.caseNumber.trim() ? 'Обязательное поле' : ''}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Тип дела"
+                  select
+                  value={formData.type}
+                  onChange={(e) => setFormData({ ...formData, type: e.target.value as CaseType })}
+                >
+                  {Object.entries(CASE_TYPE_LABELS).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Адрес объекта*"
+                  value={formData.objectAddress}
+                  onChange={(e) => setFormData({ ...formData, objectAddress: e.target.value })}
+                  required
+                  error={!formData.objectAddress.trim()}
+                  helperText={!formData.objectAddress.trim() ? 'Обязательное поле' : ''}
+                />
+              </Grid>
+              <Grid item xs={12}>
+                <TextField
+                  fullWidth
+                  label="Описание"
+                  multiline
+                  rows={3}
+                  value={formData.description}
+                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Статус"
+                  select
+                  value={formData.status}
+                  onChange={(e) => setFormData({ ...formData, status: e.target.value as CaseStatus })}
+                >
+                  {Object.entries(CASE_STATUS_LABELS).map(([value, label]) => (
+                    <MenuItem key={value} value={value}>
+                      {label}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <TextField
+                  fullWidth
+                  label="Срок выполнения"
+                  type="date"
+                  value={dayjs(formData.deadline).format('YYYY-MM-DD')}
+                  onChange={(e) => setFormData({ ...formData, deadline: dayjs(e.target.value).toISOString() })}
+                  InputLabelProps={{
+                    shrink: true,
+                  }}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  options={clients}
+                  getOptionLabel={(option) => option.name}
+                  value={clients.find(c => c.id === formData.clientId) || null}
+                  onChange={(_, newValue) => setFormData({ ...formData, clientId: newValue?.id || '' })}
+                  renderInput={(params) => <TextField {...params} label="Клиент*" />}
+                />
+              </Grid>
+              <Grid item xs={12} md={6}>
+                <Autocomplete
+                  options={experts}
+                  getOptionLabel={(option) => option.fullName || option.name || ''}
+                  value={experts.find(e => e.id === formData.expertId) || null}
+                  onChange={(_, newValue) => setFormData({ ...formData, expertId: newValue?.id || '' })}
+                  renderInput={(params) => <TextField {...params} label="Эксперт" />}
+                />
+              </Grid>
+            </Grid>
           </Box>
         </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setDialogOpen(false)}>Отмена</Button>
-          <Button
-            onClick={handleSubmit}
-            variant="contained"
-            disabled={createCase.isPending}
+        <DialogActions sx={{ p: 2, px: 3 }}>
+          <Button 
+            onClick={handleCloseDialogs} 
+            startIcon={<Close />}
+            disabled={createCase.isPending || updateCase.isPending}
           >
-            Создать
+            Отмена
+          </Button>
+          <Button
+            onClick={editingCaseId ? handleUpdate : handleCreate}
+            variant="contained"
+            startIcon={<Save />}
+            disabled={
+              createCase.isPending || 
+              updateCase.isPending || 
+              !formData.caseNumber.trim() ||
+              !formData.objectAddress.trim() ||
+              !formData.clientId
+            }
+            sx={{ 
+              boxShadow: 2,
+              '&:hover': { boxShadow: 4 }
+            }}
+          >
+            {createCase.isPending || updateCase.isPending ? 'Сохранение...' : 'Сохранить'}
           </Button>
         </DialogActions>
       </Dialog>
+      
+      {/* Диалог подтверждения удаления */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={handleCloseDialogs}
+      >
+        <DialogTitle>Подтверждение удаления</DialogTitle>
+        <DialogContent>
+          <Typography>
+            Вы уверены, что хотите удалить это дело? Это действие нельзя отменить.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button 
+            onClick={handleCloseDialogs}
+            disabled={deleteCase.isPending}
+          >
+            Отмена
+          </Button>
+          <Button
+            onClick={handleDelete}
+            variant="contained"
+            color="error"
+            startIcon={<Delete />}
+            disabled={deleteCase.isPending}
+            sx={{ 
+              boxShadow: 2,
+              '&:hover': { boxShadow: 4 }
+            }}
+          >
+            {deleteCase.isPending ? 'Удаление...' : 'Удалить'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+      
+      {/* Уведомления */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={6000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      >
+        <Alert
+          severity={snackbar.severity}
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
     </Box>
   );
 }

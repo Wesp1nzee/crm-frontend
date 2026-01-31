@@ -1,14 +1,34 @@
+// src/entities/case/api.ts
 import { api } from '../../shared/api/axios';
-import type { Case, Client, Document, Invoice, Payment } from './types';
+import type { 
+  Case, 
+  Client, 
+  Document, 
+  Invoice, 
+  Payment,
+  GetCasesQuery,
+  GetCasesResponse 
+} from './types';
 import type { Expert, Assignment } from '../expert/types';
 
 export const casesApi = {
-  getCases: () => api.get<Case[]>('/cases'),
-  getCase: (id: string) => api.get<Case>(`/cases/${id}`),
-  createCase: (data: Omit<Case, 'id' | 'createdAt'>) => api.post<Case>('/cases', data),
-  updateCase: (id: string, data: Partial<Case>) => api.put<Case>(`/cases/${id}`, data),
+  getCases: (params?: GetCasesQuery) => 
+    api.get<GetCasesResponse>('/cases', { params }),
+  
+  getCase: (id: string) => 
+    api.get<Case>(`/cases/${id}`),
+  
+  createCase: (data: Omit<Case, 'id' | 'created_at' | 'updated_at'>) => 
+    api.post<Case>('/cases', data),
+  
+  updateCase: (id: string, data: Partial<Case>) => 
+    api.put<Case>(`/cases/${id}`, data),
+
+  deleteCase: (caseId: string) => 
+    api.delete(`/cases/${caseId}`),
 };
 
+// Остальные API функции остаются без изменений
 export const clientsApi = {
   getClients: () => api.get<Client[]>('/clients'),
 };
