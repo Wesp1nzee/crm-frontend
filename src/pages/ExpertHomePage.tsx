@@ -26,8 +26,11 @@ export function ExpertHomePage() {
   const { data: cases } = useCases();
   const { user } = usePermissions();
 
+  // Убедимся, что cases - это массив перед фильтрацией
+  const casesArray = Array.isArray(cases) ? cases : [];
+  
   // Фильтруем дела только для текущего эксперта
-  const expertCases = cases?.filter(c => c.assignedExpertId === user?.id) || [];
+  const expertCases = casesArray.filter(c => c.assignedExpertId === user?.id);
   const activeCases = expertCases.filter(c => !['done', 'closed'].includes(c.status));
   const recentCases = expertCases.slice(0, 5);
 
@@ -75,15 +78,6 @@ export function ExpertHomePage() {
                 sx={{ py: 1.5 }}
               >
                 Мои дела
-              </Button>
-              <Button 
-                variant="outlined" 
-                size="large" 
-                onClick={() => navigate('/calendar')} 
-                fullWidth 
-                sx={{ py: 1.5 }}
-              >
-                Календарь
               </Button>
             </Box>
           </CardContent>

@@ -30,6 +30,24 @@ import dayjs from 'dayjs';
 import { useCases, useInvoices } from '../shared/hooks/useCases';
 import { usePermissions } from '../shared/hooks/usePermissions';
 import { ExpertHomePage } from './ExpertHomePage';
+import { useQuery } from '@tanstack/react-query';
+import axios from 'axios';
+
+interface FinancialSummary {
+  total_revenue: number;
+  pending_payments: number;
+  pending_amount: number;
+  average_case_cost: number;
+  total_cases: number;
+  completed_cases: number;
+  active_cases: number;
+  overdue_cases: number;
+}
+
+const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
+  const response = await axios.get('/api/cases/financial-summary');
+  return response.data;
+};
 
 export function HomePage() {
   const { isExpert } = usePermissions();
@@ -44,18 +62,25 @@ export function HomePage() {
 function AdminHomePage() {
   const navigate = useNavigate();
   const { data: casesResponse } = useCases(); // Получаем весь объект ответа
-  const { data: invoices } = useInvoices();
+  const { data: financialSummary, isLoading: isFinancialLoading } = useQuery<FinancialSummary>({
+    queryKey: ['financial-summary'],
+    queryFn: fetchFinancialSummary,
+  });
 
   // Извлекаем массив дел из объекта ответа
-  const cases = casesResponse?.items || []; // Предполагаем, что дела находятся в свойстве items
+  const cases = casesResponse?.data || []; // Теперь берем из data вместо items
   
-  const activeCases = cases.filter(c => !['done', 'closed'].includes(c.status));
+  const activeCases = cases.filter(c => c.status === 'in_work'); // Активные - только в работе
   const overdueCases = activeCases.filter(c => dayjs(c.deadline).isBefore(dayjs(), 'day'));
   const recentCases = cases.slice(0, 5);
-  const totalRevenue = invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0) || 0;
-  const pendingPayments = invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).length || 0;
 
-  const completionRate = cases.length ? Math.round((cases.filter(c => ['done', 'closed'].includes(c.status)).length / cases.length) * 100) : 0;
+  // Используем данные из финансовой сводки если они доступны
+  const totalRevenue = financialSummary?.total_revenue || 0;
+  const pendingPayments = financialSummary?.pending_payments || 0;
+  const averageCaseCost = financialSummary?.average_case_cost || 0;
+
+  const completedCases = cases.filter(c => c.status !== 'in_work');
+  const completionRate = cases.length ? Math.round((completedCases.length / cases.length) * 100) : 0;
 
   return (
     <Box sx={{ width: '100%', maxWidth: 'none' }}>
@@ -143,9 +168,9 @@ function AdminHomePage() {
               <Button variant="outlined" size="large" startIcon={<People />} fullWidth onClick={() => navigate('/clients')} sx={{ py: 1.5 }}>
                 Клиенты
               </Button>
-              <Button variant="outlined" size="large" startIcon={<AccountBalance />} fullWidth onClick={() => navigate('/finance')} sx={{ py: 1.5 }}>
+              {/* <Button variant="outlined" size="large" startIcon={<AccountBalance />} fullWidth onClick={() => navigate('/finance')} sx={{ py: 1.5 }}>
                 Финансы
-              </Button>
+              </Button> */}
             </Box>
           </CardContent>
         </Card>
@@ -184,14 +209,14 @@ function AdminHomePage() {
               <Box mb={2}>
                 <Typography variant="body2" color="text.secondary">Средняя стоимость дела</Typography>
                 <Typography variant="h6">
-                  {cases.length ? Math.round(totalRevenue / cases.filter(c => ['done', 'closed'].includes(c.status)).length).toLocaleString() : 0} ₽
+                  {averageCaseCost.toLocaleString()} ₽
                 </Typography>
               </Box>
               {pendingPayments > 0 && (
                 <Box>
-                  <Typography variant="body2" color="text.secondary">К получению</Typography>
+                  <Typography variant="body2" color="text.secondary">Долг</Typography>
                   <Typography variant="h6" color="warning.main">
-                    {invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0).toLocaleString()} ₽
+                    {financialSummary?.pending_amount.toLocaleString()} ₽
                   </Typography>
                 </Box>
               )}
@@ -217,8 +242,8 @@ function AdminHomePage() {
                   <Avatar sx={{ bgcolor: 'primary.main' }}><Gavel /></Avatar>
                 </ListItemAvatar>
                 <ListItemText
-                  primary={case_.caseNumber}
-                  secondary={case_.objectAddress}
+                  primary={case_.case_number}
+                  secondary={case_.object_address}
                   primaryTypographyProps={{ fontWeight: 'medium' }}
                 />
                 <Chip 

@@ -25,9 +25,15 @@ export const usersApi = {
 
   createUser: (data: UserCreate) => api.post<UserRead>('/users', data),
 
-  updateUser: (id: string, data: UserUpdate) => api.patch<UserRead>(`/users/${id}`, data),
+  deleteUser: (id: string) => {
+  console.log('DELETE URL:', `/users/${id}`);
+  return api.delete(`/users/${id}`);
+},
 
-  deleteUser: (id: string) => api.delete(`/users/${id}`),
+updateUser: (id: string, data: UserUpdate) => {
+  console.log('UPDATE URL:', `/users/${id}`, 'baseURL:', api.defaults.baseURL);
+  return api.patch<UserRead>(`/users/${id}`, data);
+},
 
   getCurrentUser: () => api.get<UserRead>('/users/me'),
 };

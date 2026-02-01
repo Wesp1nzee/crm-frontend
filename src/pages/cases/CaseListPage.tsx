@@ -1,5 +1,5 @@
 // src/pages/cases/CaseListPage.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -25,6 +25,7 @@ import {
   Divider,
   Stack,
   Fade,
+  Avatar,
 } from '@mui/material';
 import {
   Add as AddIcon,
@@ -32,12 +33,14 @@ import {
   Visibility as VisibilityIcon,
   Warning as WarningIcon,
   Info as InfoIcon,
+  Person as PersonIcon,
 } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useCases, useCreateCase, useDeleteCase } from '../../shared/hooks/useCases';
-import type { CaseStatus } from '../../entities/case/types';
+import type { CaseStatus, GetCasesQuery } from '../../entities/case/types';
 import { CreateCaseDialog } from './CreateCaseDialog';
+import { CaseFilters } from './CaseFilters';
 
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -67,26 +70,34 @@ const CASE_STATUS_COLORS: Record<
 
 export function CaseListPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
-  // ── Pagination ───────────────────────────────────────────────────────────
-  const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(20);
+  // ── Filters ──────────────────────────────────────────────────────────────
+  const [filters, setFilters] = useState<GetCasesQuery>({
+    page: 1,
+    limit: 20,
+    sort_field: 'created_at',
+    sort_order: 'desc',
+  });
 
-  // ── Dialog visibility ────────────────────────────────────────────────────
+  // Читаем параметры из URL при загрузке
+  useEffect(() => {
+    const clientId = searchParams.get('client');
+    if (clientId) {
+      console.log('Setting client filter:', clientId);
+      setFilters(prev => ({ ...prev, client_id: clientId }));
+    }
+  }, [searchParams]);
+  
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingCaseId, setDeletingCaseId] = useState<string>('');
 
-  // ── Data fetching ────────────────────────────────────────────────────────
-  const { data: casesResponse, isLoading, error, refetch } = useCases({
-    page: page + 1,
-    limit: rowsPerPage,
-  });
-
+  const { data: casesResponse, isLoading, error, refetch } = useCases(filters);
+  
   const createCase = useCreateCase();
   const deleteCase = useDeleteCase();
 
-  // ── Snackbar ─────────────────────────────────────────────────────────────
   const [snackbar, setSnackbar] = useState<{
     open: boolean;
     message: string;
@@ -95,8 +106,8 @@ export function CaseListPage() {
 
   const cases = casesResponse?.data || [];
   const totalCases = casesResponse?.pagination?.total || 0;
-
-  // ── Create ───────────────────────────────────────────────────────────────
+  const currentPage = (casesResponse?.pagination?.page || 1) - 1;
+  const pageSize = casesResponse?.pagination?.limit || 20;
 
   const handleCreateSubmit = async (formData: Parameters<typeof createCase.mutateAsync>[0]) => {
     try {
@@ -151,12 +162,13 @@ export function CaseListPage() {
   };
 
   // ── Pagination handlers ──────────────────────────────────────────────────
-
-  const handleChangePage = (_: unknown, newPage: number) => setPage(newPage);
+  const handleChangePage = (_: unknown, newPage: number) => {
+    setFilters(prev => ({ ...prev, page: newPage + 1 }));
+  };
 
   const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(e.target.value, 10));
-    setPage(0);
+    const newLimit = parseInt(e.target.value, 10);
+    setFilters(prev => ({ ...prev, limit: newLimit, page: 1 }));
   };
 
   // ── Loading / Error states ───────────────────────────────────────────────
@@ -201,6 +213,9 @@ export function CaseListPage() {
         </Button>
       </Box>
 
+      {/* Filters */}
+      <CaseFilters filters={filters} onFiltersChange={setFilters} />
+
       {/* Table */}
       <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 2 }}>
         <TableContainer>
@@ -214,7 +229,8 @@ export function CaseListPage() {
                 <TableCell width="10%">Статус</TableCell>
                 <TableCell width="10%">Срок</TableCell>
                 <TableCell width="10%">Стоимость</TableCell>
-                <TableCell width="15%" align="center">
+                <TableCell width="12%">Эксперт</TableCell>
+                <TableCell width="13%" align="center">
                   Действия
                 </TableCell>
               </TableRow>
@@ -286,8 +302,27 @@ export function CaseListPage() {
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {new Intl.NumberFormat('ru-RU').format(case_.cost)} ₽
+                      {new Intl.NumberFormat('ru-RU').format(Number(case_.cost))} ₽
                     </Typography>
+                  </TableCell>
+                  <TableCell>
+                    {case_.assigned_expert ? (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
+                          {case_.assigned_expert.full_name.charAt(0)}
+                        </Avatar>
+                        <Typography variant="body2" noWrap>
+                          {case_.assigned_expert.full_name}
+                        </Typography>
+                      </Box>
+                    ) : (
+                      <Box display="flex" alignItems="center" gap={1}>
+                        <PersonIcon fontSize="small" color="disabled" />
+                        <Typography variant="body2" color="text.secondary">
+                          Не назначен
+                        </Typography>
+                      </Box>
+                    )}
                   </TableCell>
                   <TableCell align="center">
                     <Stack direction="row" spacing={1} justifyContent="center">
@@ -327,7 +362,7 @@ export function CaseListPage() {
               ))}
               {cases.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={8} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Stack spacing={2} alignItems="center">
                       <InfoIcon color="disabled" sx={{ fontSize: 60 }} />
                       <Typography variant="h6" color="text.secondary">
@@ -347,9 +382,9 @@ export function CaseListPage() {
         <TablePagination
           component="div"
           count={totalCases}
-          page={page}
+          page={currentPage}
           onPageChange={handleChangePage}
-          rowsPerPage={rowsPerPage}
+          rowsPerPage={pageSize}
           onRowsPerPageChange={handleChangeRowsPerPage}
           labelRowsPerPage="Строк на странице:"
           labelDisplayedRows={({ from, to, count }) => `${from}–${to} из ${count}`}

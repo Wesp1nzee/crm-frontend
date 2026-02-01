@@ -28,7 +28,7 @@ import {
   Warning,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
-import { useInvoices, usePayments, useCases, useClients } from '../../shared/hooks/useCases';
+import { useInvoices, usePayments, useCases } from '../../shared/hooks/useCases';
 import type { Invoice } from '../../entities/case/types';
 
 const invoiceStatusLabels: Record<Invoice['status'], string> = {
@@ -50,25 +50,26 @@ const invoiceStatusColors: Record<Invoice['status'], 'default' | 'primary' | 'se
 export function FinancePage() {
   const [filterStatus, setFilterStatus] = useState<Invoice['status'] | 'all'>('all');
   
-  const { data: invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
-  const { data: payments, isLoading: paymentsLoading } = usePayments();
-  const { data: cases } = useCases();
-  const { data: clients } = useClients();
+  const {  invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
+  const {  payments, isLoading: paymentsLoading } = usePayments();
+  const {  cases } = useCases();
 
   const filteredInvoices = invoices?.filter(invoice => 
     filterStatus === 'all' || invoice.status === filterStatus
   );
 
+  // Проверяем, что cases - это массив, иначе используем пустой массив
+  const casesArray = Array.isArray(cases) ? cases : [];
+
   const getCaseName = (caseId: string) => {
-    const case_ = cases?.find(c => c.id === caseId);
-    return case_?.caseNumber || caseId;
+    const caseItem = casesArray.find(c => c.id === caseId);
+    return caseItem?.caseNumber || caseId;
   };
 
+  // Получаем имя клиента напрямую из данных дела
   const getClientName = (caseId: string) => {
-    const case_ = cases?.find(c => c.id === caseId);
-    if (!case_) return '-';
-    const client = clients?.find(c => c.id === case_.clientId);
-    return client?.name || '-';
+    const caseItem = casesArray.find(c => c.id === caseId);
+    return caseItem?.clientName || caseItem?.client?.name || '-';
   };
 
   // Аналитика

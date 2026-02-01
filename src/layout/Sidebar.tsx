@@ -6,10 +6,10 @@ import {
   People,
   Engineering,
   Description,
-  AccountBalance,
+  // AccountBalance,
   Assessment,
-  CalendarMonth,
-  Calculate,
+  // CalendarMonth,
+  // Calculate,
   // Email
 } from '@mui/icons-material';
 import { usePermissions } from '../shared/hooks/usePermissions';
@@ -23,10 +23,10 @@ const menuItems = [
   { text: 'Клиенты', path: '/clients', icon: <People /> },
   { text: 'Эксперты', path: '/experts', icon: <Engineering /> },
   { text: 'Документы', path: '/documents', icon: <Description /> },
-  { text: 'Финансы', path: '/finance', icon: <AccountBalance /> },
-  { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
-  { text: 'Календарь', path: '/calendar', icon: <CalendarMonth /> },
-  { text: 'Расчеты', path: '/calculate', icon: <Calculate /> },
+  // { text: 'Финансы', path: '/finance', icon: <AccountBalance /> },
+  // { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
+  // { text: 'Календарь', path: '/calendar', icon: <CalendarMonth /> },
+  // { text: 'Расчеты', path: '/calculate', icon: <Calculate /> },
   // { text: 'Почта', path: '/mail', icon: <Email /> },
 ];
 

@@ -41,10 +41,10 @@ import {
   VisibilityOff,
   Autorenew,
 } from '@mui/icons-material';
-import { 
-  useExperts, 
-  useCreateExpert, 
-  useUpdateExpert, 
+import {
+  useExperts,
+  useCreateExpert,
+  useUpdateExpert,
   useDeleteExpert,
   type Expert,
 } from '../../shared/hooks/useExperts';
@@ -59,6 +59,7 @@ export function ExpertsPage() {
   const [filters, setFilters] = useState({
     search: '',
     status: 'all' as 'all' | 'active' | 'inactive',
+    role: 'all' as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT,
   });
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -68,9 +69,11 @@ export function ExpertsPage() {
     email: '',
     phone: '',
     specialization: '',
+    role: UserRole.EXPERT,
     status: 'active' as Expert['status'],
     password: '',
   });
+
   const [showPassword, setShowPassword] = useState(false);
 
   // Дебаунс для поиска
@@ -78,13 +81,14 @@ export function ExpertsPage() {
   
   // Вычисляем параметры для запроса
   const queryFilters = {
-    role: UserRole.EXPERT,
+    role: filters.role === 'all' ? undefined : (filters.role as UserRole),
     search: debouncedSearch || undefined,
     is_active: filters.status === 'all' 
       ? undefined 
       : (filters.status === 'active'),
   };
 
+  // FIX: useQuery возвращает `data`, а не `experts` — переименовываем через `data: experts`
   const { data: experts, isLoading, error, refetch, isRefetching } = useExperts(queryFilters);
   const createExpert = useCreateExpert();
   const updateExpert = useUpdateExpert();
@@ -101,8 +105,12 @@ export function ExpertsPage() {
     }
   };
 
+  const handleRoleChange = (e: React.ChangeEvent<{ value: unknown }>) => {
+    setFilters({ ...filters, role: e.target.value as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT });
+  };
+
   const handleClearFilters = () => {
-    setFilters({ search: '', status: 'all' });
+    setFilters({ search: '', status: 'all', role: 'all' });
   };
 
   const handleOpenDialog = (expert?: Expert) => {
@@ -113,8 +121,9 @@ export function ExpertsPage() {
         email: expert.email,
         phone: expert.phone || '',
         specialization: expert.specialization?.[0] || '',
+        role: expert.role,
         status: expert.status,
-        password: '', // Пароль не редактируется при обновлении
+        password: '',
       });
     } else {
       setEditingExpert(null);
@@ -123,6 +132,7 @@ export function ExpertsPage() {
         email: '',
         phone: '',
         specialization: '',
+        role: UserRole.EXPERT,
         status: 'active',
         password: '',
       });
@@ -139,6 +149,7 @@ export function ExpertsPage() {
       email: '',
       phone: '',
       specialization: '',
+      role: UserRole.EXPERT,
       status: 'active',
       password: '',
     });
@@ -161,33 +172,33 @@ export function ExpertsPage() {
         email: formData.email,
         phone: formData.phone || undefined,
         specialization: formData.specialization || undefined,
+        role: formData.role,
         status: formData.status,
         password: formData.password || undefined,
       };
 
       if (editingExpert) {
-        // При редактировании пароль не передаём
         const { password: _, ...updateData } = submitData;
-        await updateExpert.mutateAsync({ id: editingExpert.id, data: updateData as any });
+        await updateExpert.mutateAsync({ id: editingExpert.id, data: updateData });
       } else {
         await createExpert.mutateAsync(submitData);
       }
       handleCloseDialog();
       refetch();
     } catch (error) {
-      console.error('Error saving expert:', error);
-      alert('Ошибка сохранения эксперта: ' + (error as Error).message);
+      console.error('Error saving user:', error);
+      alert('Ошибка сохранения пользователя: ' + (error as Error).message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Удалить эксперта?')) {
+    if (window.confirm('Удалить пользователя?')) {
       try {
         await deleteExpert.mutateAsync(id);
         refetch();
       } catch (error) {
-        console.error('Error deleting expert:', error);
-        alert('Ошибка удаления эксперта: ' + (error as Error).message);
+        console.error('Error deleting user:', error);
+        alert('Ошибка удаления пользователя: ' + (error as Error).message);
       }
     }
   };
@@ -203,7 +214,7 @@ export function ExpertsPage() {
   if (error) {
     return (
       <Alert severity="error" sx={{ mt: 2 }}>
-        Ошибка загрузки экспертов: {(error as Error).message}
+        Ошибка загрузки пользователей: {(error as Error).message}
       </Alert>
     );
   }
@@ -213,7 +224,7 @@ export function ExpertsPage() {
       {/* Заголовок и кнопки */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
         <Typography variant="h4">
-          Эксперты
+          Пользователи
         </Typography>
         <Box display="flex" gap={1}>
           <Button
@@ -229,14 +240,14 @@ export function ExpertsPage() {
             startIcon={<Add />}
             onClick={() => handleOpenDialog()}
           >
-            Добавить эксперта
+            Добавить пользователя
           </Button>
         </Box>
       </Box>
 
       <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid size={{ xs: 12, md: 6 }}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               size="small"
@@ -253,7 +264,22 @@ export function ExpertsPage() {
             />
           </Grid>
           
-          <Grid size={{ xs: 12, md: 4 }}>
+          <Grid size={{ xs: 12, md: 3 }}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Роль</InputLabel>
+              <Select
+                value={filters.role}
+                label="Роль"
+                onChange={handleRoleChange}
+              >
+                <MenuItem value="all">Все</MenuItem>
+                <MenuItem value={UserRole.EXPERT}>Эксперт</MenuItem>
+                <MenuItem value={UserRole.ACCOUNTANT}>Бухгалтер</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          
+          <Grid size={{ xs: 12, md: 3 }}>
             <ToggleButtonGroup
               value={filters.status}
               exclusive
@@ -273,7 +299,7 @@ export function ExpertsPage() {
             </ToggleButtonGroup>
           </Grid>
           
-          {(filters.search || filters.status !== 'all') && (
+          {(filters.search || filters.status !== 'all' || filters.role !== 'all') && (
             <Grid size={{ xs: 12, md: 2 }}>
               <Button
                 fullWidth
@@ -295,9 +321,9 @@ export function ExpertsPage() {
             <TableRow>
               <TableCell>Имя</TableCell>
               <TableCell>Email</TableCell>
+              <TableCell>Роль</TableCell>
               <TableCell>Специализация</TableCell>
               <TableCell>Статус</TableCell>
-              <TableCell>Активные дела</TableCell>
               <TableCell>Действия</TableCell>
             </TableRow>
           </TableHead>
@@ -311,7 +337,13 @@ export function ExpertsPage() {
                   </Box>
                 </TableCell>
                 <TableCell>{expert.email}</TableCell>
-               
+                <TableCell>
+                  <Chip
+                    label={expert.role === UserRole.EXPERT ? 'Эксперт' : 'Бухгалтер'}
+                    color={expert.role === UserRole.EXPERT ? 'primary' : 'secondary'}
+                    size="small"
+                  />
+                </TableCell>
                 <TableCell>
                   {expert.specialization?.length > 0 ? (
                     <Box display="flex" flexWrap="wrap" gap={0.5}>
@@ -327,24 +359,6 @@ export function ExpertsPage() {
                     color={expert.status === 'active' ? 'success' : 'default'}
                     size="small"
                   />
-                </TableCell>
-                <TableCell>
-                  <Box display="flex" alignItems="center" gap={1}>
-                    <Work fontSize="small" color="primary" />
-                    <Typography fontWeight="medium">
-                      {expert.count_case}
-                    </Typography>
-                    <Button 
-                      size="small" 
-                      variant="outlined"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        navigate(`/cases?expert=${expert.id}`);
-                      }}
-                    >
-                      Посмотреть
-                    </Button>
-                  </Box>
                 </TableCell>
                 <TableCell>
                   <Box display="flex" gap={1}>
@@ -363,9 +377,9 @@ export function ExpertsPage() {
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    {filters.search || filters.status !== 'all' 
-                      ? 'Не найдено экспертов по заданным фильтрам' 
-                      : 'Нет экспертов'}
+                    {filters.search || filters.status !== 'all' || filters.role !== 'all'
+                      ? 'Не найдено пользователей по заданным фильтрам' 
+                      : 'Нет пользователей'}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -377,7 +391,7 @@ export function ExpertsPage() {
       {/* Модальное окно */}
       <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
         <DialogTitle>
-          {editingExpert ? 'Редактировать эксперта' : 'Добавить эксперта'}
+          {editingExpert ? 'Редактировать пользователя' : 'Добавить пользователя'}
         </DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -400,6 +414,17 @@ export function ExpertsPage() {
               error={!formData.email.trim()}
               helperText={!formData.email.trim() ? 'Email обязателен' : ''}
             />
+            <FormControl fullWidth>
+              <InputLabel>Роль</InputLabel>
+              <Select
+                value={formData.role}
+                label="Роль"
+                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+              >
+                <MenuItem value={UserRole.EXPERT}>Эксперт</MenuItem>
+                <MenuItem value={UserRole.ACCOUNTANT}>Бухгалтер</MenuItem>
+              </Select>
+            </FormControl>
             <TextField
               label="Специализация"
               fullWidth

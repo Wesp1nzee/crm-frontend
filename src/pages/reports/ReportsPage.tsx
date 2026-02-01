@@ -32,6 +32,7 @@ import {
   useTheme,
   useMediaQuery,
   Alert,
+  Divider,
 } from '@mui/material';
 import {
   DownloadOutlined,
@@ -47,8 +48,26 @@ import {
   CheckCircleOutlineOutlined,
   WarningOutlined,
   ErrorOutlineOutlined,
+  AccountBalance,
+  Receipt,
+  Warning as WarningIcon,
+  TrendingUp,
 } from '@mui/icons-material';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as ChartTooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { 
+  LineChart, 
+  Line, 
+  BarChart, 
+  Bar, 
+  XAxis, 
+  YAxis, 
+  CartesianGrid, 
+  Tooltip as ChartTooltip, 
+  Legend, 
+  ResponsiveContainer, 
+  PieChart, 
+  Pie, 
+  Cell 
+} from 'recharts';
 import dayjs from 'dayjs';
 import relativeTime from 'dayjs/plugin/relativeTime';
 import 'dayjs/locale/ru';
@@ -56,6 +75,7 @@ import 'dayjs/locale/ru';
 dayjs.extend(relativeTime);
 dayjs.locale('ru');
 
+// Типы данных
 interface StorageMetric {
   category: string;
   used: number;
@@ -69,14 +89,38 @@ interface LoginLog {
   userName: string;
   userEmail: string;
   loginTime: string;
-  logoutTime?:  string;
-  ipAddress:  string;
+  logoutTime?: string;
+  ipAddress: string;
   deviceType: 'desktop' | 'mobile' | 'tablet';
   browser: string;
   status: 'success' | 'failed' | 'warning';
   location?: string;
   duration?: number;
-  sessionId:  string;
+  sessionId: string;
+}
+
+interface Invoice {
+  id: string;
+  number: string;
+  amount: number;
+  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  caseId: string;
+  createdAt: string;
+  dueDate: string;
+  paidAt?: string;
+}
+
+interface Case {
+  id: string;
+  caseNumber: string;
+  clientId: string;
+  clientName?: string;
+  client?: {
+    name: string;
+  };
+  status: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 interface ReportMetric {
@@ -87,155 +131,8 @@ interface ReportMetric {
   users: number;
 }
 
-interface SystemMetric {
-  timestamp: string;
-  cpuUsage: number;
-  memoryUsage: number;
-  storageUsage: number;
-  activeUsers: number;
-}
-
-const mockStorageData: StorageMetric[] = [
-  {
-    category: 'Документы',
-    used: 45.2,
-    limit: 100,
-    percent: 45.2,
-    icon: <AssignmentOutlined />,
-  },
-  {
-    category: 'Фотографии',
-    used:  28.5,
-    limit: 100,
-    percent: 28.5,
-    icon: <CloudUploadOutlined />,
-  },
-  {
-    category:  'Видео',
-    used: 15.3,
-    limit: 100,
-    percent: 15.3,
-    icon: <TrendingUpOutlined />,
-  },
-  {
-    category:  'Резервные копии',
-    used: 8.7,
-    limit: 50,
-    percent: 17.4,
-    icon: <StorageOutlined />,
-  },
-];
-
-const mockLoginLogs: LoginLog[] = [
-  {
-    id: '1',
-    userName: 'Иван Петров',
-    userEmail: 'ivan.petrov@crm.local',
-    loginTime: dayjs().subtract(2, 'hours').toISOString(),
-    logoutTime: dayjs().subtract(1, 'hours').toISOString(),
-    ipAddress: '192.168.1.100',
-    deviceType: 'desktop',
-    browser: 'Chrome 120.0',
-    status: 'success',
-    location: 'Москва, Россия',
-    duration: 3600,
-    sessionId: 'sess_12345',
-  },
-  {
-    id:  '2',
-    userName: 'Мария Сидорова',
-    userEmail: 'maria.sidorova@crm.local',
-    loginTime: dayjs().subtract(5, 'hours').toISOString(),
-    ipAddress: '192.168.1.101',
-    deviceType: 'mobile',
-    browser: 'Safari Mobile 17.2',
-    status: 'success',
-    location: 'Санкт-Петербург, Россия',
-    sessionId: 'sess_12346',
-  },
-  {
-    id: '3',
-    userName: 'Алексей Козлов',
-    userEmail:  'alex.kozlov@crm.local',
-    loginTime: dayjs().subtract(8, 'hours').toISOString(),
-    logoutTime: dayjs().subtract(7, 'hours').toISOString(),
-    ipAddress: '192.168.1.102',
-    deviceType: 'tablet',
-    browser: 'Chrome 120.0',
-    status: 'success',
-    location: 'Екатеринбург, Россия',
-    duration: 3600,
-    sessionId: 'sess_12347',
-  },
-  {
-    id: '4',
-    userName: 'Неизвестный пользователь',
-    userEmail: 'unknown@external.com',
-    loginTime: dayjs().subtract(10, 'hours').toISOString(),
-    ipAddress: '203.0.113.45',
-    deviceType: 'desktop',
-    browser: 'Firefox 121.0',
-    status: 'failed',
-    location: 'Неизвестно',
-    sessionId: 'sess_12348',
-  },
-  {
-    id: '5',
-    userName: 'Сергей Волков',
-    userEmail: 'sergey.volkov@crm.local',
-    loginTime: dayjs().subtract(1, 'day').toISOString(),
-    logoutTime: dayjs().subtract(1, 'day').add(2, 'hours').toISOString(),
-    ipAddress: '192.168.1.103',
-    deviceType: 'desktop',
-    browser: 'Edge 120.0',
-    status: 'success',
-    location: 'Казань, Россия',
-    duration: 7200,
-    sessionId: 'sess_12349',
-  },
-];
-
-const mockReportData: ReportMetric[] = [
-  {
-    date:  '2025-01-01',
-    cases: 12,
-    documents: 45,
-    revenue: 125000,
-    users: 8,
-  },
-  {
-    date: '2025-01-02',
-    cases: 15,
-    documents: 52,
-    revenue: 145000,
-    users: 10,
-  },
-  {
-    date: '2025-01-03',
-    cases: 18,
-    documents: 61,
-    revenue: 165000,
-    users: 12,
-  },
-  {
-    date: '2025-01-04',
-    cases: 14,
-    documents: 48,
-    revenue: 135000,
-    users: 9,
-  },
-  {
-    date: '2025-01-05',
-    cases: 20,
-    documents: 68,
-    revenue: 185000,
-    users: 14,
-  },
-];
-
-
 interface TabPanelProps {
-  children?:  React.ReactNode;
+  children?: React.ReactNode;
   index: number;
   value: number;
 }
@@ -246,6 +143,294 @@ function TabPanel(props: TabPanelProps) {
     <div hidden={value !== index} role="tabpanel">
       {value === index && <Box sx={{ pt: 3 }}>{children}</Box>}
     </div>
+  );
+}
+
+// Моковые данные
+const mockStorageData: StorageMetric[] = [
+  { category: 'Документы', used: 45.2, limit: 100, percent: 45.2, icon: <AssignmentOutlined /> },
+  { category: 'Финансы', used: 23.1, limit: 50, percent: 46.2, icon: <AccountBalance /> },
+  { category: 'Изображения', used: 12.8, limit: 25, percent: 51.2, icon: <CloudUploadOutlined /> },
+  { category: 'Видео', used: 8.9, limit: 20, percent: 44.5, icon: <AssignmentOutlined /> },
+];
+
+const mockLoginLogs: LoginLog[] = [
+  {
+    id: '1',
+    userName: 'Иван Петров',
+    userEmail: 'ivan@example.com',
+    loginTime: '2026-02-01T09:30:00Z',
+    ipAddress: '192.168.1.100',
+    deviceType: 'desktop',
+    browser: 'Chrome',
+    status: 'success',
+    location: 'Москва, РФ',
+    duration: 120,
+    sessionId: 'session-001'
+  },
+  {
+    id: '2',
+    userName: 'Мария Сидорова',
+    userEmail: 'maria@example.com',
+    loginTime: '2026-02-01T10:15:00Z',
+    ipAddress: '192.168.1.101',
+    deviceType: 'mobile',
+    browser: 'Safari',
+    status: 'success',
+    location: 'Санкт-Петербург, РФ',
+    duration: 45,
+    sessionId: 'session-002'
+  },
+  {
+    id: '3',
+    userName: 'Алексей Козлов',
+    userEmail: 'alexey@example.com',
+    loginTime: '2026-02-01T11:20:00Z',
+    ipAddress: '192.168.1.102',
+    deviceType: 'tablet',
+    browser: 'Firefox',
+    status: 'failed',
+    location: 'Новосибирск, РФ',
+    sessionId: 'session-003'
+  },
+];
+
+const mockReportData: ReportMetric[] = [
+  { date: '2026-01-27', cases: 12, documents: 45, revenue: 250000, users: 8 },
+  { date: '2026-01-28', cases: 15, documents: 52, revenue: 320000, users: 10 },
+  { date: '2026-01-29', cases: 8, documents: 38, revenue: 180000, users: 7 },
+  { date: '2026-01-30', cases: 18, documents: 67, revenue: 410000, users: 12 },
+  { date: '2026-01-31', cases: 14, documents: 55, revenue: 290000, users: 9 },
+];
+
+const mockInvoices: Invoice[] = [
+  { id: 'inv-001', number: 'INV-2026-001', amount: 150000, status: 'paid', caseId: 'case-001', createdAt: '2026-01-15T10:00:00Z', dueDate: '2026-01-25T23:59:59Z', paidAt: '2026-01-20T14:30:00Z' },
+  { id: 'inv-002', number: 'INV-2026-002', amount: 220000, status: 'sent', caseId: 'case-002', createdAt: '2026-01-20T09:00:00Z', dueDate: '2026-01-30T23:59:59Z' },
+  { id: 'inv-003', number: 'INV-2026-003', amount: 95000, status: 'overdue', caseId: 'case-003', createdAt: '2026-01-10T11:00:00Z', dueDate: '2026-01-20T23:59:59Z' },
+  { id: 'inv-004', number: 'INV-2026-004', amount: 180000, status: 'draft', caseId: 'case-004', createdAt: '2026-01-25T13:00:00Z', dueDate: '2026-02-05T23:59:59Z' },
+  { id: 'inv-005', number: 'INV-2026-005', amount: 310000, status: 'paid', caseId: 'case-005', createdAt: '2026-01-05T16:00:00Z', dueDate: '2026-01-15T23:59:59Z', paidAt: '2026-01-12T09:45:00Z' },
+];
+
+const mockCases: Case[] = [
+  { id: 'case-001', caseNumber: 'CASE-2026-001', clientId: 'client-001', clientName: 'ООО "Ромашка"', status: 'active', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-20T14:30:00Z' },
+  { id: 'case-002', caseNumber: 'CASE-2026-002', clientId: 'client-002', clientName: 'АО "Солнечные технологии"', status: 'in-progress', createdAt: '2026-01-05T00:00:00Z', updatedAt: '2026-01-25T10:00:00Z' },
+  { id: 'case-003', caseNumber: 'CASE-2026-003', clientId: 'client-003', clientName: 'ИП "Веселый"', status: 'closed', createdAt: '2025-12-15T00:00:00Z', updatedAt: '2026-01-10T16:00:00Z' },
+  { id: 'case-004', caseNumber: 'CASE-2026-004', clientId: 'client-001', clientName: 'ООО "Ромашка"', status: 'new', createdAt: '2026-01-25T00:00:00Z', updatedAt: '2026-01-25T13:00:00Z' },
+  { id: 'case-005', caseNumber: 'CASE-2026-005', clientId: 'client-004', clientName: 'ЗАО "Городские решения"', status: 'active', createdAt: '2026-01-10T00:00:00Z', updatedAt: '2026-01-30T11:00:00Z' },
+];
+
+function FinanceDashboard() {
+  const [filterStatus, setFilterStatus] = useState<Invoice['status'] | 'all'>('all');
+  
+  const invoices = mockInvoices;
+  const payments = [];
+  const cases = mockCases;
+
+  const filteredInvoices = invoices?.filter(invoice => 
+    filterStatus === 'all' || invoice.status === filterStatus
+  );
+
+  // Проверяем, что cases - это массив, иначе используем пустой массив
+  const casesArray = Array.isArray(cases) ? cases : [];
+
+  const getCaseName = (caseId: string) => {
+    const caseItem = casesArray.find(c => c.id === caseId);
+    return caseItem?.caseNumber || caseId;
+  };
+
+  // Получаем имя клиента напрямую из данных дела
+  const getClientName = (caseId: string) => {
+    const caseItem = casesArray.find(c => c.id === caseId);
+    return caseItem?.clientName || caseItem?.client?.name || '-';
+  };
+
+  // Аналитика
+  const totalRevenue = invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0) || 0;
+  const pendingAmount = invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0) || 0;
+  const overdueCount = invoices?.filter(i => i.status === 'overdue').length || 0;
+  const thisMonthRevenue = payments?.filter((p: any) => 
+    dayjs(p.receivedAt).isAfter(dayjs().startOf('month'))
+  ).reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+
+  const invoiceStatusLabels: Record<Invoice['status'], string> = {
+    draft: 'Черновик',
+    sent: 'Отправлен',
+    paid: 'Оплачен',
+    overdue: 'Просрочен',
+    cancelled: 'Отменен',
+  };
+
+  const invoiceStatusColors: Record<Invoice['status'], 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
+    draft: 'default',
+    sent: 'info',
+    paid: 'success',
+    overdue: 'error',
+    cancelled: 'secondary',
+  };
+
+  return (
+    <Box>
+      <Typography variant="h4" gutterBottom>
+        Финансовая аналитика
+      </Typography>
+
+      {/* Карточки с метриками */}
+      <Grid container spacing={3} mb={3}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    Общая выручка
+                  </Typography>
+                  <Typography variant="h5">
+                    {totalRevenue.toLocaleString()} ₽
+                  </Typography>
+                </Box>
+                <TrendingUp color="success" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    К оплате
+                  </Typography>
+                  <Typography variant="h5">
+                    {pendingAmount.toLocaleString()} ₽
+                  </Typography>
+                </Box>
+                <AccountBalance color="info" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    За этот месяц
+                  </Typography>
+                  <Typography variant="h5">
+                    {thisMonthRevenue.toLocaleString()} ₽
+                  </Typography>
+                </Box>
+                <Receipt color="primary" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+        
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box display="flex" alignItems="center" justifyContent="space-between">
+                <Box>
+                  <Typography color="text.secondary" gutterBottom>
+                    Просрочено
+                  </Typography>
+                  <Typography variant="h5" color="error">
+                    {overdueCount}
+                  </Typography>
+                </Box>
+                <WarningIcon color="error" sx={{ fontSize: 40 }} />
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+
+      {/* Фильтры */}
+      <Paper sx={{ p: 2, mb: 3 }}>
+        <Box display="flex" gap={2} alignItems="center">
+          <FormControl size="small" sx={{ minWidth: 200 }}>
+            <InputLabel>Статус счета</InputLabel>
+            <Select
+              value={filterStatus}
+              label="Статус счета"
+              onChange={(e) => setFilterStatus(e.target.value as Invoice['status'] | 'all')}
+            >
+              <MenuItem value="all">Все статусы</MenuItem>
+              {Object.entries(invoiceStatusLabels).map(([value, label]) => (
+                <MenuItem key={value} value={value}>
+                  {label}
+                </MenuItem>
+              ))}
+            </Select>
+          </FormControl>
+          
+          <Button variant="contained" color="primary">
+            Создать счет
+          </Button>
+        </Box>
+      </Paper>
+
+      {/* Таблица счетов */}
+      <TableContainer component={Paper}>
+        <Table>
+          <TableHead>
+            <TableRow>
+              <TableCell>Номер счета</TableCell>
+              <TableCell>Дело</TableCell>
+              <TableCell>Клиент</TableCell>
+              <TableCell>Сумма</TableCell>
+              <TableCell>Статус</TableCell>
+              <TableCell>Создан</TableCell>
+              <TableCell>К оплате до</TableCell>
+              <TableCell>Оплачен</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {filteredInvoices?.map((invoice) => (
+              <TableRow key={invoice.id} hover>
+                <TableCell>
+                  <Typography variant="body2" fontWeight="medium">
+                    {invoice.number}
+                  </Typography>
+                </TableCell>
+                <TableCell>{getCaseName(invoice.caseId)}</TableCell>
+                <TableCell>{getClientName(invoice.caseId)}</TableCell>
+                <TableCell>
+                  <Typography fontWeight="medium">
+                    {invoice.amount.toLocaleString()} ₽
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  <Chip
+                    label={invoiceStatusLabels[invoice.status]}
+                    color={invoiceStatusColors[invoice.status]}
+                    size="small"
+                  />
+                </TableCell>
+                <TableCell>
+                  {dayjs(invoice.createdAt).format('DD.MM.YYYY')}
+                </TableCell>
+                <TableCell>
+                  <Typography
+                    color={invoice.status === 'overdue' ? 'error' : 'inherit'}
+                    fontWeight={invoice.status === 'overdue' ? 'bold' : 'normal'}
+                  >
+                    {dayjs(invoice.dueDate).format('DD.MM.YYYY')}
+                  </Typography>
+                </TableCell>
+                <TableCell>
+                  {invoice.paidAt ? dayjs(invoice.paidAt).format('DD.MM.YYYY') : '-'}
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      </TableContainer>
+    </Box>
   );
 }
 
@@ -268,7 +453,7 @@ function StorageAnalyticsCard() {
       <CardHeader
         avatar={<StorageOutlined sx={{ color: 'primary.main', fontSize: 28 }} />}
         title="Анализ облачного хранилища"
-        subheader={`Используется ${totalUsed. toFixed(1)} ГБ из ${totalLimit} ГБ`}
+        subheader={`Используется ${totalUsed.toFixed(1)} ГБ из ${totalLimit} ГБ`}
         action={
           <Tooltip title="Обновить">
             <IconButton size="small">
@@ -341,7 +526,7 @@ function StorageAnalyticsCard() {
                 <Box key={index} mb={2}>
                   <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
                     <Box display="flex" alignItems="center" gap={1}>
-                      <Box sx={{ color:  COLORS[index] }}>{metric.icon}</Box>
+                      <Box sx={{ color: COLORS[index] }}>{metric.icon}</Box>
                       <Typography variant="body2" fontWeight="500">
                         {metric.category}
                       </Typography>
@@ -352,13 +537,13 @@ function StorageAnalyticsCard() {
                   </Box>
                   <LinearProgress
                     variant="determinate"
-                    value={metric. percent}
+                    value={metric.percent}
                     sx={{
                       height: 6,
                       borderRadius: 3,
                       backgroundColor: theme.palette.grey[200],
                       '& .MuiLinearProgress-bar': {
-                        background:  COLORS[index],
+                        background: COLORS[index],
                         borderRadius: 3,
                       },
                     }}
@@ -393,7 +578,7 @@ function LoginLogsSection() {
       case 'success':
         return <CheckCircleOutlineOutlined sx={{ color: 'success.main' }} />;
       case 'failed':
-        return <ErrorOutlineOutlined sx={{ color:  'error.main' }} />;
+        return <ErrorOutlineOutlined sx={{ color: 'error.main' }} />;
       case 'warning': 
         return <WarningOutlined sx={{ color: 'warning.main' }} />;
     }
@@ -408,7 +593,7 @@ function LoginLogsSection() {
     return (
       <Chip
         icon={getStatusIcon(status)}
-        label={statusMap[status]. label}
+        label={statusMap[status].label}
         color={statusMap[status].color}
         size="small"
         variant="outlined"
@@ -418,7 +603,7 @@ function LoginLogsSection() {
 
   const getDeviceChip = (device: LoginLog['deviceType']) => {
     const deviceMap = {
-      desktop:  { label: 'ПК', color: 'primary' },
+      desktop: { label: 'ПК', color: 'primary' },
       mobile: { label: 'Мобиль', color: 'info' },
       tablet: { label: 'Планшет', color: 'secondary' },
     };
@@ -492,7 +677,7 @@ function LoginLogsSection() {
         {isMobile ? (
           // Mobile view - Cards instead of table
           <Box display="flex" flexDirection="column" gap={2}>
-            {filteredLogs.length === 0 ?  (
+            {filteredLogs.length === 0 ? (
               <Alert severity="info">Логи не найдены</Alert>
             ) : (
               filteredLogs.map(log => (
@@ -526,7 +711,7 @@ function LoginLogsSection() {
                   <Divider sx={{ my: 1 }} />
                   <Box display="flex" justifyContent="space-between" mb={0.5}>
                     <Typography variant="caption" color="textSecondary">
-                      Время входа: 
+                      Время входа:
                     </Typography>
                     <Typography variant="caption" fontWeight="500">
                       {dayjs(log.loginTime).format('HH:mm, DD MMM')}
@@ -544,7 +729,7 @@ function LoginLogsSection() {
                     <Typography variant="caption" color="textSecondary">
                       Устройство:
                     </Typography>
-                    <Box>{getDeviceChip(log. deviceType)}</Box>
+                    <Box>{getDeviceChip(log.deviceType)}</Box>
                   </Box>
                   {log.location && (
                     <Box display="flex" justifyContent="space-between">
@@ -589,7 +774,7 @@ function LoginLogsSection() {
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
                           <Avatar sx={{ width: 32, height: 32 }}>
-                            {log.userName. charAt(0)}
+                            {log.userName.charAt(0)}
                           </Avatar>
                           <Box>
                             <Typography variant="body2" fontWeight="500">
@@ -614,7 +799,7 @@ function LoginLogsSection() {
                           {dayjs(log.loginTime).fromNow()}
                         </Typography>
                       </TableCell>
-                      <TableCell>{getDeviceChip(log. deviceType)}</TableCell>
+                      <TableCell>{getDeviceChip(log.deviceType)}</TableCell>
                       <TableCell>
                         <Typography variant="caption">{log.browser}</Typography>
                       </TableCell>
@@ -674,7 +859,7 @@ function ReportsChartSection() {
                   contentStyle={{
                     backgroundColor: 'rgba(255, 255, 255, 0.95)',
                     border: '1px solid #ccc',
-                    borderRadius:  4,
+                    borderRadius: 4,
                   }}
                 />
                 <Legend />
@@ -721,7 +906,7 @@ function ReportsChartSection() {
   );
 }
 
-export function ReportsPage() {
+export default function AnalyticsPage() {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
@@ -742,10 +927,10 @@ export function ReportsPage() {
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
         <Box>
           <Typography variant="h4" fontWeight="bold">
-            Отчеты и аналитика
+            Аналитика и отчеты
           </Typography>
           <Typography variant="subtitle1" color="textSecondary">
-            Полный анализ деятельности и безопасности системы
+            Комплексная аналитика деятельности и финансового состояния
           </Typography>
         </Box>
         <Button
@@ -765,6 +950,7 @@ export function ReportsPage() {
           indicatorColor="primary"
           textColor="primary"
         >
+          <Tab label="Финансы" />
           <Tab label="Хранилище" />
           <Tab label="Логи входа" />
           <Tab label="Статистика" />
@@ -773,14 +959,18 @@ export function ReportsPage() {
 
       {/* Content */}
       <TabPanel value={tabValue} index={0}>
-        <StorageAnalyticsCard />
+        <FinanceDashboard />
       </TabPanel>
 
       <TabPanel value={tabValue} index={1}>
-        <LoginLogsSection />
+        <StorageAnalyticsCard />
       </TabPanel>
 
       <TabPanel value={tabValue} index={2}>
+        <LoginLogsSection />
+      </TabPanel>
+
+      <TabPanel value={tabValue} index={3}>
         <ReportsChartSection />
       </TabPanel>
 
@@ -794,7 +984,7 @@ export function ReportsPage() {
               <Select
                 value={exportFormat}
                 label="Формат файла"
-                onChange={(e) => setExportFormat(e. target.value as any)}
+                onChange={(e) => setExportFormat(e.target.value as any)}
               >
                 <MenuItem value="pdf">PDF</MenuItem>
                 <MenuItem value="excel">Excel (XLSX)</MenuItem>

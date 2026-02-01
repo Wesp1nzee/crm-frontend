@@ -33,6 +33,8 @@ export interface ClientBase {
 export interface ClientShort extends ClientBase {
   id: string;
   created_at: string;
+  active_cases: number;
+  total_cases: number;
 }
 
 export interface ClientFull extends ClientShort {

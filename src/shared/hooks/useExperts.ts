@@ -15,6 +15,7 @@ export interface Expert {
   email: string;
   phone: string;
   specialization: string[];
+  role: UserRole;
   status: 'active' | 'inactive';
   workload: number;
   count_case: number;
@@ -25,6 +26,7 @@ export interface CreateExpertInput {
   email: string;
   phone?: string;
   specialization?: string;
+  role: UserRole;
   status: 'active' | 'inactive';
   password?: string;
 }
@@ -34,9 +36,9 @@ export interface UpdateExpertInput {
   email?: string;
   phone?: string;
   specialization?: string;
+  role?: UserRole;
   status: 'active' | 'inactive';
 }
-
 
 type UserCreateWithStatus = UserCreateType & {
   is_active?: boolean;
@@ -44,14 +46,14 @@ type UserCreateWithStatus = UserCreateType & {
 };
 
 export const useExperts = (filters: ExpertFilters = {}) => {
-  const { role = null, search, is_active } = filters;
+  const { role = undefined, search, is_active } = filters;
   
   return useQuery({
     queryKey: ['users', { role, search, is_active }],
     queryFn: async () => {
       const params: Partial<UserFilterParams> = {};
       
-      if (role !== null && role !== undefined) {
+      if (role !== undefined && role !== null) {
         params.role = role;
       }
       
@@ -61,11 +63,14 @@ export const useExperts = (filters: ExpertFilters = {}) => {
       const response = await usersApi.getUsers(params);
       const users = response.data;
 
+      console.log(users)
+
       return users.map(user => ({
         ...user,
         id: user.id,
         name: user.full_name,
         specialization: user.specialization ? [user.specialization] : [],
+        role: user.role.toLowerCase() === 'accountant' ? UserRole.ACCOUNTANT : UserRole.EXPERT,
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '', 
@@ -85,6 +90,7 @@ export const useExpert = (id: string) => {
         id: user.id,
         name: user.full_name,
         specialization: user.specialization ? [user.specialization] : [],
+        role: user.role as UserRole,
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '',
@@ -104,7 +110,7 @@ export const useCreateExpert = () => {
       const userData: UserCreateWithStatus = {
         email: data.email,
         full_name: data.name.trim(),
-        role: UserRole.EXPERT.toLowerCase() as UserRole, 
+        role: data.role.toLowerCase() as UserRole,
         password: data.password || generateRandomPassword(),
         is_active: isActive,
         can_authenticate: isActive,
@@ -116,7 +122,7 @@ export const useCreateExpert = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', { role: UserRole.EXPERT }] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };
@@ -125,9 +131,11 @@ export const useUpdateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async ({ id, data }: { id: string; data: UpdateExpertInput }) => {
+       console.log('UPDATE id:', id, typeof id);
       const userData: UserUpdateType = {
         full_name: data.name,
         specialization: data.specialization,
+        role: data.role?.toLowerCase() as UserRole,
         can_authenticate: data.status === 'active',
         settings: {
           phone: data.phone,
@@ -139,7 +147,7 @@ export const useUpdateExpert = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', { role: UserRole.EXPERT }] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['user'] });
     },
   });
@@ -148,9 +156,11 @@ export const useUpdateExpert = () => {
 export const useDeleteExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => usersApi.deleteUser(id),
+    mutationFn: (id: string) => {
+      console.log('DELETE id:', id, typeof id);
+      return usersApi.deleteUser(id);},
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users', { role: UserRole.EXPERT }] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
     },
   });
 };

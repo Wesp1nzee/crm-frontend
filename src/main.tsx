@@ -6,7 +6,6 @@ import 'dayjs/locale/ru';
 
 dayjs.locale('ru');
 
-// Просто запускаем приложение без моков
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />

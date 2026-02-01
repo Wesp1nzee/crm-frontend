@@ -1,9 +1,9 @@
 import { AppBar, Toolbar, Typography, TextField, Badge, IconButton, Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Avatar, Chip } from '@mui/material';
-import { Search, Notifications, AccountCircle, Menu as MenuIcon, Settings, ExitToApp, Person, Dashboard, CheckCircle, Warning, Info } from '@mui/icons-material';
+import { Search, Notifications, AccountCircle, Menu as MenuIcon, Settings, ExitToApp, Person, CheckCircle, Warning, Info } from '@mui/icons-material';
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, useLogout } from '../shared/hooks/useAuth';
-import dayjs from 'dayjs';
+// import dayjs from 'dayjs';
 
 interface TopbarProps {
   onMenuClick: () => void;
@@ -71,9 +71,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
     setProfileAnchor(null);
   };
 
-const handleLogout = () => {
-  logout.mutateAsync();
-};
+  const handleLogout = () => {
+    logout.mutateAsync();
+  };
 
   const markAsRead = (id: string) => {
     setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
@@ -94,20 +94,28 @@ const handleLogout = () => {
   return (
     <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
       <Toolbar>
-        <IconButton
-          color="inherit"
-          edge="start"
-          onClick={onMenuClick}
-          sx={{ mr: 2 }}
-        >
-          <MenuIcon />
-        </IconButton>
-        
-        <Typography variant="h6" noWrap component="div" sx={{ mr: 4 }}>
-          CRM Экспертиза
-        </Typography>
-        
-        <Box sx={{ display: 'flex', alignItems: 'center', flexGrow: 1 }}>
+        {/* Левая часть: меню и заголовок */}
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          <IconButton
+            color="inherit"
+            edge="start"
+            onClick={onMenuClick}
+            sx={{ mr: 2 }}
+          >
+            <MenuIcon />
+          </IconButton>
+          
+          <Typography variant="h6" noWrap component="div" sx={{ mr: 4 }}>
+            CRM
+          </Typography>
+        </Box>
+
+        {/* Пустое пространство для растягивания */}
+        <Box sx={{ flexGrow: 1 }} />
+
+        {/* TODO Доделать поиск (если нужно будет разместить в центре) */}
+        {/* 
+        <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', flexGrow: 1 }}>
           <Search sx={{ mr: 1 }} />
           <TextField
             placeholder="Поиск по номеру дела или адресу..."
@@ -124,8 +132,11 @@ const handleLogout = () => {
             }}
           />
         </Box>
+        */}
 
+        {/* Правая часть: иконки уведомлений и профиля */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {/* Раскомментируйте, если нужно показать уведомления
           <IconButton 
             color="inherit" 
             onClick={handleNotificationClick}
@@ -138,6 +149,7 @@ const handleLogout = () => {
               <Notifications />
             </Badge>
           </IconButton>
+          */}
           
           <IconButton 
             color="inherit" 
@@ -152,7 +164,7 @@ const handleLogout = () => {
         </Box>
 
         {/* Меню уведомлений */}
-        <Menu
+        {/* <Menu
           anchorEl={notificationAnchor}
           open={Boolean(notificationAnchor)}
           onClose={handleNotificationClose}
@@ -220,7 +232,7 @@ const handleLogout = () => {
               </MenuItem>
             ))
           )}
-        </Menu>
+        </Menu> */}
 
         {/* Меню профиля */}
         <Menu

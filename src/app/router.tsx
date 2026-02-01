@@ -13,7 +13,7 @@ const ClientListPage = lazy(() => import('../pages/clients/ClientListPage').then
 const ExpertsPage = lazy(() => import('../pages/experts/ExpertsPage').then(m => ({ default: m.ExpertsPage })));
 const DocumentsPage = lazy(() => import('../pages/documents/DocumentsPage').then(m => ({ default: m.DocumentsPage })));
 const FinancePage = lazy(() => import('../pages/finance/FinancePage').then(m => ({ default: m.FinancePage })));
-const ReportsPage = lazy(() => import('../pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
+// const ReportsPage = lazy(() => import('../pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('../pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
 const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
@@ -49,7 +49,7 @@ export const router = createBrowserRouter([
       { path: 'experts', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ExpertsPage /></RoleGuard></Suspense> },
       { path: 'documents', element: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense> },
       { path: 'finance', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><FinancePage /></RoleGuard></Suspense> },
-      { path: 'reports', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ReportsPage /></RoleGuard></Suspense> },
+      // { path: 'reports', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ReportsPage /></RoleGuard></Suspense> },
       { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
       { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
       { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },

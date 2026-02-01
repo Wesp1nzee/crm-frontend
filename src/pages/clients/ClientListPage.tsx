@@ -127,12 +127,12 @@ export function ClientListPage() {
                     <TableCell>
                       <Box display="flex" gap={1}>
                         <Chip
-                          label={`0 активных`}
-                          color={'default'}
+                          label={`${client.active_cases} активных`}
+                          color={client.active_cases > 0 ? 'primary' : 'default'}
                           size="small"
                         />
                         <Chip
-                          label={`0 всего`}
+                          label={`${client.total_cases} всего`}
                           variant="outlined"
                           size="small"
                         />
