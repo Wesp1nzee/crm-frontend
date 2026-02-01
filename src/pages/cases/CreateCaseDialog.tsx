@@ -1,5 +1,5 @@
 // src/pages/cases/CreateCaseDialog.tsx
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -20,6 +20,7 @@ import {
   Fade,
   InputAdornment,
   Autocomplete,
+  Tooltip,
 } from '@mui/material';
 import {
   Close as CloseIcon,
@@ -29,14 +30,17 @@ import {
   AttachMoney as AttachMoneyIcon,
   Description as DescriptionIcon,
   Person as PersonIcon,
+  Add as AddIcon,
 } from '@mui/icons-material';
 import dayjs from 'dayjs';
 import type { CaseStatus, CaseCreateRequest } from '../../entities/case/types';
 import { useClientsSuggest } from '../../shared/hooks/useClientsSuggest';
 import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
+import { useCreateClient } from '../../shared/hooks/useClients';
+import type { ClientCreateRequest as ClientCreateRequestType } from '../../entities/client/types';
+import { ClientCreateDialog } from '../clients/ClientCreateDialog';
 
 const INPUT_HEIGHT = 54;
-
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   archive: 'Архив',
   in_work: 'В работе',
@@ -46,7 +50,6 @@ const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   cancelled: 'Отменено',
   fssp: 'ФССП',
 };
-
 const CASE_STATUS_COLORS: Record<
   CaseStatus,
   'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info'
@@ -59,7 +62,6 @@ const CASE_STATUS_COLORS: Record<
   cancelled: 'error',
   fssp: 'info',
 };
-
 
 export function createInitialFormData(): CaseCreateRequest {
   return {
@@ -156,6 +158,44 @@ const singleLineInputSx = {
   },
 } as const;
 
+/**
+ * Нормализует данные формы перед отправкой на бэкенд
+ * Соответствует схеме CaseBase на бэкенде
+ */
+function normalizeCasePayload(formData: CaseCreateRequest) {
+  return {
+    // Обязательные поля
+    client_id: formData.client_id.trim(),
+    number: formData.number.trim(),
+    case_number: formData.case_number.trim(),
+    authority: formData.authority.trim(),
+    case_type: formData.case_type.trim(),
+    object_type: formData.object_type.trim(),
+    object_address: formData.object_address.trim(),
+    status: formData.status,
+    start_date: formData.start_date, // ISO string
+    deadline: formData.deadline, // ISO string
+    
+    // Финансы - конвертируем в строки с 2 знаками после запятой для точности Decimal
+    cost: formData.cost.toFixed(2),
+    bank_transfer_amount: formData.bank_transfer_amount.toFixed(2),
+    cash_amount: formData.cash_amount.toFixed(2),
+    remaining_debt: formData.remaining_debt.toFixed(2),
+    
+    // Опциональные поля - пустые строки → null
+    plaintiff: formData.plaintiff?.trim() || null,
+    defendant: formData.defendant?.trim() || null,
+    remarks: formData.remarks?.trim() || null,
+    
+    // assigned_user_id: пустая строка → null
+    assigned_user_id: formData.assigned_user_id?.trim() || null,
+    
+    // Поля, которые НЕ отправляются при создании (только при обновлении)
+    // completion_date: null, // будет установлено бэкендом при завершении
+    // expert_painting: null, // не используется в форме создания
+    // archive_status: null, // будет установлено бэкендом при архивации
+  };
+}
 
 interface CreateCaseDialogProps {
   open: boolean;
@@ -172,23 +212,29 @@ export function CreateCaseDialog({
 }: CreateCaseDialogProps) {
   const [formData, setFormData] = useState<CaseCreateRequest>(createInitialFormData);
   const [errors, setErrors] = useState<Record<string, string>>({});
-
   const { suggestions, isLoading: isSuggestLoading, fetchSuggestions, clearSuggestions } =
     useClientsSuggest();
-
-  const { 
-    suggestions: expertSuggestions, 
-    isLoading: isExpertSuggestLoading, 
-    fetchSuggestions: fetchExpertSuggestions, 
-    clearSuggestions: clearExpertSuggestions 
+  const {
+    suggestions: expertSuggestions,
+    isLoading: isExpertSuggestLoading,
+    fetchSuggestions: fetchExpertSuggestions,
+    clearSuggestions: clearExpertSuggestions,
   } = useExpertsSuggest();
-
+  
+  const createClient = useCreateClient();
+  
   const [clientInputValue, setClientInputValue] = useState('');
   const [expertInputValue, setExpertInputValue] = useState('');
-
+  
   // Выбранный клиент — отдельный state, не зависит от suggestions
   const [selectedClient, setSelectedClient] = useState<{ id: string; name: string } | null>(null);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
+  
+  // Состояние для модального окна создания клиента
+  const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
+  
+  // Флаг для отслеживания создания клиента через модальное окно
+  const [clientCreatedFromDialog, setClientCreatedFromDialog] = useState(false);
 
   // Сброс формы при закрытии диалога
   const handleClose = useCallback(() => {
@@ -198,6 +244,7 @@ export function CreateCaseDialog({
     setExpertInputValue('');
     setSelectedClient(null);
     setSelectedExpert(null);
+    setClientCreatedFromDialog(false);
     clearSuggestions();
     clearExpertSuggestions();
     onClose();
@@ -211,14 +258,14 @@ export function CreateCaseDialog({
     setExpertInputValue('');
     setSelectedClient(null);
     setSelectedExpert(null);
+    setClientCreatedFromDialog(false);
     clearSuggestions();
     clearExpertSuggestions();
   }, [clearSuggestions, clearExpertSuggestions]);
 
   // ── Validation ─────────────────────────────────────────────────────────────
-
   const isFormValid =
-    formData.client_id &&
+    formData.client_id.trim() &&
     formData.number.trim() &&
     formData.case_number.trim() &&
     formData.authority.trim() &&
@@ -228,7 +275,7 @@ export function CreateCaseDialog({
 
   const validateForm = (): boolean => {
     const newErrors: Record<string, string> = {};
-    if (!formData.client_id) newErrors.client_id = 'Выберите клиента';
+    if (!formData.client_id.trim()) newErrors.client_id = 'Выберите клиента';
     if (!formData.number.trim()) newErrors.number = 'Обязательное поле';
     if (!formData.case_number.trim()) newErrors.case_number = 'Обязательное поле';
     if (!formData.authority.trim()) newErrors.authority = 'Обязательное поле';
@@ -240,10 +287,14 @@ export function CreateCaseDialog({
   };
 
   // ── Handlers ───────────────────────────────────────────────────────────────
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    await onSubmit(formData);
+    
+    // Нормализуем данные перед отправкой
+    const normalizedData = normalizeCasePayload(formData);
+    
+    // Отправляем нормализованные данные
+    await onSubmit(normalizedData as CaseCreateRequest);
   };
 
   const clearError = (field: string) => {
@@ -253,8 +304,29 @@ export function CreateCaseDialog({
     });
   };
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // Обработчик создания клиента из модального окна
+  const handleCreateClient = async (clientData: ClientCreateRequestType) => {
+    try {
+      const newClient = await createClient.mutateAsync(clientData);
+      
+      // Автоматически выбираем созданного клиента в поле
+      setFormData((prev) => ({ ...prev, client_id: newClient.id }));
+      setSelectedClient({ id: newClient.id, name: newClient.name });
+      setClientInputValue(newClient.name);
+      setClientCreatedFromDialog(true);
+      
+      // Очищаем ошибку, если она была
+      clearError('client_id');
+      
+      // Закрываем модальное окно создания клиента
+      setCreateClientDialogOpen(false);
+    } catch (error) {
+      console.error('Ошибка создания клиента:', error);
+      // Ошибка будет обработана в самом модальном окне
+    }
+  };
 
+  // ── Render ─────────────────────────────────────────────────────────────────
   return (
     <Dialog
       open={open}
@@ -339,85 +411,115 @@ export function CreateCaseDialog({
           />
           <Grid container spacing={2.5} alignItems="stretch">
             <Grid size={{ xs: 12, sm: 6 }}>
-              <Autocomplete
-                fullWidth
-                options={suggestions}
-                getOptionLabel={(option) => option.name || ''}
-                value={selectedClient}
-                inputValue={clientInputValue}
-                loading={isSuggestLoading}
-                filterOptions={(options) => options}
-                noOptionsText={
-                  clientInputValue.trim().length === 0
-                    ? 'Начните ввод для поиска...'
-                    : isSuggestLoading
-                    ? 'Поиск...'
-                    : 'Клиенты не найдены'
-                }
-                onInputChange={(_e, newInputValue, reason) => {
-                  setClientInputValue(newInputValue);
-
-                  if (reason === 'clear') {
-                    clearSuggestions();
-                  } else {
-                    fetchSuggestions(newInputValue);
+              <Box sx={{ position: 'relative' }}>
+                <Autocomplete
+                  fullWidth
+                  options={suggestions}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedClient}
+                  inputValue={clientInputValue}
+                  loading={isSuggestLoading}
+                  filterOptions={(options) => options}
+                  noOptionsText={
+                    clientInputValue.trim().length === 0
+                      ? 'Начните ввод для поиска...'
+                      : isSuggestLoading
+                      ? 'Поиск...'
+                      : clientCreatedFromDialog && selectedClient
+                      ? `Выбран: ${selectedClient.name}`
+                      : 'Клиенты не найдены'
                   }
-                }}
-                onChange={(_e, value, reason) => {
-                  if (reason === 'clear') {
-                    setFormData((prev) => ({ ...prev, client_id: '' }));
-                    setSelectedClient(null);
-                    setClientInputValue('');
-                    clearSuggestions();
-                  } else if (value) {
-                    setFormData((prev) => ({ ...prev, client_id: value.id }));
-                    setSelectedClient(value);
-                    clearError('client_id');
-                  }
-                }}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
-                renderOption={(props, option) => (
-                  <li {...props} key={option.id}>
-                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
-                      <Typography variant="body2" fontWeight={500}>
-                        {option.name}
-                      </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {option.id}
-                      </Typography>
-                    </Box>
-                  </li>
-                )}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    fullWidth
-                    label="Клиент"
-                    required
-                    placeholder="Введите название клиента..."
-                    error={!!errors.client_id}
-                    helperText={errors.client_id}
-                    sx={singleLineInputSx}
-                    InputProps={{
-                      ...params.InputProps,
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 1 }}>
-                          <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
-                        </InputAdornment>
-                      ),
-            
-                      endAdornment: (
-                        <>
-                          {isSuggestLoading ? (
-                            <CircularProgress size={18} color="inherit" />
-                          ) : null}
-                          {params.InputProps.endAdornment}
-                        </>
-                      ),
+                  onInputChange={(_e, newInputValue, reason) => {
+                    setClientInputValue(newInputValue);
+                    if (reason === 'clear') {
+                      clearSuggestions();
+                    } else if (reason === 'input') {
+                      fetchSuggestions(newInputValue);
+                    }
+                  }}
+                  onChange={(_e, value, reason) => {
+                    if (reason === 'clear') {
+                      setFormData((prev) => ({ ...prev, client_id: '' }));
+                      setSelectedClient(null);
+                      setClientInputValue('');
+                      clearSuggestions();
+                      setClientCreatedFromDialog(false);
+                    } else if (value) {
+                      setFormData((prev) => ({ ...prev, client_id: value.id }));
+                      setSelectedClient(value);
+                      setClientInputValue(value.name);
+                      clearError('client_id');
+                      setClientCreatedFromDialog(false);
+                    }
+                  }}
+                  isOptionEqualToValue={(option, value) => option.id === value?.id}
+                  // ИСПРАВЛЕНИЕ 1: Отключаем кнопку очистки
+                  disableClearable
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="body2" fontWeight={500}>
+                          {option.name}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {option.id}
+                        </Typography>
+                      </Box>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      fullWidth
+                      label="Клиент"
+                      required
+                      placeholder="Введите название клиента..."
+                      error={!!errors.client_id}
+                      helperText={errors.client_id}
+                      sx={singleLineInputSx}
+                      InputProps={{
+                        ...params.InputProps,
+                        // Убираем стандартную кнопку очистки
+                        endAdornment: (
+                          <>
+                            {isSuggestLoading ? (
+                              <CircularProgress size={18} color="inherit" />
+                            ) : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                        startAdornment: (
+                          <InputAdornment position="start" sx={{ mr: 1 }}>
+                            <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                          </InputAdornment>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+                <Tooltip title="Добавить нового клиента" arrow>
+                  <IconButton
+                    onClick={() => setCreateClientDialogOpen(true)}
+                    sx={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 1,
+                      bgcolor: 'primary.main',
+                      color: '#fff',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                      width: 36,
+                      height: 36,
+                      borderRadius: '8px',
                     }}
-                  />
-                )}
-              />
+                  >
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
             </Grid>
             <Grid size={{ xs: 12, sm: 6 }}>
               <Autocomplete
@@ -437,10 +539,9 @@ export function CreateCaseDialog({
                 }
                 onInputChange={(_e, newInputValue, reason) => {
                   setExpertInputValue(newInputValue);
-
                   if (reason === 'clear') {
                     clearExpertSuggestions();
-                  } else {
+                  } else if (reason === 'input') {
                     fetchExpertSuggestions(newInputValue);
                   }
                 }}
@@ -455,7 +556,8 @@ export function CreateCaseDialog({
                     setSelectedExpert(value);
                   }
                 }}
-                isOptionEqualToValue={(option, value) => option.id === value.id}
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                disableClearable
                 renderOption={(props, option) => (
                   <li {...props} key={option.id}>
                     <Box sx={{ display: 'flex', flexDirection: 'column' }}>
@@ -477,12 +579,6 @@ export function CreateCaseDialog({
                     sx={singleLineInputSx}
                     InputProps={{
                       ...params.InputProps,
-                      startAdornment: (
-                        <InputAdornment position="start" sx={{ mr: 1 }}>
-                          <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
-                        </InputAdornment>
-                      ),
-            
                       endAdornment: (
                         <>
                           {isExpertSuggestLoading ? (
@@ -490,6 +586,11 @@ export function CreateCaseDialog({
                           ) : null}
                           {params.InputProps.endAdornment}
                         </>
+                      ),
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 1 }}>
+                          <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                        </InputAdornment>
                       ),
                     }}
                   />
@@ -844,6 +945,14 @@ export function CreateCaseDialog({
           {isPending ? <CircularProgress size={18} color="inherit" /> : 'Создать дело'}
         </Button>
       </DialogActions>
+
+      {/* ── Модальное окно создания клиента ── */}
+      <ClientCreateDialog
+        open={createClientDialogOpen}
+        onClose={() => setCreateClientDialogOpen(false)}
+        onSubmit={handleCreateClient}
+        isLoading={createClient.isPending}
+      />
     </Dialog>
   );
 }

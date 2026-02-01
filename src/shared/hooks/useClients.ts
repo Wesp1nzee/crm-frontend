@@ -45,7 +45,7 @@ export const useCreateClient = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    // ИСПРАВЛЕНО: параметр должен быть назван правильно, например "request"
+   
     mutationFn: (request: ClientCreateRequest) => 
       clientApi.createClient(request).then(res => res.data),
     
