@@ -116,10 +116,8 @@ export function ClientCreateDialog({
     if (!validate()) return;
     
     try {
-      // Подготовка данных для отправки
       const submitData = {
         ...formData,
-        // Не отправляем inn если тип клиента не legal или если inn пустой
         inn: formData.type === 'legal' && formData.inn ? formData.inn : undefined,
       };
       
@@ -166,7 +164,6 @@ export function ClientCreateDialog({
       </DialogTitle>
 
       <DialogContent sx={{ p: 3 }}>
-        {/* Основная информация */}
         <Box mb={3}>
           <Typography variant="subtitle2" color="text.secondary" gutterBottom>
             Основная информация

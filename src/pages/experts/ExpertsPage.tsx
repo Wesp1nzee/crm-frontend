@@ -234,10 +234,9 @@ export function ExpertsPage() {
         </Box>
       </Box>
 
-      {/* Панель фильтров */}
       <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
         <Grid container spacing={2} alignItems="center">
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               fullWidth
               size="small"
@@ -254,7 +253,7 @@ export function ExpertsPage() {
             />
           </Grid>
           
-          <Grid item xs={12} md={4}>
+          <Grid size={{ xs: 12, md: 4 }}>
             <ToggleButtonGroup
               value={filters.status}
               exclusive
@@ -275,7 +274,7 @@ export function ExpertsPage() {
           </Grid>
           
           {(filters.search || filters.status !== 'all') && (
-            <Grid item xs={12} md={2}>
+            <Grid size={{ xs: 12, md: 2 }}>
               <Button
                 fullWidth
                 size="small"

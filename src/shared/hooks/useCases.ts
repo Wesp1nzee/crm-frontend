@@ -1,10 +1,8 @@
 // src/shared/hooks/useCases.ts
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { casesApi, clientsApi, documentsApi, invoicesApi, paymentsApi, assignmentsApi } from '../../entities/case/api';
-import type { Case, GetCasesQuery, GetCasesResponse } from '../../entities/case/types';
-import type { Assignment } from '../../entities/expert/types';
+import { casesApi } from '../../entities/case/api';
+import type { Case, GetCasesQuery, GetCasesResponse, CaseCreateRequest } from '../../entities/case/types';
 
-// Получение списка дел с пагинацией и фильтрацией
 export const useCases = (params: GetCasesQuery = {}) => {
   return useQuery<GetCasesResponse>({
     queryKey: ['cases', params],
@@ -13,7 +11,6 @@ export const useCases = (params: GetCasesQuery = {}) => {
   });
 };
 
-// Получение одного дела
 export const useCase = (id: string) => {
   return useQuery({
     queryKey: ['case', id],
@@ -22,11 +19,10 @@ export const useCase = (id: string) => {
   });
 };
 
-// Создание дела
 export const useCreateCase = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: (data: Omit<Case, 'id' | 'created_at' | 'updated_at'>) =>
+    mutationFn: (data: CaseCreateRequest) =>
       casesApi.createCase(data).then(res => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
@@ -34,7 +30,6 @@ export const useCreateCase = () => {
   });
 };
 
-// Обновление дела
 export const useUpdateCase = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -47,7 +42,6 @@ export const useUpdateCase = () => {
   });
 };
 
-// Удаление дела
 export const useDeleteCase = () => {
   const queryClient = useQueryClient();
   return useMutation({
@@ -55,95 +49,6 @@ export const useDeleteCase = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['cases'] });
       queryClient.invalidateQueries({ queryKey: ['case'] });
-    },
-  });
-};
-
-// Остальные хуки остаются без изменений
-export const useClient = (id: string) => {
-  return useQuery({
-    queryKey: ['client', id],
-    queryFn: () => clientsApi.getClients().then(res => res.data.find(c => c.id === id)),
-    enabled: !!id,
-  });
-};
-
-export const useClients = () => {
-  return useQuery({
-    queryKey: ['clients'],
-    queryFn: () => clientsApi.getClients().then(res => res.data),
-  });
-};
-
-export const useDocuments = () => {
-  return useQuery({
-    queryKey: ['documents'],
-    queryFn: () => documentsApi.getDocuments().then(res => res.data),
-  });
-};
-
-export const useUploadDocument = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (formData: FormData) => documentsApi.uploadDocument(formData).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-    },
-  });
-};
-
-export const useDeleteDocument = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => documentsApi.deleteDocument(id),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['documents'] });
-    },
-  });
-};
-
-export const useInvoices = () => {
-  return useQuery({
-    queryKey: ['invoices'],
-    queryFn: () => invoicesApi.getInvoices().then(res => res.data),
-  });
-};
-
-export const usePayments = () => {
-  return useQuery({
-    queryKey: ['payments'],
-    queryFn: () => paymentsApi.getPayments().then(res => res.data),
-  });
-};
-
-// Назначения
-export const useAssignments = () => {
-  return useQuery({
-    queryKey: ['assignments'],
-    queryFn: () => assignmentsApi.getAssignments().then(res => res.data),
-  });
-};
-
-export const useAssignCase = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (data: Omit<Assignment, 'id' | 'assignedAt'>) =>
-      assignmentsApi.assignCase(data).then(res => res.data),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['cases'] });
-      // Запрос на обновление списка экспертов будет в отдельном хуке
-    },
-  });
-};
-
-export const useUnassignCase = () => {
-  const queryClient = useQueryClient();
-  return useMutation({
-    mutationFn: (caseId: string) => assignmentsApi.unassignCase(caseId),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['assignments'] });
-      queryClient.invalidateQueries({ queryKey: ['cases'] });
     },
   });
 };

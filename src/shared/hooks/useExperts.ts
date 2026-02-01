@@ -37,7 +37,7 @@ export interface UpdateExpertInput {
   status: 'active' | 'inactive';
 }
 
-// 🔧 Расширяем тип UserCreateType для добавления is_active/can_authenticate
+
 type UserCreateWithStatus = UserCreateType & {
   is_active?: boolean;
   can_authenticate?: boolean;
@@ -66,7 +66,6 @@ export const useExperts = (filters: ExpertFilters = {}) => {
         id: user.id,
         name: user.full_name,
         specialization: user.specialization ? [user.specialization] : [],
-        // ✅ Исправлено: используем is_active вместо can_authenticate
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '', 
@@ -86,7 +85,6 @@ export const useExpert = (id: string) => {
         id: user.id,
         name: user.full_name,
         specialization: user.specialization ? [user.specialization] : [],
-        // ✅ Исправлено: используем is_active вместо can_authenticate
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '',
