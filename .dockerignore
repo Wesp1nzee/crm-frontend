@@ -1,0 +1,11 @@
+node_modules
+.git
+.gitignore
+*.md
+*.log
+.env*
+.vscode
+.idea
+coverage
+*.test.tsx
+*.test.ts
