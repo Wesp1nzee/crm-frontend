@@ -1,0 +1,326 @@
+/* Buttons */
+.btn {
+    display: inline-block;
+    padding: 12px 30px;
+    background: var(--accent);
+    color: white;
+    text-decoration: none;
+    border-radius: var(--border-radius);
+    font-weight: 600;
+    transition: var(--transition);
+    border: none;
+    cursor: pointer;
+    font-size: 1rem;
+    text-align: center;
+}
+
+.btn:hover {
+    background: #9b2c2c;
+    transform: translateY(-3px);
+    box-shadow: 0 7px 15px rgba(197, 48, 48, 0.3);
+}
+
+.btn-outline {
+    background: transparent;
+    border: 2px solid var(--accent);
+    color: var(--accent);
+}
+
+.btn-outline:hover {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-contact {
+    display: inline-block;
+    background: var(--primary);
+    color: white;
+    padding: 14px 28px;
+    border: none;
+    border-radius: var(--border-radius);
+    cursor: pointer;
+    font-size: 1.1rem;
+    font-weight: 600;
+    transition: var(--transition);
+    width: 100%;
+}
+
+.btn-contact:hover {
+    background: var(--accent);
+    transform: translateY(-2px);
+}
+
+.btn-contact:disabled {
+    background: var(--gray);
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* Cards */
+.service-card {
+    background: white;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--box-shadow);
+    transition: var(--transition);
+    border: 1px solid var(--light-gray);
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+}
+
+.service-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.15);
+    border-color: var(--accent);
+}
+
+.service-icon {
+    height: 140px;
+    background: var(--primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2.8rem;
+    transition: var(--transition);
+}
+
+.service-card:hover .service-icon {
+    background: var(--accent);
+    transform: scale(1.05);
+}
+
+.service-content {
+    padding: 1.8rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.service-content h3 {
+    font-size: 1.4rem;
+    margin-bottom: 1rem;
+    color: var(--primary);
+    line-height: 1.4;
+}
+
+.service-content p {
+    margin-bottom: 1.5rem;
+    flex-grow: 1;
+    line-height: 1.6;
+    color: #555;
+    font-size: 0.98rem;
+}
+
+.stat-card {
+    background: white;
+    border-radius: var(--border-radius);
+    padding: 2rem;
+    text-align: center;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.05);
+    transition: var(--transition);
+    position: relative;
+    overflow: hidden;
+    border-top: 4px solid var(--accent);
+}
+
+.stat-card:hover {
+    transform: translateY(-7px);
+    box-shadow: 0 12px 25px rgba(0, 0, 0, 0.1);
+}
+
+.stat-year {
+    font-size: 1.3rem;
+    font-weight: 700;
+    color: var(--primary);
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 3rem;
+    font-weight: 800;
+    color: var(--accent);
+    margin: 0.5rem 0;
+    line-height: 1;
+}
+
+.stat-label {
+    color: var(--gray);
+    margin-bottom: 1.2rem;
+    font-size: 1.05rem;
+    font-weight: 500;
+}
+
+.stat-details {
+    list-style: none;
+    padding: 0;
+    margin-top: 1.5rem;
+    text-align: left;
+}
+
+.stat-details li {
+    margin-bottom: 0.8rem;
+    padding-bottom: 0.8rem;
+    border-bottom: 1px solid var(--light-gray);
+    font-size: 1rem;
+    padding-left: 0;
+}
+
+.stat-details li:last-child {
+    border-bottom: none;
+    margin-bottom: 0;
+    padding-bottom: 0;
+}
+
+.stat-details li:before {
+    content: none;
+}
+
+.stat-details strong {
+    color: var(--primary);
+    float: right;
+}
+
+/* Forms */
+.form-group {
+    margin-bottom: 1.8rem;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.6rem;
+    font-weight: 600;
+    color: var(--primary);
+}
+
+.form-control {
+    width: 100%;
+    padding: 14px 18px;
+    border: 1px solid var(--light-gray);
+    border-radius: var(--border-radius);
+    font-family: inherit;
+    font-size: 1.05rem;
+    transition: var(--transition);
+    background: #f9fafb;
+}
+
+.form-control:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(26, 54, 93, 0.1);
+    background: white;
+}
+
+textarea.form-control {
+    min-height: 160px;
+    resize: vertical;
+}
+
+.phone-input-group {
+    position: relative;
+}
+
+.input-with-prefix {
+    display: flex;
+    align-items: center;
+    position: relative;
+}
+
+.prefix {
+    background: var(--light-gray);
+    padding: 14px 14px;
+    border: 1px solid var(--light-gray);
+    border-right: none;
+    border-radius: var(--border-radius) 0 0 var(--border-radius);
+    color: var(--gray);
+    font-weight: 500;
+}
+
+.form-control.phone-input {
+    border-radius: 0 var(--border-radius) var(--border-radius) 0;
+    padding-left: 12px;
+    padding-right: 40px;
+}
+
+.error {
+    color: var(--error);
+    font-size: 0.9rem;
+    height: 20px;
+    margin-top: 6px;
+    display: block;
+}
+
+#responseMessage {
+    display: none;
+    margin-top: 20px;
+    padding: 15px;
+    border-radius: 5px;
+}
+
+.success {
+    background-color: #f0fff4;
+    border: 1px solid #c6f6d5;
+    color: #2d7d32;
+}
+
+.error-message {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    color: #c53030;
+}
+
+.csrf-status {
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin-bottom: 20px;
+    display: none;
+}
+
+.csrf-ready {
+    background-color: #f0fff4;
+    border: 1px solid #c6f6d5;
+    color: #2d7d32;
+}
+
+.csrf-error {
+    background-color: #fff5f5;
+    border: 1px solid #fed7d7;
+    color: #c53030;
+}
+
+/* Checkbox styles */
+.checkbox-group {
+    margin: 1.8rem 0;
+}
+
+.checkbox-container {
+    display: flex;
+    align-items: flex-start;
+}
+
+.checkbox-container input[type="checkbox"] {
+    margin-top: 3px;
+    margin-right: 12px;
+    width: 18px;
+    height: 18px;
+    cursor: pointer;
+}
+
+.checkbox-label {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    color: var(--primary);
+}
+
+.privacy-link {
+    color: var(--accent);
+    text-decoration: none;
+    font-weight: 600;
+    transition: var(--transition);
+}
+
+.privacy-link:hover {
+    text-decoration: underline;
+    color: var(--primary);
+}

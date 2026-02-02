@@ -6,6 +6,9 @@ import { LoginPage } from '../pages/auth/LoginPage';
 import { ProtectedRoute } from '../shared/components/ProtectedRoute';
 import { RoleGuard } from '../shared/components/RoleGuard';
 
+// Публичная страница
+import { PublicHomePage } from '../client/pages/PublicHomePage';
+
 const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.HomePage })));
 const CaseListPage = lazy(() => import('../pages/cases/CaseListPage').then(m => ({ default: m.CaseListPage })));
 const CaseDetailPage = lazy(() => import('../pages/cases/CaseDetailPage').then(m => ({ default: m.CaseDetailPage })));
@@ -28,12 +31,21 @@ const PageLoader = () => (
 );
 
 export const router = createBrowserRouter([
+  // Публичная главная страница
+  {
+    path: '/',
+    element: <PublicHomePage />,
+  },
+
+  // Логин — остаётся на /login
   {
     path: '/login',
     element: <LoginPage />,
   },
+
+  // ВСЕ CRM-маршруты теперь под /crm
   {
-    path: '/',
+    path: '/crm',
     element: (
       <ProtectedRoute>
         <Layout />

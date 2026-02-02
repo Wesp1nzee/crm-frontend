@@ -1,0 +1,260 @@
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Arial', sans-serif;
+}
+
+body {
+    line-height: 1.6;
+    color: #333;
+    background-color: #f9f9f9;
+    padding: 20px;
+}
+
+.container {
+    width: 100%;
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 15px;
+}
+
+.policy-hero {
+    background: linear-gradient(rgba(44, 82, 130, 0.9), rgba(26, 53, 93, 0.9));
+    color: white;
+    padding: 60px 0;
+    text-align: center;
+    border-radius: 10px;
+    margin-bottom: 30px;
+}
+
+.policy-hero h1 {
+    font-size: 2.2rem;
+    margin-bottom: 15px;
+}
+
+.policy-hero p {
+    font-size: 1.1rem;
+    max-width: 700px;
+    margin: 0 auto;
+    opacity: 0.9;
+}
+
+.policy-container {
+    background: white;
+    padding: 40px;
+    border-radius: 10px;
+    box-shadow: 0 5px 25px rgba(0,0,0,0.07);
+    margin-bottom: 30px;
+}
+
+.policy-header {
+    text-align: center;
+    margin-bottom: 40px;
+    padding-bottom: 25px;
+    border-bottom: 2px solid #eaeaea;
+}
+
+.policy-header h1 {
+    font-size: 28px;
+    color: #2c5282;
+    margin-bottom: 15px;
+}
+
+.policy-header .effective-date {
+    color: #718096;
+    font-style: italic;
+    font-size: 16px;
+}
+
+.policy-section {
+    margin-bottom: 35px;
+    padding-bottom: 25px;
+    border-bottom: 1px solid #f1f1f1;
+}
+
+.policy-section:last-child {
+    border-bottom: none;
+}
+
+.policy-section h2 {
+    font-size: 22px;
+    color: #2c5282;
+    margin-bottom: 20px;
+    padding-bottom: 10px;
+    border-bottom: 2px solid #eaeaea;
+    position: relative;
+}
+
+.policy-section h2:after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 60px;
+    height: 2px;
+    background: #2c5282;
+}
+
+.policy-section p, .policy-section ul {
+    margin-bottom: 18px;
+    font-size: 16px;
+    line-height: 1.7;
+}
+
+.policy-section ul {
+    padding-left: 25px;
+}
+
+.policy-section li {
+    margin-bottom: 12px;
+    position: relative;
+}
+
+.policy-section li:before {
+    content: '•';
+    color: #2c5282;
+    font-weight: bold;
+    display: inline-block;
+    width: 1em;
+    margin-left: -1em;
+}
+
+.policy-section a {
+    color: #2c5282;
+    text-decoration: none;
+    transition: color 0.3s;
+}
+
+.policy-section a:hover {
+    color: #2b6cb0;
+    text-decoration: underline;
+}
+
+.back-button {
+    display: inline-block;
+    margin-top: 30px;
+    padding: 12px 25px;
+    background: #2c5282;
+    color: white;
+    text-decoration: none;
+    border-radius: 5px;
+    transition: all 0.3s;
+    font-weight: 500;
+    border: 2px solid #2c5282;
+}
+
+.back-button:hover {
+    background: transparent;
+    color: #2c5282;
+}
+
+.highlight {
+    background-color: #f8f9fa;
+    padding: 25px;
+    border-radius: 8px;
+    border-left: 4px solid #2c5282;
+    margin: 25px 0;
+}
+
+.highlight p:last-child {
+    margin-bottom: 0;
+}
+
+.definition-list {
+    margin: 20px 0;
+}
+
+.definition-term {
+    font-weight: bold;
+    color: #2c5282;
+    margin-bottom: 5px;
+}
+
+.definition-description {
+    margin-bottom: 15px;
+    padding-left: 20px;
+}
+
+@media (max-width: 992px) {
+    .policy-container {
+        padding: 30px;
+    }
+    
+    .policy-hero h1 {
+        font-size: 2rem;
+    }
+    
+    .policy-hero p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 15px;
+    }
+    
+    .policy-hero {
+        padding: 40px 0;
+    }
+    
+    .policy-hero h1 {
+        font-size: 1.8rem;
+    }
+    
+    .policy-container {
+        padding: 25px 20px;
+    }
+    
+    .policy-header h1 {
+        font-size: 24px;
+    }
+    
+    .policy-section h2 {
+        font-size: 20px;
+    }
+}
+
+@media (max-width: 480px) {
+    .policy-hero {
+        padding: 30px 0;
+    }
+    
+    .policy-hero h1 {
+        font-size: 1.6rem;
+    }
+    
+    .policy-hero p {
+        font-size: 0.95rem;
+    }
+    
+    .policy-container {
+        padding: 20px 15px;
+    }
+    
+    .policy-header {
+        margin-bottom: 30px;
+    }
+    
+    .policy-section {
+        margin-bottom: 25px;
+    }
+    
+    .policy-section h2 {
+        font-size: 18px;
+    }
+    
+    .policy-section p, .policy-section ul {
+        font-size: 15px;
+    }
+    
+    .back-button {
+        width: 100%;
+        text-align: center;
+    }
+    
+    .highlight {
+        padding: 15px;
+    }
+}
