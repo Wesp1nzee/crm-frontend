@@ -18,11 +18,11 @@ const drawerWidth = 240;
 const miniDrawerWidth = 64;
 
 const menuItems = [
-  { text: 'Главная', path: '/', icon: <Home /> },
-  { text: 'Дела', path: '/cases', icon: <Gavel /> },
-  { text: 'Клиенты', path: '/clients', icon: <People /> },
-  { text: 'Эксперты', path: '/experts', icon: <Engineering /> },
-  { text: 'Документы', path: '/documents', icon: <Description /> },
+  { text: 'Главная', path: '/crm', icon: <Home /> },
+  { text: 'Дела', path: '/crm/cases', icon: <Gavel /> },
+  { text: 'Клиенты', path: '/crm/clients', icon: <People /> },
+  { text: 'Эксперты', path: '/crm/experts', icon: <Engineering /> },
+  { text: 'Документы', path: '/crm/documents', icon: <Description /> },
   // { text: 'Финансы', path: '/finance', icon: <AccountBalance /> },
   // { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
   // { text: 'Календарь', path: '/calendar', icon: <CalendarMonth /> },

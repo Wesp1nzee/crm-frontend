@@ -20,7 +20,7 @@ export function LoginPage() {
 
   useEffect(() => {
     if (user) {
-      navigate('/', { replace: true });
+      navigate('/crm', { replace: true });
     }
   }, [user, navigate]);
 
