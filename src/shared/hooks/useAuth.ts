@@ -2,12 +2,10 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
 
-// Базовый URL для API
-const API_BASE_URL = 'http://localhost:8000';
 
 async function fetchCurrentUser() {
   console.log('Sending request to get current user...');
-  const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+  const response = await fetch(`/api/users/me`, {
     credentials: 'include', // Добавляем эту опцию для отправки cookies
   });
   
@@ -34,7 +32,7 @@ async function loginUser(credentials: { email: string; password: string }) {
     password: '[HIDDEN]' // Скрываем пароль в логах
   });
   
-  const response = await fetch(`${API_BASE_URL}/api/users/login`, {
+  const response = await fetch(`/api/users/login`, {
     method: 'POST',
     headers: { 
       'Content-Type': 'application/json',
@@ -63,7 +61,7 @@ async function loginUser(credentials: { email: string; password: string }) {
 
 async function logoutUser() {
   console.log('Sending logout request...');
-  const response = await fetch(`${API_BASE_URL}/api/users/logout`, {
+  const response = await fetch(`/api/users/logout`, {
     method: 'POST',
     credentials: 'include', // Добавляем эту опцию для отправки cookies
   });
@@ -86,7 +84,6 @@ export function useAuth() {
     queryKey: ['currentUser'],
     queryFn: fetchCurrentUser,
     retry: (failureCount, error) => {
-      // Не повторяем запрос при 401 ошибке
       const status = (error as any)?.response?.status;
       console.log('Auth check failed, retry decision:', { status, shouldRetry: status !== 401 && failureCount < 1 });
       return status !== 401 && failureCount < 1;

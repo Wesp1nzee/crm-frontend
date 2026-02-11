@@ -141,7 +141,7 @@ export function ClientListPage() {
                     <TableCell>
                       <Button
                         size="small"
-                        onClick={() => navigate(`/cases?client=${client.id}`)}
+                        onClick={() => navigate(`/crm/cases?client=${client.id}`)}
                       >
                         Дела
                       </Button>

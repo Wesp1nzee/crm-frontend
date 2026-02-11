@@ -19,10 +19,10 @@ const FinancePage = lazy(() => import('../pages/finance/FinancePage').then(m => 
 // const ReportsPage = lazy(() => import('../pages/reports/ReportsPage').then(m => ({ default: m.ReportsPage })));
 const ProfilePage = lazy(() => import('../pages/profile/ProfilePage').then(m => ({ default: m.ProfilePage })));
 const SettingsPage = lazy(() => import('../pages/settings/SettingsPage').then(m => ({ default: m.SettingsPage })));
-const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
-const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
-const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
-const MailPage = lazy(() => import('../pages/mail/MailPage').then(m => ({ default: m.MailPage })));
+// const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
+// const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
+// const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
+// const MailPage = lazy(() => import('../pages/mail/MailPage').then(m => ({ default: m.MailPage })));
 
 const PageLoader = () => (
   <Box display="flex" justifyContent="center" alignItems="center" minHeight="200px">
@@ -62,10 +62,10 @@ export const router = createBrowserRouter([
       { path: 'documents', element: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense> },
       { path: 'finance', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><FinancePage /></RoleGuard></Suspense> },
       // { path: 'reports', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ReportsPage /></RoleGuard></Suspense> },
-      { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
-      { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
-      { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
-      { path: 'mail', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><MailPage /></RoleGuard></Suspense> },
+      // { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
+      // { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
+      // { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
+      // { path: 'mail', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><MailPage /></RoleGuard></Suspense> },
     ],
   },
 ]);

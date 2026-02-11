@@ -358,7 +358,7 @@ export function CaseDetailPage() {
             <Button
               color="inherit"
               size="small"
-              onClick={() => navigate('/cases')}
+              onClick={() => navigate('/crm/cases')}
             >
               К списку дел
             </Button>
@@ -493,7 +493,7 @@ export function CaseDetailPage() {
       >
         <Box display="flex" alignItems="center" gap={2}>
           <Tooltip title="Назад к списку дел">
-            <IconButton onClick={() => navigate('/cases')} size="small">
+            <IconButton onClick={() => navigate('/crm/cases')} size="small">
               <ArrowBack />
             </IconButton>
           </Tooltip>

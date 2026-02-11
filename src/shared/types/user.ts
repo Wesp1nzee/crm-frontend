@@ -51,9 +51,9 @@ export const UserReadSchema = UserBaseSchema.extend({
 });
 
 export const UserUpdateSchema = z.object({
-  full_name: z.string().min(2).max(255).optional().nullable(),
+  full_name: z.string().min(2).optional().nullable(),
   specialization: z.string().optional().nullable(),
-  can_authenticate: z.boolean().optional().nullable(),
+  is_active: z.boolean().optional().nullable(),
   settings: z.record(z.any()).optional().nullable(),
 });
 

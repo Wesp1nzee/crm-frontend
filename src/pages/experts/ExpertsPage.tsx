@@ -33,7 +33,6 @@ import {
   Edit,
   Delete,
   Person,
-  Work,
   Search,
   FilterList,
   Refresh,
@@ -50,11 +49,8 @@ import {
 } from '../../shared/hooks/useExperts';
 import { UserRole } from '../../shared/types/user';
 import { useDebounce } from '../../shared/hooks/useDebounce';
-import { useNavigate } from 'react-router-dom';
 
-export function ExpertsPage() {
-  const navigate = useNavigate();
-  
+export function ExpertsPage() {  
   // Состояние фильтров
   const [filters, setFilters] = useState({
     search: '',

@@ -18,7 +18,7 @@ export const usersApi = {
     
     const queryString = queryParams.toString();
 
-    return api.get<UserRead[]>(`/users/${queryString ? '?' + queryString : ''}`);
+    return api.get<UserRead[]>(`/users${queryString ? '?' + queryString : ''}`);
   },
 
   getUser: (id: string) => api.get<UserRead>(`/users/${id}`),

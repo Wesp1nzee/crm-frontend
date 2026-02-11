@@ -262,13 +262,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </Box>
           </Box>
           <Divider />
-          <MenuItem onClick={() => { handleProfileClose(); navigate('/profile'); }}>
+          <MenuItem onClick={() => { handleProfileClose(); navigate('/crm/profile'); }}>
             <ListItemIcon>
               <Person />
             </ListItemIcon>
             <ListItemText primary="Мой профиль" />
           </MenuItem>
-          <MenuItem onClick={() => { handleProfileClose(); navigate('/settings'); }}>
+          <MenuItem onClick={() => { handleProfileClose(); navigate('/crm/settings'); }}>
             <ListItemIcon>
               <Settings />
             </ListItemIcon>

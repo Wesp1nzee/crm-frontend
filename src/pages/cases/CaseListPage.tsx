@@ -149,7 +149,7 @@ export function CaseListPage() {
 
   // ── Navigation / Dialog openers ──────────────────────────────────────────
 
-  const handleOpenDetail = (caseId: string) => navigate(`/cases/${caseId}`);
+  const handleOpenDetail = (caseId: string) => navigate(`/crm/cases/${caseId}`);
 
   const handleOpenDelete = (caseId: string) => {
     setDeletingCaseId(caseId);

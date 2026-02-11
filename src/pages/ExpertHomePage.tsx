@@ -26,10 +26,8 @@ export function ExpertHomePage() {
   const { data: cases } = useCases();
   const { user } = usePermissions();
 
-  // Убедимся, что cases - это массив перед фильтрацией
   const casesArray = Array.isArray(cases) ? cases : [];
   
-  // Фильтруем дела только для текущего эксперта
   const expertCases = casesArray.filter(c => c.assignedExpertId === user?.id);
   const activeCases = expertCases.filter(c => !['done', 'closed'].includes(c.status));
   const recentCases = expertCases.slice(0, 5);
@@ -74,7 +72,7 @@ export function ExpertHomePage() {
                 size="large" 
                 startIcon={<Add />} 
                 fullWidth 
-                onClick={() => navigate('/cases')} 
+                onClick={() => navigate('/crm/cases')} 
                 sx={{ py: 1.5 }}
               >
                 Мои дела
@@ -90,7 +88,7 @@ export function ExpertHomePage() {
             <Typography variant="h6" fontWeight="bold">Мои последние дела</Typography>
             <Button 
               endIcon={<ArrowForward />}
-              onClick={() => navigate('/cases')}
+              onClick={() => navigate('/crm/cases')}
             >
               Все дела
             </Button>
@@ -105,7 +103,7 @@ export function ExpertHomePage() {
                 <ListItem 
                   key={case_.id}
                   sx={{ cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
-                  onClick={() => navigate(`/cases/${case_.id}`)}
+                  onClick={() => navigate(`/crm/cases/${case_.id}`)}
                 >
                   <ListItemAvatar>
                     <Avatar sx={{ bgcolor: 'primary.main' }}><Gavel /></Avatar>

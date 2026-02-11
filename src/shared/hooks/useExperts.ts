@@ -37,7 +37,7 @@ export interface UpdateExpertInput {
   phone?: string;
   specialization?: string;
   role?: UserRole;
-  status: 'active' | 'inactive';
+  status: boolean;
 }
 
 type UserCreateWithStatus = UserCreateType & {
@@ -136,10 +136,7 @@ export const useUpdateExpert = () => {
         full_name: data.name,
         specialization: data.specialization,
         role: data.role?.toLowerCase() as UserRole,
-        can_authenticate: data.status === 'active',
-        settings: {
-          phone: data.phone,
-        },
+        is_active: data.status,
         ...(data.email && { email: data.email }),
       };
       

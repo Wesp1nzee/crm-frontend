@@ -28,7 +28,7 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await login.mutateAsync({ email, password });
-      navigate('/');
+      navigate('/crm');
     } catch (error) {
       // Ошибка обрабатывается в UI через login.error
     }
