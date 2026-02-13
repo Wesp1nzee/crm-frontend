@@ -26,7 +26,6 @@ import {
   Alert,
   TextField,
   LinearProgress,
-  Snackbar,
   Tooltip,
   Stack,
   useTheme,
@@ -64,6 +63,7 @@ import { useUploadDocument, useDownloadDocument, usePreviewDocument } from '../.
 import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
 import { useState, useEffect, useRef } from 'react';
+import { notificationService } from '../../shared/services/notifications';
 
 const statusLabels: Record<CaseStatus, string> = {
   archive: 'Архив',
@@ -273,12 +273,6 @@ const EditableField = ({
   );
 };
 
-interface NotificationState {
-  open: boolean;
-  message: string;
-  severity: 'error' | 'info' | 'success' | 'warning';
-}
-
 export function CaseDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -297,11 +291,6 @@ export function CaseDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
-  const [notification, setNotification] = useState<NotificationState>({
-    open: false,
-    message: '',
-    severity: 'info'
-  });
 
   useEffect(() => {
     if (caseData) {
@@ -311,21 +300,13 @@ export function CaseDetailPage() {
 
   useEffect(() => {
     if (patchCase.isSuccess) {
-      setNotification({
-        open: true,
-        message: 'Изменения успешно сохранены',
-        severity: 'success'
-      });
+      notificationService.success('Изменения успешно сохранены');
     }
   }, [patchCase.isSuccess]);
 
   useEffect(() => {
     if (patchCase.isError) {
-      setNotification({
-        open: true,
-        message: 'Ошибка при сохранении изменений',
-        severity: 'error'
-      });
+      notificationService.error('Ошибка при сохранении изменений');
     }
   }, [patchCase.isError]);
 
@@ -419,10 +400,6 @@ export function CaseDetailPage() {
     setEditValues({});
   };
 
-  const handleNotificationClose = () => {
-    setNotification({ ...notification, open: false });
-  };
-
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
@@ -447,18 +424,10 @@ export function CaseDetailPage() {
       setSelectedFiles([]);
       setUploadTitle('');
       refetch();
-      setNotification({
-        open: true,
-        message: 'Файлы успешно загружены',
-        severity: 'success'
-      });
+      notificationService.success('Файлы успешно загружены');
     } catch (error) {
       console.error('Ошибка загрузки файлов:', error);
-      setNotification({
-        open: true,
-        message: 'Ошибка загрузки файлов',
-        severity: 'error'
-      });
+      notificationService.error('Ошибка загрузки файлов');
     }
   };
 
@@ -1319,21 +1288,6 @@ export function CaseDetailPage() {
         </Grid>
       </Grid>
 
-      {/* Notification Snackbar */}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={3000}
-        onClose={handleNotificationClose}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-      >
-        <Alert
-          onClose={handleNotificationClose}
-          severity={notification.severity}
-          sx={{ width: '100%', boxShadow: 3 }}
-        >
-          {notification.message}
-        </Alert>
-      </Snackbar>
 
       {/* Hidden file input */}
       <input

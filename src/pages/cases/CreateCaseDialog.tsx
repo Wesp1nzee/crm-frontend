@@ -39,6 +39,7 @@ import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
 import { useCreateClient } from '../../shared/hooks/useClients';
 import type { ClientCreateRequest as ClientCreateRequestType } from '../../entities/client/types';
 import { ClientCreateDialog } from '../clients/ClientCreateDialog';
+import { notificationService } from '../../shared/services/notifications';
 
 const INPUT_HEIGHT = 54;
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -320,9 +321,10 @@ export function CreateCaseDialog({
       
       // Закрываем модальное окно создания клиента
       setCreateClientDialogOpen(false);
+      notificationService.success('Клиент успешно создан и выбран');
     } catch (error) {
       console.error('Ошибка создания клиента:', error);
-      // Ошибка будет обработана в самом модальном окне
+      notificationService.error('Не удалось создать клиента');
     }
   };
 

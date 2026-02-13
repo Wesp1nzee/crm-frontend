@@ -60,6 +60,7 @@ import {
 import type { FileSystemEntry } from '../../entities/document/types';
 import type { CaseSuggestion } from '../../entities/case/types';
 import { EditAssetDialog } from '../../shared/ui/EditAssetDialog';
+import { notificationService } from '../../shared/services/notifications';
 
 type SortField = 'name' | 'size' | 'created_at' | 'created_by';
 type SortOrder = 'asc' | 'desc';
@@ -213,6 +214,7 @@ export function DocumentsPage() {
       setCreateFolderOpen(false);
       setNewFolderName('');
       setPage(0);
+      notificationService.success('Папка успешно создана');
       refetch();
     } catch (error) {
       console.error('Ошибка создания папки:', error);
@@ -245,10 +247,11 @@ export function DocumentsPage() {
       setUploadTitle('');
       setSelectedCase(null);
       setCaseSearchQuery('');
+      notificationService.success(`Успешно загружено файлов: ${selectedFiles.length}`);
       refetch();
     } catch (error) {
       console.error('Ошибка загрузки файлов:', error);
-      alert('Ошибка загрузки файлов. Проверьте логи для подробностей.');
+      notificationService.error('Ошибка загрузки файлов. Проверьте логи для подробностей.');
     }
   };
 
@@ -328,14 +331,14 @@ export function DocumentsPage() {
     // Валидация
     if (!menuEntry.id || typeof menuEntry.id !== 'string' || menuEntry.id.startsWith('__')) {
       console.warn('Попытка удалить недопустимый элемент:', menuEntry);
-      alert('Этот элемент нельзя удалить');
+      notificationService.warning('Этот элемент нельзя удалить');
       handleMenuClose();
       return;
     }
 
     if (!menuEntry.name || !menuEntry.type) {
       console.error('Элемент не содержит name или type:', menuEntry);
-      alert('Невозможно удалить: данные повреждены.');
+      notificationService.error('Невозможно удалить: данные повреждены.');
       handleMenuClose();
       return;
     }
@@ -350,7 +353,7 @@ export function DocumentsPage() {
   const handleDelete = async () => {
     if (!entryToDelete?.id || !entryToDelete.type) {
       console.error('handleDelete: некорректный элемент', entryToDelete);
-      alert('Не удалось определить элемент для удаления');
+      notificationService.error('Не удалось определить элемент для удаления');
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
       return;
@@ -373,13 +376,14 @@ export function DocumentsPage() {
 
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
+      notificationService.success('Элемент успешно удалён');
 
       setTimeout(() => {
         refetch();
       }, 500);
     } catch (error) {
       console.error('Ошибка удаления:', error);
-      alert('Ошибка при удалении. Подробности в консоли.');
+      notificationService.error('Ошибка при удалении. Подробности в консоли.');
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
     }
@@ -401,6 +405,7 @@ export function DocumentsPage() {
       await updateAsset.mutateAsync(updateData);
       setEditDialogOpen(false);
       setEntryToEdit(null);
+      notificationService.success('Изменения успешно сохранены');
       refetch();
     } catch (error) {
       console.error('Ошибка обновления:', error);
@@ -418,6 +423,7 @@ export function DocumentsPage() {
           : { folder_id: targetFolderId === null ? null : targetFolderId }
       };
       await updateAsset.mutateAsync(updateData);
+      notificationService.success('Элемент успешно перемещён');
       refetch();
     } catch (error) {
       console.error('Ошибка перемещения:', error);

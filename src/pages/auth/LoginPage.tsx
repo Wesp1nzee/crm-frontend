@@ -10,6 +10,7 @@ import {
 } from '@mui/material';
 import { useLogin, useAuth } from '../../shared/hooks/useAuth';
 import { useNavigate } from 'react-router-dom';
+import { notificationService } from '../../shared/services/notifications';
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -28,9 +29,10 @@ export function LoginPage() {
     e.preventDefault();
     try {
       await login.mutateAsync({ email, password });
+      notificationService.success('Вход выполнен успешно');
       navigate('/crm');
     } catch (error) {
-      // Ошибка обрабатывается в UI через login.error
+      notificationService.error(getErrorMessage(error));
     }
   };
 

@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { useClients, useCreateClient } from '../../shared/hooks/useClients';
 import { useState } from 'react';
 import { ClientCreateDialog } from './ClientCreateDialog';
+import { notificationService } from '../../shared/services/notifications';
 
 const TYPE_ICONS = {
   legal: '🏢',
@@ -36,9 +37,11 @@ export function ClientListPage() {
     try {
       await createClient.mutateAsync(formData);
       setCreateDialogOpen(false);
+      notificationService.success('Клиент успешно создан');
       refetch();
     } catch (error: any) {
       console.error('Ошибка создания клиента:', error);
+      notificationService.error(error?.response?.data?.detail || 'Ошибка создания клиента');
     }
   };
 

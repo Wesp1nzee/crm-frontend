@@ -5,6 +5,8 @@ import { ThemeProvider } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import { theme } from '../styles/theme';
 import 'dayjs/locale/ru';
+import { NotificationCenter } from '../shared/ui/NotificationCenter';
+import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -26,6 +28,8 @@ export function Providers({ children }: ProvidersProps) {
         <LocalizationProvider dateAdapter={AdapterDayjs} adapterLocale="ru">
           <CssBaseline />
           {children}
+          <NotificationCenter />
+          <ConfirmDialog />
         </LocalizationProvider>
       </ThemeProvider>
     </QueryClientProvider>

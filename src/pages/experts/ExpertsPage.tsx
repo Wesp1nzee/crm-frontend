@@ -49,6 +49,8 @@ import {
 } from '../../shared/hooks/useExperts';
 import { UserRole } from '../../shared/types/user';
 import { useDebounce } from '../../shared/hooks/useDebounce';
+import { notificationService } from '../../shared/services/notifications';
+import { confirmService } from '../../shared/services/confirm';
 
 export function ExpertsPage() {  
   // Состояние фильтров
@@ -175,30 +177,46 @@ export function ExpertsPage() {
 
       if (editingExpert) {
         const { password: _, ...updateData } = submitData;
-        await updateExpert.mutateAsync({ 
-          id: editingExpert.id, 
-          data: updateData 
+        
+        await updateExpert.mutateAsync({
+          id: editingExpert.id,
+          data: updateData,
         });
+        notificationService.success('Пользователь успешно обновлён');
+
+
       } else {
         await createExpert.mutateAsync(submitData);
+        notificationService.success('Пользователь успешно создан');
       }
       handleCloseDialog();
       refetch();
     } catch (error) {
       console.error('Error saving user:', error);
-      alert('Ошибка сохранения пользователя: ' + (error as Error).message);
+      notificationService.error('Ошибка сохранения пользователя: ' + (error as Error).message);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (window.confirm('Удалить пользователя?')) {
-      try {
-        await deleteExpert.mutateAsync(id);
-        refetch();
-      } catch (error) {
-        console.error('Error deleting user:', error);
-        alert('Ошибка удаления пользователя: ' + (error as Error).message);
-      }
+    const confirmed = await confirmService.ask({
+      title: 'Удаление пользователя',
+      description: 'Вы действительно хотите удалить пользователя? Это действие нельзя отменить.',
+      confirmText: 'Удалить',
+      cancelText: 'Отмена',
+      confirmColor: 'error',
+    });
+
+    if (!confirmed) {
+      return;
+    }
+
+    try {
+      await deleteExpert.mutateAsync(id);
+      notificationService.success('Пользователь успешно удалён');
+      refetch();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      notificationService.error('Ошибка удаления пользователя: ' + (error as Error).message);
     }
   };
 
