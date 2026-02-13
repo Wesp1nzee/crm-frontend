@@ -21,7 +21,6 @@ import {
   TablePagination,
   IconButton,
   Tooltip,
-  Snackbar,
   Divider,
   Stack,
   Fade,
@@ -41,6 +40,7 @@ import { useCases, useCreateCase, useDeleteCase } from '../../shared/hooks/useCa
 import type { CaseStatus, GetCasesQuery } from '../../entities/case/types';
 import { CreateCaseDialog } from './CreateCaseDialog';
 import { CaseFilters } from './CaseFilters';
+import { notificationService } from '../../shared/services/notifications';
 
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -98,11 +98,6 @@ export function CaseListPage() {
   const createCase = useCreateCase();
   const deleteCase = useDeleteCase();
 
-  const [snackbar, setSnackbar] = useState<{
-    open: boolean;
-    message: string;
-    severity: 'success' | 'error' | 'warning' | 'info';
-  }>({ open: false, message: '', severity: 'success' });
 
   const cases = casesResponse?.data || [];
   const totalCases = casesResponse?.pagination?.total || 0;
@@ -112,19 +107,11 @@ export function CaseListPage() {
   const handleCreateSubmit = async (formData: Parameters<typeof createCase.mutateAsync>[0]) => {
     try {
       await createCase.mutateAsync(formData);
-      setSnackbar({
-        open: true,
-        message: `Дело "${formData.case_number}" успешно создано`,
-        severity: 'success',
-      });
+      notificationService.success(`Дело "${formData.case_number}" успешно создано`);
       setCreateDialogOpen(false);
       refetch();
     } catch (err: any) {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.detail || 'Ошибка создания дела',
-        severity: 'error',
-      });
+      notificationService.error(err.response?.data?.detail || 'Ошибка создания дела');
     }
   };
 
@@ -134,16 +121,12 @@ export function CaseListPage() {
     if (!deletingCaseId) return;
     try {
       await deleteCase.mutateAsync(deletingCaseId);
-      setSnackbar({ open: true, message: 'Дело успешно удалено', severity: 'success' });
+      notificationService.success('Дело успешно удалено');
       setDeleteDialogOpen(false);
       setDeletingCaseId('');
       refetch();
     } catch (err: any) {
-      setSnackbar({
-        open: true,
-        message: err.response?.data?.detail || 'Ошибка удаления дела',
-        severity: 'error',
-      });
+      notificationService.error(err.response?.data?.detail || 'Ошибка удаления дела');
     }
   };
 
@@ -474,24 +457,6 @@ export function CaseListPage() {
         </DialogActions>
       </Dialog>
 
-      {/* ── Snackbar ── */}
-      <Snackbar
-        open={snackbar.open}
-        autoHideDuration={6000}
-        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-        sx={{ mb: 3 }}
-      >
-        <Alert
-          severity={snackbar.severity}
-          onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
-          variant="filled"
-          elevation={6}
-          sx={{ minWidth: 300, maxWidth: 500, borderRadius: 2 }}
-        >
-          {snackbar.message}
-        </Alert>
-      </Snackbar>
     </Box>
   );
 }
