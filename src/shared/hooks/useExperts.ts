@@ -37,7 +37,7 @@ export interface UpdateExpertInput {
   phone?: string;
   specialization?: string;
   role?: UserRole;
-  status: boolean;
+  status: 'active' | 'inactive'; // Изменено: теперь строка 'active' | 'inactive'
 }
 
 type UserCreateWithStatus = UserCreateType & {
@@ -104,8 +104,8 @@ export const useExpert = (id: string) => {
 export const useCreateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (data: CreateExpertInput) => {
-      const isActive = data.status === 'active';
+    mutationFn: async ( CreateExpertInput) => {
+      const isActive = data.status === 'active'; // Преобразуем строку в boolean
       
       const userData: UserCreateWithStatus = {
         email: data.email,
@@ -130,13 +130,17 @@ export const useCreateExpert = () => {
 export const useUpdateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateExpertInput }) => {
-       console.log('UPDATE id:', id, typeof id);
+    mutationFn: async ({ id, data }: { id: string;  UpdateExpertInput }) => {
+      console.log('UPDATE id:', id, typeof id);
+      // Преобразуем строку статуса в boolean для бэкенда
+      const isActive = data.status === 'active';
+      
       const userData: UserUpdateType = {
         full_name: data.name,
         specialization: data.specialization,
         role: data.role?.toLowerCase() as UserRole,
-        is_active: data.status,
+        is_active: isActive, // Передаем boolean вместо строки
+        can_authenticate: isActive, // Также обновляем can_authenticate
         ...(data.email && { email: data.email }),
       };
       
@@ -155,7 +159,8 @@ export const useDeleteExpert = () => {
   return useMutation({
     mutationFn: (id: string) => {
       console.log('DELETE id:', id, typeof id);
-      return usersApi.deleteUser(id);},
+      return usersApi.deleteUser(id);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
     },
