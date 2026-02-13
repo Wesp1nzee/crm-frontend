@@ -97,7 +97,7 @@ export function ExpertsPage() {
     setFilters({ ...filters, search: e.target.value });
   };
 
-  const handleStatusChange = (event: React.MouseEvent<HTMLElement>, newStatus: string | null) => {
+  const handleStatusChange = (_event: React.MouseEvent<HTMLElement>, newStatus: string | null) => {
     if (newStatus) {
       setFilters({ ...filters, status: newStatus as typeof filters.status });
     }
@@ -177,11 +177,14 @@ export function ExpertsPage() {
 
       if (editingExpert) {
         const { password: _, ...updateData } = submitData;
+        
         await updateExpert.mutateAsync({
           id: editingExpert.id,
           data: updateData,
         });
         notificationService.success('Пользователь успешно обновлён');
+
+
       } else {
         await createExpert.mutateAsync(submitData);
         notificationService.success('Пользователь успешно создан');
@@ -268,6 +271,8 @@ export function ExpertsPage() {
               placeholder="Поиск по имени или email..."
               value={filters.search}
               onChange={handleSearchChange}
+              autoComplete="off"
+              name="user-search"
               InputProps={{
                 startAdornment: (
                   <InputAdornment position="start">
@@ -403,7 +408,17 @@ export function ExpertsPage() {
       </TableContainer>
 
       {/* Модальное окно */}
-      <Dialog open={dialogOpen} onClose={handleCloseDialog} maxWidth="md" fullWidth>
+      <Dialog 
+        open={dialogOpen} 
+        onClose={handleCloseDialog} 
+        maxWidth="md" 
+        fullWidth
+        // Отключаем автозаполнение для всего диалога
+        PaperProps={{
+          component: 'form',
+          autoComplete: 'off',
+        }}
+      >
         <DialogTitle>
           {editingExpert ? 'Редактировать пользователя' : 'Добавить пользователя'}
         </DialogTitle>
@@ -417,6 +432,8 @@ export function ExpertsPage() {
               onChange={(e) => setFormData({ ...formData, name: e.target.value })}
               error={!formData.name.trim()}
               helperText={!formData.name.trim() ? 'Имя обязательно' : ''}
+              autoComplete="name"
+              name="full-name"
             />
             <TextField
               label="Email"
@@ -427,6 +444,8 @@ export function ExpertsPage() {
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
               error={!formData.email.trim()}
               helperText={!formData.email.trim() ? 'Email обязателен' : ''}
+              autoComplete="email"
+              name="user-email"
             />
             <FormControl fullWidth>
               <InputLabel>Роль</InputLabel>
@@ -444,6 +463,8 @@ export function ExpertsPage() {
               fullWidth
               value={formData.specialization}
               onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+              autoComplete="off"
+              name="specialization"
             />
             {!editingExpert && (
               <TextField
@@ -459,6 +480,8 @@ export function ExpertsPage() {
                     ? 'Пароль должен быть не менее 12 символов'
                     : 'Минимум 12 символов'
                 }
+                autoComplete="new-password"
+                name="new-password"
                 InputProps={{
                   endAdornment: (
                     <InputAdornment position="end">
