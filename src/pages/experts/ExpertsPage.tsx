@@ -177,7 +177,10 @@ export function ExpertsPage() {
 
       if (editingExpert) {
         const { password: _, ...updateData } = submitData;
-        await updateExpert.mutateAsync({ id: editingExpert.id, data: updateData });
+        await updateExpert.mutateAsync({
+          id: editingExpert.id,
+          data: updateData,
+        });
         notificationService.success('Пользователь успешно обновлён');
       } else {
         await createExpert.mutateAsync(submitData);
