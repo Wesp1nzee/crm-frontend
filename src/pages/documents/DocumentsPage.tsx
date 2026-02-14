@@ -593,7 +593,7 @@ export function DocumentsPage() {
     <TableRow>
       <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-          <Folder sx={{ fontSize: 60, color: 'action.disabled' }} />
+          <FolderOutlined sx={{ fontSize: 60, color: 'action.disabled' }} />
           <Typography variant="h6">Папка пуста</Typography>
           <Typography variant="body2" color="text.secondary">
             {searchQuery
