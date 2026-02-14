@@ -119,7 +119,8 @@ export function DocumentsPage() {
   const [caseSearchQuery, setCaseSearchQuery] = useState('');
   const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState(false);
+  const [dragOverTable, setDragOverTable] = useState(false);
+  const [dragOverUploadDialog, setDragOverUploadDialog] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [dragOverFolderPathIndex, setDragOverFolderPathIndex] = useState<number | null>(null);
@@ -774,7 +775,7 @@ export function DocumentsPage() {
             const hasFiles = Array.from(e.dataTransfer.items).some(
               item => item.kind === 'file'
             );
-            if (hasFiles) setDragOver(true);
+            if (hasFiles && !uploadDialogOpen) setDragOverTable(true);
           }
         }}
         onDragLeave={(e) => {
@@ -787,7 +788,7 @@ export function DocumentsPage() {
             e.clientY <= rect.top + 10 ||
             e.clientY >= rect.bottom - 10
           ) {
-            setDragOver(false);
+            setDragOverTable(false);
           }
         }}
         onDragOver={(e) => {
@@ -797,21 +798,22 @@ export function DocumentsPage() {
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setDragOver(false);
+          setDragOverTable(false);
           if (e.dataTransfer.files && e.dataTransfer.files.length > 0 && !isDraggingInternal) {
             const files = Array.from(e.dataTransfer.files);
             setSelectedFiles(files);
+            setDragOverUploadDialog(false);
             setUploadDialogOpen(true);
           }
         }}
         sx={{
           position: 'relative',
           border: '2px dashed',
-          borderColor: dragOver ? 'primary.main' : 'transparent',
+          borderColor: dragOverTable ? 'primary.main' : 'transparent',
           borderRadius: 2,
           transition: 'border-color 0.2s ease',
           '&:hover': {
-            borderColor: dragOver ? '#1976d2' : 'divider',
+            borderColor: dragOverTable ? '#1976d2' : 'divider',
           }
         }}
       >
@@ -1081,7 +1083,7 @@ export function DocumentsPage() {
         </Menu>
 
         {/* Оверлей для drag-and-drop */}
-        {dragOver && (
+        {dragOverTable && (
           <Box
             sx={{
               position: 'absolute',
@@ -1234,6 +1236,7 @@ export function DocumentsPage() {
           setUploadCaseId('');
           setSelectedCase(null);
           setCaseSearchQuery('');
+          setDragOverUploadDialog(false);
         }}
         maxWidth="sm"
         fullWidth
@@ -1290,11 +1293,11 @@ export function DocumentsPage() {
             <Box
               sx={{
                 border: '2px dashed',
-                borderColor: dragOver ? 'primary.dark' : 'primary.main',
+                borderColor: dragOverUploadDialog ? 'primary.dark' : 'primary.main',
                 borderRadius: 2,
                 p: 3,
                 textAlign: 'center',
-                bgcolor: dragOver ? 'primary.lighter' : 'action.hover',
+                bgcolor: dragOverUploadDialog ? 'primary.lighter' : 'action.hover',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 '&:hover': {
@@ -1305,17 +1308,17 @@ export function DocumentsPage() {
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(true);
+                setDragOverUploadDialog(true);
               }}
               onDragLeave={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(false);
+                setDragOverUploadDialog(false);
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(false);
+                setDragOverUploadDialog(false);
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const files = Array.from(e.dataTransfer.files);
                   setSelectedFiles(prev => [...prev, ...files]);
@@ -1344,6 +1347,7 @@ export function DocumentsPage() {
               setUploadCaseId('');
               setSelectedCase(null);
               setCaseSearchQuery('');
+              setDragOverUploadDialog(false);
             }}
             sx={actionButtonSx}
           >
