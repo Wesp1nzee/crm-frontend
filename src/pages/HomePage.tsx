@@ -25,7 +25,6 @@ import {
   ArrowForward,
   AutoGraph,
   DonutLarge,
-  Bolt,
 } from '@mui/icons-material';
 import { alpha } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
@@ -48,11 +47,11 @@ interface FinancialSummary {
 }
 
 const palette = {
-  deepSlate: '#0E1628',
-  deepSlateLight: '#16243B',
+  deepSlate: '#F3F7FF',
+  deepSlateLight: '#E8F0FF',
   cyberBlue: '#2A7FFF',
   cyberBlueGlow: '#63A4FF',
-  softChalk: '#EAF1FF',
+  softChalk: '#1B2A44',
 };
 
 const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
@@ -63,9 +62,9 @@ const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
 const glassCardSx = {
   borderRadius: 6,
   backdropFilter: 'blur(18px)',
-  background: `linear-gradient(145deg, ${alpha('#FFFFFF', 0.16)} 0%, ${alpha('#FFFFFF', 0.06)} 100%)`,
-  border: `1px solid ${alpha('#FFFFFF', 0.2)}`,
-  boxShadow: `0 20px 45px ${alpha('#050910', 0.35)}`,
+  background: `linear-gradient(145deg, ${alpha('#FFFFFF', 0.88)} 0%, ${alpha('#F7FAFF', 0.7)} 100%)`,
+  border: `1px solid ${alpha('#A9C2EA', 0.45)}`,
+  boxShadow: `0 18px 40px ${alpha('#6785B5', 0.16)}`,
 };
 
 function formatCompactCurrency(value: number): string {
@@ -110,10 +109,6 @@ function AdminHomePage() {
   const completedCases = cases.filter((caseItem) => caseItem.status !== 'in_work');
   const completionRate = cases.length ? Math.round((completedCases.length / cases.length) * 100) : 0;
 
-  const collectionRate = totalRevenue + (financialSummary?.pending_amount || 0)
-    ? Math.round((totalRevenue / (totalRevenue + (financialSummary?.pending_amount || 0))) * 100)
-    : 100;
-
   return (
     <Box
       sx={{
@@ -121,9 +116,9 @@ function AdminHomePage() {
         color: palette.softChalk,
         borderRadius: 8,
         p: { xs: 2, md: 4 },
-        background: `radial-gradient(circle at 15% 15%, ${alpha(palette.cyberBlueGlow, 0.22)} 0%, transparent 40%),
-          radial-gradient(circle at 85% 80%, ${alpha('#7E8FFF', 0.2)} 0%, transparent 35%),
-          linear-gradient(145deg, ${palette.deepSlate} 0%, ${palette.deepSlateLight} 55%, #0A101E 100%)`,
+        background: `radial-gradient(circle at 15% 15%, ${alpha(palette.cyberBlueGlow, 0.18)} 0%, transparent 40%),
+          radial-gradient(circle at 85% 80%, ${alpha('#7E8FFF', 0.12)} 0%, transparent 35%),
+          linear-gradient(145deg, ${palette.deepSlate} 0%, ${palette.deepSlateLight} 55%, #DDE8FD 100%)`,
         position: 'relative',
         overflow: 'hidden',
       }}
@@ -133,19 +128,16 @@ function AdminHomePage() {
           position: 'absolute',
           inset: 0,
           pointerEvents: 'none',
-          background: `linear-gradient(120deg, ${alpha('#FFFFFF', 0.05)} 0%, transparent 60%)`,
+          background: `linear-gradient(120deg, ${alpha('#FFFFFF', 0.45)} 0%, transparent 60%)`,
         }}
       />
 
       <Box sx={{ position: 'relative', zIndex: 2 }}>
         <Box mb={4}>
-          <Typography variant="overline" sx={{ color: alpha(palette.softChalk, 0.75), letterSpacing: 2.4 }}>
-            Executive control room • 8K ready layout
+          <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5 }}>
+            Главная панель CRM
           </Typography>
-          <Typography variant="h3" fontWeight={700} sx={{ mt: 0.5 }}>
-            CRM Performance Atlas
-          </Typography>
-          <Typography variant="h6" sx={{ color: alpha(palette.softChalk, 0.75) }}>
+          <Typography variant="h6" sx={{ color: alpha(palette.softChalk, 0.7) }}>
             {dayjs().format('DD MMMM YYYY')} • Премиальный обзор бизнеса
           </Typography>
         </Box>
@@ -175,7 +167,7 @@ function AdminHomePage() {
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Просроченные дедлайны</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h3" fontWeight={700}>{overdueCases.length}</Typography>
-                <Warning sx={{ fontSize: 42, color: '#FF9B8D' }} />
+                <Warning sx={{ fontSize: 42, color: '#DF6E5B' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
                 Требуют немедленного внимания
@@ -201,7 +193,7 @@ function AdminHomePage() {
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Завершено</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
                 <Typography variant="h3" fontWeight={700}>{completionRate}%</Typography>
-                <CheckCircle sx={{ fontSize: 42, color: '#91F5C8' }} />
+                <CheckCircle sx={{ fontSize: 42, color: '#2D9B6A' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
                 Конверсия дел в завершение
@@ -243,7 +235,7 @@ function AdminHomePage() {
                     textTransform: 'none',
                     color: palette.softChalk,
                     borderColor: alpha(palette.softChalk, 0.35),
-                    '&:hover': { borderColor: alpha(palette.softChalk, 0.7), bgcolor: alpha('#FFFFFF', 0.04) },
+                    '&:hover': { borderColor: alpha(palette.softChalk, 0.6), bgcolor: alpha('#2A7FFF', 0.04) },
                   }}
                 >
                   Управление клиентами
@@ -274,30 +266,13 @@ function AdminHomePage() {
                   }}
                 />
               </Box>
-              <Box mb={2.5}>
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>Инкассация</Typography>
-                  <Typography variant="body2" fontWeight={600}>{collectionRate}%</Typography>
-                </Box>
-                <LinearProgress
-                  variant="determinate"
-                  value={collectionRate}
-                  sx={{
-                    height: 10,
-                    borderRadius: 12,
-                    bgcolor: alpha('#FFFFFF', 0.14),
-                    '& .MuiLinearProgress-bar': { bgcolor: palette.cyberBlueGlow, borderRadius: 12 },
-                  }}
-                />
-              </Box>
               {pendingPayments > 0 && (
                 <Chip
-                  icon={<Bolt />}
                   label={`${pendingPayments} ожидают оплаты`}
                   sx={{
                     color: palette.softChalk,
-                    bgcolor: alpha('#FFBA7A', 0.2),
-                    border: `1px solid ${alpha('#FFD5A8', 0.35)}`,
+                    bgcolor: alpha('#FFBA7A', 0.28),
+                    border: `1px solid ${alpha('#C88B39', 0.35)}`,
                   }}
                 />
               )}
@@ -308,7 +283,7 @@ function AdminHomePage() {
             <CardContent>
               <Box display="flex" alignItems="center" gap={1} mb={2}>
                 <AutoGraph sx={{ color: '#83D7FF' }} />
-                <Typography variant="h6" fontWeight={700}>Finance Pulse</Typography>
+                <Typography variant="h6" fontWeight={700}>Финансовая сводка</Typography>
               </Box>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Средняя стоимость дела</Typography>
               <Typography variant="h4" fontWeight={700} mt={0.5}>{averageCaseCost.toLocaleString()} ₽</Typography>
@@ -368,7 +343,7 @@ function AdminHomePage() {
                         bgcolor: dayjs(caseItem.deadline).isBefore(dayjs(), 'day')
                           ? alpha('#FF8D8D', 0.2)
                           : alpha('#89CBFF', 0.2),
-                        border: `1px solid ${alpha('#FFFFFF', 0.2)}`,
+                        border: `1px solid ${alpha('#7EA2D8', 0.3)}`,
                       }}
                     />
                   </ListItem>
