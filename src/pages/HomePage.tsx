@@ -44,6 +44,12 @@ interface FinancialSummary {
   completed_cases: number;
   active_cases: number;
   overdue_cases: number;
+  efficiency: {
+    avg_completion_time: number;
+    conversion_rate: number;
+    conversion_trend: number;
+    throughput: number;
+  };
 }
 
 const palette = {
@@ -106,8 +112,16 @@ function AdminHomePage() {
   const pendingPayments = financialSummary?.pending_payments || 0;
   const averageCaseCost = financialSummary?.average_case_cost || 0;
 
-  const completedCases = cases.filter((caseItem) => caseItem.status !== 'in_work');
-  const completionRate = cases.length ? Math.round((completedCases.length / cases.length) * 100) : 0;
+  const totalCases = financialSummary?.total_cases ?? cases.length;
+  const completedCases = financialSummary?.completed_cases ?? cases.filter((caseItem) => caseItem.status !== 'in_work').length;
+  const activeCasesCount = financialSummary?.active_cases ?? activeCases.length;
+  const overdueCasesCount = financialSummary?.overdue_cases ?? overdueCases.length;
+
+  const completionRate = totalCases ? Math.round((completedCases / totalCases) * 100) : 0;
+  const avgCompletionTime = financialSummary?.efficiency?.avg_completion_time ?? 0;
+  const conversionRate = financialSummary?.efficiency?.conversion_rate ?? 0;
+  const conversionTrend = financialSummary?.efficiency?.conversion_trend ?? 0;
+  const throughput = financialSummary?.efficiency?.throughput ?? 0;
 
   return (
     <Box
@@ -153,7 +167,7 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Активные дела</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{activeCases.length}</Typography>
+                <Typography variant="h3" fontWeight={700}>{activeCasesCount}</Typography>
                 <Schedule sx={{ fontSize: 42, color: palette.cyberBlueGlow }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -166,7 +180,7 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Просроченные дедлайны</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{overdueCases.length}</Typography>
+                <Typography variant="h3" fontWeight={700}>{overdueCasesCount}</Typography>
                 <Warning sx={{ fontSize: 42, color: '#DF6E5B' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -192,11 +206,11 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Завершено</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{completionRate}%</Typography>
+                <Typography variant="h3" fontWeight={700}>{completedCases}</Typography>
                 <CheckCircle sx={{ fontSize: 42, color: '#2D9B6A' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
-                Конверсия дел в завершение
+                Завершенные дела
               </Typography>
             </CardContent>
           </Card>
@@ -252,7 +266,7 @@ function AdminHomePage() {
               </Box>
               <Box mb={2.5}>
                 <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>Выполнение по делам</Typography>
+                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>Закрытие дел</Typography>
                   <Typography variant="body2" fontWeight={600}>{completionRate}%</Typography>
                 </Box>
                 <LinearProgress
@@ -266,10 +280,35 @@ function AdminHomePage() {
                   }}
                 />
               </Box>
+              <Box mb={1.5} display="grid" gridTemplateColumns="1fr 1fr" gap={1.5}>
+                <Box>
+                  <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.65) }}>Среднее закрытие</Typography>
+                  <Typography variant="h6" fontWeight={700}>{avgCompletionTime.toFixed(1)} дн.</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.65) }}>Пропускная способность</Typography>
+                  <Typography variant="h6" fontWeight={700}>{throughput.toFixed(2)}</Typography>
+                </Box>
+              </Box>
+              <Box display="flex" alignItems="center" justifyContent="space-between" gap={1}>
+                <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>
+                  Конверсия (30 дней): <b>{conversionRate.toFixed(1)}%</b>
+                </Typography>
+                <Chip
+                  size="small"
+                  label={`${conversionTrend >= 0 ? '+' : ''}${conversionTrend.toFixed(1)}%`}
+                  sx={{
+                    color: conversionTrend >= 0 ? '#0E7A4F' : '#A13E3E',
+                    bgcolor: conversionTrend >= 0 ? alpha('#7EE2B0', 0.35) : alpha('#F4A9A9', 0.35),
+                    border: `1px solid ${conversionTrend >= 0 ? alpha('#2D9B6A', 0.35) : alpha('#D86B6B', 0.35)}`,
+                  }}
+                />
+              </Box>
               {pendingPayments > 0 && (
                 <Chip
                   label={`${pendingPayments} ожидают оплаты`}
                   sx={{
+                    mt: 1.5,
                     color: palette.softChalk,
                     bgcolor: alpha('#FFBA7A', 0.28),
                     border: `1px solid ${alpha('#C88B39', 0.35)}`,
@@ -288,6 +327,16 @@ function AdminHomePage() {
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Средняя стоимость дела</Typography>
               <Typography variant="h4" fontWeight={700} mt={0.5}>{averageCaseCost.toLocaleString()} ₽</Typography>
               <Divider sx={{ my: 1.8, borderColor: alpha('#FFFFFF', 0.15) }} />
+              <Box display="flex" justifyContent="space-between" gap={2}>
+                <Box>
+                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Всего дел</Typography>
+                  <Typography variant="h6" fontWeight={700}>{totalCases}</Typography>
+                </Box>
+                <Box>
+                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Завершено</Typography>
+                  <Typography variant="h6" fontWeight={700}>{completedCases}</Typography>
+                </Box>
+              </Box>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Потенциальный долг</Typography>
               <Typography variant="h5" fontWeight={700} color="#FFB6A9" mt={0.5}>
                 {(financialSummary?.pending_amount || 0).toLocaleString()} ₽
