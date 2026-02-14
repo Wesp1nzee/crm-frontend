@@ -79,6 +79,14 @@ const fileIcons: Record<string, JSX.Element> = {
 
 const sanitizeAndRender = (str: string) => DOMPurify.sanitize(str);
 
+const actionButtonSx = {
+  textTransform: 'none',
+  minHeight: 40,
+  px: 2,
+  borderRadius: 1.5,
+  fontWeight: 600,
+};
+
 export function DocumentsPage() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState<Array<{ id: string | null; name: string }>>([
@@ -606,7 +614,7 @@ export function DocumentsPage() {
                 variant="outlined"
                 startIcon={<CreateNewFolder />}
                 onClick={() => setCreateFolderOpen(true)}
-                size="small"
+                sx={actionButtonSx}
               >
                 Создать папку
               </Button>
@@ -617,7 +625,7 @@ export function DocumentsPage() {
                   setSelectedFiles([]);
                   setUploadDialogOpen(true);
                 }}
-                size="small"
+                sx={actionButtonSx}
               >
                 Загрузить файлы
               </Button>
@@ -656,7 +664,7 @@ export function DocumentsPage() {
             variant="outlined"
             startIcon={<CreateNewFolder />}
             onClick={() => setCreateFolderOpen(true)}
-            sx={{ textTransform: 'none' }}
+            sx={actionButtonSx}
           >
             Создать папку
           </Button>
@@ -667,7 +675,7 @@ export function DocumentsPage() {
               setSelectedFiles([]);
               setUploadDialogOpen(true);
             }}
-            sx={{ textTransform: 'none' }}
+            sx={actionButtonSx}
           >
             Загрузить файлы
           </Button>
@@ -699,7 +707,6 @@ export function DocumentsPage() {
               return (
                 <Button
                   key={index}
-                  size="small"
                   variant={isCurrent ? 'contained' : 'text'}
                   color={isCurrent ? 'primary' : 'inherit'}
                   onDragEnter={(e) => handlePathDragEnter(e, index)}
@@ -710,7 +717,7 @@ export function DocumentsPage() {
                   startIcon={index === 0 ? <Home fontSize="small" /> : <FolderOutlined fontSize="small" />}
                   sx={{
                     textTransform: 'none',
-                    minHeight: 32,
+                    minHeight: 38,
                     borderRadius: 1,
                     px: 1.25,
                     border: isDragOver ? (theme) => `1px solid ${theme.palette.primary.main}` : undefined,
@@ -969,7 +976,6 @@ export function DocumentsPage() {
                           </TableCell>
                           <TableCell align="right" sx={{ pr: 1.5 }}>
                             <IconButton
-                              size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMenuClick(e, entry);
@@ -1006,9 +1012,28 @@ export function DocumentsPage() {
             sx={{
               borderTop: '1px solid',
               borderColor: 'divider',
-              '& .MuiTablePagination-toolbar, & .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows, & .MuiTablePagination-select': {
-                fontSize: '0.9rem',
+              '& .MuiTablePagination-toolbar': {
+                minHeight: 56,
+                alignItems: 'center',
+                display: 'flex',
+                gap: 1,
+              },
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows, & .MuiTablePagination-select': {
+                fontSize: '0.95rem',
                 color: 'text.primary',
+                lineHeight: 1.4,
+                m: 0,
+              },
+              '& .MuiTablePagination-select': {
+                display: 'inline-flex',
+                alignItems: 'center',
+              },
+              '& .MuiTablePagination-actions': {
+                alignSelf: 'center',
+                ml: 1,
+              },
+              '& .MuiTablePagination-actions .MuiIconButton-root': {
+                p: 1,
               },
             }}
           />
@@ -1145,6 +1170,7 @@ export function DocumentsPage() {
               setEntryToDelete(null);
             }}
             color="primary"
+            sx={actionButtonSx}
           >
             Отмена
           </Button>
@@ -1158,6 +1184,7 @@ export function DocumentsPage() {
               !entryToDelete ||
               !entryToDelete.id
             }
+            sx={actionButtonSx}
           >
             {deleteDocument.isPending || deleteFolder.isPending ? (
               <CircularProgress size={20} sx={{ mr: 1 }} />
@@ -1185,11 +1212,12 @@ export function DocumentsPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateFolderOpen(false)}>Отмена</Button>
+          <Button onClick={() => setCreateFolderOpen(false)} sx={actionButtonSx}>Отмена</Button>
           <Button
             onClick={handleCreateFolder}
             variant="contained"
             disabled={!newFolderName.trim() || createFolder.isPending}
+            sx={actionButtonSx}
           >
             {createFolder.isPending ? <CircularProgress size={20} /> : 'Создать'}
           </Button>
@@ -1317,6 +1345,7 @@ export function DocumentsPage() {
               setSelectedCase(null);
               setCaseSearchQuery('');
             }}
+            sx={actionButtonSx}
           >
             Отмена
           </Button>
@@ -1324,6 +1353,7 @@ export function DocumentsPage() {
             variant="contained"
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            sx={actionButtonSx}
           >
             {uploadDocument.isPending ? (
               <CircularProgress size={20} />
