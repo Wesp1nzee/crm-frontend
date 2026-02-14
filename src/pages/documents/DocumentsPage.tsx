@@ -27,13 +27,12 @@ import {
   Skeleton,
   Autocomplete,
   alpha,
-  Fade,
 } from '@mui/material';
 import {
   Delete,
   Download,
-  Folder,
-  InsertDriveFile,
+  FolderOutlined,
+  DescriptionOutlined,
   CreateNewFolder,
   Upload,
   MoreVert,
@@ -66,19 +65,27 @@ type SortField = 'name' | 'size' | 'created_at' | 'created_by';
 type SortOrder = 'asc' | 'desc';
 
 const fileIcons: Record<string, JSX.Element> = {
-  pdf: <InsertDriveFile sx={{ color: '#D32F2F' }} />,
-  doc: <InsertDriveFile sx={{ color: '#2196F3' }} />,
-  docx: <InsertDriveFile sx={{ color: '#2196F3' }} />,
-  xls: <InsertDriveFile sx={{ color: '#4CAF50' }} />,
-  xlsx: <InsertDriveFile sx={{ color: '#4CAF50' }} />,
-  jpg: <InsertDriveFile sx={{ color: '#FF9800' }} />,
-  jpeg: <InsertDriveFile sx={{ color: '#FF9800' }} />,
-  png: <InsertDriveFile sx={{ color: '#FF9800' }} />,
-  zip: <InsertDriveFile sx={{ color: '#9C27B0' }} />,
-  rar: <InsertDriveFile sx={{ color: '#9C27B0' }} />,
+  pdf: <DescriptionOutlined sx={{ color: '#D32F2F' }} />,
+  doc: <DescriptionOutlined sx={{ color: '#2196F3' }} />,
+  docx: <DescriptionOutlined sx={{ color: '#2196F3' }} />,
+  xls: <DescriptionOutlined sx={{ color: '#4CAF50' }} />,
+  xlsx: <DescriptionOutlined sx={{ color: '#4CAF50' }} />,
+  jpg: <DescriptionOutlined sx={{ color: '#FF9800' }} />,
+  jpeg: <DescriptionOutlined sx={{ color: '#FF9800' }} />,
+  png: <DescriptionOutlined sx={{ color: '#FF9800' }} />,
+  zip: <DescriptionOutlined sx={{ color: '#9C27B0' }} />,
+  rar: <DescriptionOutlined sx={{ color: '#9C27B0' }} />,
 };
 
 const sanitizeAndRender = (str: string) => DOMPurify.sanitize(str);
+
+const actionButtonSx = {
+  textTransform: 'none',
+  minHeight: 40,
+  px: 2,
+  borderRadius: 1.5,
+  fontWeight: 600,
+};
 
 export function DocumentsPage() {
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -112,7 +119,8 @@ export function DocumentsPage() {
   const [caseSearchQuery, setCaseSearchQuery] = useState('');
   const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
-  const [dragOver, setDragOver] = useState(false);
+  const [dragOverTable, setDragOverTable] = useState(false);
+  const [dragOverUploadDialog, setDragOverUploadDialog] = useState(false);
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [dragOverFolderPathIndex, setDragOverFolderPathIndex] = useState<number | null>(null);
@@ -166,10 +174,10 @@ export function DocumentsPage() {
   // Получение иконки для файла
   const getFileIcon = (entry: FileSystemEntry) => {
     if (entry.type === 'folder') {
-      return <Folder color="primary" />;
+      return <FolderOutlined color="primary" />;
     }
     const ext = entry.extension?.replace('.', '').toLowerCase() || '';
-    return fileIcons[ext] || <InsertDriveFile color="action" />;
+    return fileIcons[ext] || <DescriptionOutlined color="action" />;
   };
 
   // Обработчики навигации
@@ -413,14 +421,27 @@ export function DocumentsPage() {
   };
 
   // Обработчики перемещения файлов и папок
-  const handleAssetDrop = async (assetId: string, assetType: 'file' | 'folder', targetFolderId: string | null) => {
+  const handleAssetDrop = async (
+    assetId: string,
+    assetType: 'file' | 'folder',
+    targetFolderId: string | null,
+    assetName?: string,
+  ) => {
     try {
+      const draggedEntry = entriesArray.find((entry) => entry.id === assetId);
+      const fallbackName = assetName || draggedEntry?.name;
       const updateData = {
         asset_id: assetId,
         asset_type: assetType,
         data: assetType === 'folder'
-          ? { parent_id: targetFolderId === null ? null : targetFolderId }
-          : { folder_id: targetFolderId === null ? null : targetFolderId }
+          ? {
+            parent_id: targetFolderId === null ? null : targetFolderId,
+            ...(fallbackName ? { name: fallbackName } : {}),
+          }
+          : {
+            folder_id: targetFolderId === null ? null : targetFolderId,
+            ...(fallbackName ? { title: fallbackName } : {}),
+          }
       };
       await updateAsset.mutateAsync(updateData);
       notificationService.success('Элемент успешно перемещён');
@@ -428,13 +449,6 @@ export function DocumentsPage() {
     } catch (error) {
       console.error('Ошибка перемещения:', error);
     }
-  };
-
-  // Получение метки типа
-  const getEntryTypeLabel = (entry: FileSystemEntry): string => {
-    if (entry.type === 'folder') return 'Папка';
-    const ext = entry.extension?.replace('.', '').toUpperCase() || 'Файл';
-    return ext;
   };
 
   const formatCreatorName = (entry: FileSystemEntry): string => {
@@ -458,7 +472,7 @@ export function DocumentsPage() {
     e.preventDefault();
     e.stopPropagation();
     const hasInternalData = e.dataTransfer.types.includes('application/json');
-    if (hasInternalData) {
+    if (hasInternalData || Boolean(draggedItemId)) {
       setDragOverFolderPathIndex(index);
     }
   };
@@ -469,9 +483,12 @@ export function DocumentsPage() {
     setDragOverFolderPathIndex(null);
   };
 
-  const handlePathDragOver = (e: React.DragEvent) => {
+  const handlePathDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
+    if (draggedItemId) {
+      setDragOverFolderPathIndex(index);
+    }
     e.dataTransfer.dropEffect = 'move';
   };
 
@@ -482,9 +499,9 @@ export function DocumentsPage() {
     const assetData = e.dataTransfer.getData('application/json');
     if (assetData) {
       try {
-        const { id, type } = JSON.parse(assetData);
+        const { id, type, name } = JSON.parse(assetData);
         const targetFolderId = folderPath[index].id;
-        handleAssetDrop(id, type as 'file' | 'folder', targetFolderId);
+        handleAssetDrop(id, type as 'file' | 'folder', targetFolderId, name);
       } catch (error) {
         console.error('Ошибка парсинга данных перетаскивания:', error);
       }
@@ -499,6 +516,7 @@ export function DocumentsPage() {
     e.dataTransfer.setData('application/json', JSON.stringify({
       id: entry.id,
       type: entry.type,
+      name: entry.name,
     }));
     e.dataTransfer.effectAllowed = 'move';
     const dragImage = document.createElement('div');
@@ -574,8 +592,8 @@ export function DocumentsPage() {
     const assetData = e.dataTransfer.getData('application/json');
     if (assetData && entry.type === 'folder') {
       try {
-        const { id, type } = JSON.parse(assetData);
-        handleAssetDrop(id, type as 'file' | 'folder', entry.id);
+        const { id, type, name } = JSON.parse(assetData);
+        handleAssetDrop(id, type as 'file' | 'folder', entry.id, name);
       } catch (error) {
         console.error('Ошибка парсинга данных перетаскивания:', error);
       }
@@ -587,7 +605,7 @@ export function DocumentsPage() {
     <TableRow>
       <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-          <Folder sx={{ fontSize: 60, color: 'action.disabled' }} />
+          <FolderOutlined sx={{ fontSize: 60, color: 'action.disabled' }} />
           <Typography variant="h6">Папка пуста</Typography>
           <Typography variant="body2" color="text.secondary">
             {searchQuery
@@ -600,7 +618,7 @@ export function DocumentsPage() {
                 variant="outlined"
                 startIcon={<CreateNewFolder />}
                 onClick={() => setCreateFolderOpen(true)}
-                size="small"
+                sx={actionButtonSx}
               >
                 Создать папку
               </Button>
@@ -611,7 +629,7 @@ export function DocumentsPage() {
                   setSelectedFiles([]);
                   setUploadDialogOpen(true);
                 }}
-                size="small"
+                sx={actionButtonSx}
               >
                 Загрузить файлы
               </Button>
@@ -633,28 +651,35 @@ export function DocumentsPage() {
 
   return (
     <Box>
-      {/* Заголовок */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
-        <Typography variant="h4" fontWeight="bold">
+      {/* Заголовок и действия */}
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems={{ xs: 'flex-start', md: 'center' }}
+        flexDirection={{ xs: 'column', md: 'row' }}
+        gap={1.5}
+        mb={2}
+      >
+        <Typography variant="h5" fontWeight={700}>
           Документы
         </Typography>
-        <Box display="flex" gap={1}>
+        <Box display="flex" gap={1} flexWrap="wrap">
           <Button
             variant="outlined"
             startIcon={<CreateNewFolder />}
             onClick={() => setCreateFolderOpen(true)}
-            sx={{ textTransform: 'none' }}
+            sx={actionButtonSx}
           >
             Создать папку
           </Button>
           <Button
-            variant="contained"
+            variant="outlined"
             startIcon={<Upload />}
             onClick={() => {
               setSelectedFiles([]);
               setUploadDialogOpen(true);
             }}
-            sx={{ textTransform: 'none' }}
+            sx={actionButtonSx}
           >
             Загрузить файлы
           </Button>
@@ -662,152 +687,86 @@ export function DocumentsPage() {
       </Box>
 
       {/* Навигация и поиск */}
-      <Paper sx={{ p: 2, mb: 2, borderRadius: 2, bgcolor: 'background.default' }}>
+      <Paper sx={{ p: 1.5, mb: 2, borderRadius: 2 }}>
         <Box mb={1}>
-          <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 1, fontWeight: 500 }}>
-            📍 Перетащите сюда для быстрого перемещения:
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
+            Текущая папка (можно перетащить элемент в любой сегмент пути)
           </Typography>
           <Box
             display="flex"
-            gap={1.5}
+            gap={1}
             flexWrap="wrap"
             sx={{
-              minHeight: 56,
-              p: 1.5,
-              border: '2px solid',
+              p: 1,
+              border: '1px solid',
               borderColor: 'divider',
-              borderRadius: 2,
+              borderRadius: 1.5,
               bgcolor: 'background.paper',
-              alignItems: 'center'
+              alignItems: 'center',
             }}
           >
             {folderPath.map((folder, index) => {
               const isDragOver = dragOverFolderPathIndex === index;
               const isCurrent = index === folderPath.length - 1;
               return (
-                <Paper
+                <Button
                   key={index}
-                  elevation={isDragOver ? 12 : isCurrent ? 4 : 2}
+                  variant={isCurrent ? 'contained' : 'text'}
+                  color={isCurrent ? 'primary' : 'inherit'}
                   onDragEnter={(e) => handlePathDragEnter(e, index)}
                   onDragLeave={handlePathDragLeave}
-                  onDragOver={handlePathDragOver}
+                  onDragOver={(e) => handlePathDragOver(e, index)}
                   onDrop={(e) => handlePathDrop(e, index)}
-                  sx={{
-                    p: 1.5,
-                    pl: 2,
-                    pr: 2,
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 1.5,
-                    minWidth: 140,
-                    bgcolor: isDragOver
-                      ? (theme) => alpha(theme.palette.primary.main, 0.2)
-                      : isCurrent
-                        ? (theme) => alpha(theme.palette.primary.main, 0.08)
-                        : 'background.paper',
-                    border: isDragOver
-                      ? (theme) => `3px solid ${theme.palette.primary.main}`
-                      : isCurrent
-                        ? (theme) => `2px solid ${theme.palette.primary.main}`
-                        : '2px solid transparent',
-                    borderRadius: 2,
-                    cursor: 'pointer',
-                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
-                    '&:hover': {
-                      bgcolor: isCurrent
-                        ? (theme) => alpha(theme.palette.primary.main, 0.12)
-                        : (theme) => alpha(theme.palette.primary.main, 0.08),
-                      transform: 'translateY(-2px)',
-                      boxShadow: isCurrent ? 6 : 4,
-                    },
-                    position: 'relative',
-                    overflow: 'hidden',
-                    '&::after': isDragOver ? {
-                      content: '""',
-                      position: 'absolute',
-                      top: 0,
-                      left: 0,
-                      right: 0,
-                      bottom: 0,
-                      background: (theme) =>
-                        `repeating-linear-gradient(45deg,
-                        transparent,
-                        transparent 8px,
-                        ${alpha(theme.palette.primary.main, 0.15)} 8px,
-                        ${alpha(theme.palette.primary.main, 0.15)} 16px)`,
-                      animation: 'pulsePath 1.2s infinite',
-                      pointerEvents: 'none',
-                    } : {},
-                  }}
                   onClick={() => handleBreadcrumbClick(index)}
+                  startIcon={index === 0 ? <Home fontSize="small" /> : <FolderOutlined fontSize="small" />}
+                  sx={{
+                    textTransform: 'none',
+                    minHeight: 38,
+                    borderRadius: 1,
+                    px: 1.25,
+                    border: isDragOver ? (theme) => `2px solid ${theme.palette.primary.main}` : undefined,
+                    bgcolor: isDragOver ? (theme) => alpha(theme.palette.primary.main, 0.2) : undefined,
+                    boxShadow: isDragOver ? (theme) => `0 0 0 2px ${alpha(theme.palette.primary.main, 0.18)}` : 'none',
+                    maxWidth: 220,
+                    '& .MuiButton-startIcon': {
+                      mr: 0.5,
+                      color: isDragOver ? 'primary.main' : 'inherit',
+                    },
+                  }}
                 >
-                  {index === 0 ? (
-                    <Home sx={{ fontSize: 24, color: 'primary.main', fontWeight: 'bold' }} />
-                  ) : (
-                    <Folder sx={{ fontSize: 24, color: 'primary.main' }} />
-                  )}
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight={isCurrent ? 600 : 500}
-                    sx={{
-                      maxWidth: 180,
-                      overflow: 'hidden',
-                      textOverflow: 'ellipsis',
-                      whiteSpace: 'nowrap',
-                      color: isCurrent ? 'primary.main' : 'text.primary'
-                    }}
+                  <Box
+                    component="span"
+                    sx={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
                   >
                     {sanitizeAndRender(folder.name)}
-                  </Typography>
-                  {isDragOver && (
-                    <Box
-                      sx={{
-                        position: 'absolute',
-                        top: 0,
-                        left: 0,
-                        right: 0,
-                        bottom: 0,
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        bgcolor: (theme) => alpha(theme.palette.primary.main, 0.92),
-                        color: 'white',
-                        borderRadius: 2,
-                        zIndex: 2,
-                        backdropFilter: 'blur(4px)',
-                      }}
-                    >
-                      <Box sx={{ textAlign: 'center', p: 1 }}>
-                        <Typography variant="body2" fontWeight="bold" display="block" sx={{ mb: 0.5 }}>
-                          📥 Отпустите сюда
-                        </Typography>
-                        <Typography variant="caption" display="block" sx={{ opacity: 0.9 }}>
-                          для перемещения в "{folder.name}"
-                        </Typography>
-                      </Box>
-                    </Box>
-                  )}
-                </Paper>
+                  </Box>
+                </Button>
               );
             })}
           </Box>
         </Box>
-        <Box display="flex" gap={2} alignItems="center">
+        <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
           <TextField
             size="small"
-            placeholder="Поиск файлов и папок..."
+            placeholder="Поиск файлов и папок"
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setPage(0);
             }}
             InputProps={{
-              startAdornment: <Search sx={{ mr: 1, color: 'text.secondary' }} />,
+              startAdornment: <Search sx={{ mr: 1, color: 'text.primary' }} />,
             }}
-            sx={{ width: { xs: '100%', md: 300 } }}
+            sx={{
+              width: { xs: '100%', md: 340 },
+              '& input::placeholder': {
+                color: 'text.primary',
+                opacity: 0.75,
+              },
+            }}
           />
           {searchQuery && (
-            <Typography variant="caption" color="text.secondary">
+            <Typography variant="body2" color="text.secondary">
               Поиск в текущей папке
             </Typography>
           )}
@@ -823,7 +782,7 @@ export function DocumentsPage() {
             const hasFiles = Array.from(e.dataTransfer.items).some(
               item => item.kind === 'file'
             );
-            if (hasFiles) setDragOver(true);
+            if (hasFiles && !uploadDialogOpen) setDragOverTable(true);
           }
         }}
         onDragLeave={(e) => {
@@ -836,7 +795,7 @@ export function DocumentsPage() {
             e.clientY <= rect.top + 10 ||
             e.clientY >= rect.bottom - 10
           ) {
-            setDragOver(false);
+            setDragOverTable(false);
           }
         }}
         onDragOver={(e) => {
@@ -846,29 +805,31 @@ export function DocumentsPage() {
         onDrop={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          setDragOver(false);
+          setDragOverTable(false);
           if (e.dataTransfer.files && e.dataTransfer.files.length > 0 && !isDraggingInternal) {
             const files = Array.from(e.dataTransfer.files);
             setSelectedFiles(files);
+            setDragOverUploadDialog(false);
             setUploadDialogOpen(true);
           }
         }}
         sx={{
           position: 'relative',
-          border: dragOver ? '3px dashed #1976d2' : '2px dashed transparent',
+          border: '2px dashed',
+          borderColor: dragOverTable ? 'primary.main' : 'transparent',
           borderRadius: 2,
           transition: 'border-color 0.2s ease',
           '&:hover': {
-            borderColor: dragOver ? '#1976d2' : 'divider',
+            borderColor: dragOverTable ? '#1976d2' : 'divider',
           }
         }}
       >
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
           <TableContainer>
-            <Table>
+            <Table size="small">
               <TableHead sx={{ bgcolor: 'grey.50' }}>
                 <TableRow>
-                  <TableCell sx={{ width: 40 }} />
+                  <TableCell sx={{ width: 44, py: 1 }} />
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'name'}
@@ -878,8 +839,7 @@ export function DocumentsPage() {
                       Имя
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sx={{ width: 150 }}>Тип</TableCell>
-                  <TableCell sx={{ width: 120 }}>
+                  <TableCell sx={{ width: 110 }}>
                     <TableSortLabel
                       active={sortField === 'size'}
                       direction={sortField === 'size' ? sortOrder : 'asc'}
@@ -888,7 +848,7 @@ export function DocumentsPage() {
                       Размер
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sx={{ width: 180 }}>
+                  <TableCell sx={{ width: 160 }}>
                     <TableSortLabel
                       active={sortField === 'created_at'}
                       direction={sortField === 'created_at' ? sortOrder : 'asc'}
@@ -897,7 +857,7 @@ export function DocumentsPage() {
                       Дата создания
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sx={{ width: 180 }}>
+                  <TableCell sx={{ width: 170 }}>
                     <TableSortLabel
                       active={sortField === 'created_by'}
                       direction={sortField === 'created_by' ? sortOrder : 'asc'}
@@ -906,7 +866,7 @@ export function DocumentsPage() {
                       Кто создал
                     </TableSortLabel>
                   </TableCell>
-                  <TableCell sx={{ width: 60 }} align="right" />
+                  <TableCell sx={{ width: 72, pr: 1.5 }} align="right" />
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -918,9 +878,6 @@ export function DocumentsPage() {
                         </TableCell>
                         <TableCell>
                           <Skeleton variant="text" width="60%" />
-                        </TableCell>
-                        <TableCell>
-                          <Skeleton variant="text" width="40%" />
                         </TableCell>
                         <TableCell>
                           <Skeleton variant="text" width="30%" />
@@ -955,110 +912,43 @@ export function DocumentsPage() {
                           onDragOver={handleRowDragOver}
                           onDrop={(e) => handleRowDrop(e, entry)}
                           sx={{
-                            cursor: entry.type === 'folder' ? 'grab' : 'default',
-                            opacity: isDragging ? 0.6 : 1,
-                            transform: isDragging
-                              ? 'scale(0.97) rotate(3deg)'
-                              : isDragOver
-                                ? 'scale(1.01)'
-                                : 'none',
-                            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+                            cursor: entry.type === 'folder' ? 'pointer' : 'default',
+                            opacity: isDragging ? 0.65 : 1,
                             backgroundColor: isDragOver
-                              ? (theme) => alpha(theme.palette.primary.main, 0.12)
+                              ? (theme) => alpha(theme.palette.primary.main, 0.08)
                               : 'transparent',
                             borderLeft: isDragOver
-                              ? (theme) => `5px solid ${theme.palette.primary.main}`
-                              : 'none',
-                            borderRight: isDragOver
-                              ? (theme) => `2px solid ${alpha(theme.palette.primary.main, 0.3)}`
-                              : 'none',
-                            boxShadow: isDragOver
-                              ? (theme) => `0 0 0 3px ${alpha(theme.palette.primary.main, 0.25)},
-                                  inset 0 0 15px ${alpha(theme.palette.primary.main, 0.1)}`
-                              : 'none',
-                            position: 'relative',
-                            overflow: 'hidden',
+                              ? (theme) => `3px solid ${theme.palette.primary.main}`
+                              : '3px solid transparent',
+                            transition: 'background-color 0.15s ease, border-color 0.15s ease',
                             '&:hover': {
                               bgcolor: 'action.hover',
-                              transform: entry.type === 'folder' && !isDragging ? 'translateX(4px)' : 'none',
                             },
-                            '&::before': isDragOver ? {
-                              content: '""',
-                              position: 'absolute',
-                              top: 0,
-                              left: 0,
-                              right: 0,
-                              bottom: 0,
-                              background: (theme) =>
-                                `repeating-linear-gradient(45deg,
-                                transparent,
-                                transparent 6px,
-                                ${alpha(theme.palette.primary.main, 0.12)} 6px,
-                                ${alpha(theme.palette.primary.main, 0.12)} 12px)`,
-                              animation: 'pulseTable 1.5s infinite',
-                              pointerEvents: 'none',
-                            } : {},
-                            '&::after': isDragOver && entry.type === 'folder' ? {
-                              content: '"📁"',
-                              position: 'absolute',
-                              top: '50%',
-                              left: '50%',
-                              transform: 'translate(-50%, -50%) scale(2)',
-                              fontSize: 48,
-                              opacity: 0.2,
-                              animation: 'floatIcon 2s ease-in-out infinite',
-                              zIndex: 1,
-                              pointerEvents: 'none',
-                            } : {},
+                            '& > td': {
+                              py: 0.75,
+                              borderBottomColor: 'divider',
+                            },
                           }}
                           onClick={() => entry.type === 'folder' && handleFolderClick(entry)}
                           onDoubleClick={() => handleFileDoubleClick(entry)}
                         >
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell>
                             <Box display="flex" alignItems="center" gap={1}>
-                              {entry.type === 'folder' && isDragOver ? (
-                                <Box
-                                  sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    color: 'primary.main',
-                                    animation: 'bounceFolder 0.4s ease-in-out infinite alternate',
-                                    transformOrigin: 'center'
-                                  }}
-                                >
-                                  <Folder sx={{ fontSize: 32, mr: 1 }} />
-                                  <Typography
-                                    variant="caption"
-                                    fontWeight="bold"
-                                    sx={{
-                                      whiteSpace: 'nowrap',
-                                      bgcolor: (theme) => alpha(theme.palette.primary.main, 0.15),
-                                      px: 1,
-                                      py: 0.5,
-                                      borderRadius: 1,
-                                      border: (theme) => `1px solid ${theme.palette.primary.main}`
-                                    }}
-                                  >
-                                    Переместить сюда
-                                  </Typography>
-                                </Box>
-                              ) : (
-                                <Tooltip title={entry.type === 'folder' ? '📁 Перетащите сюда файл или папку' : '📄 Файл'}>
-                                  <Box>{getFileIcon(entry)}</Box>
-                                </Tooltip>
-                              )}
+                              <Tooltip title={entry.type === 'folder' ? 'Перетащите сюда файл или папку' : 'Файл'}>
+                                <Box sx={{ color: isDragOver ? 'primary.main' : 'inherit' }}>{getFileIcon(entry)}</Box>
+                              </Tooltip>
                             </Box>
                           </TableCell>
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell>
                             <Box display="flex" alignItems="center" gap={1}>
                               <Typography
-                                variant="body1"
+                                variant="body2"
                                 fontWeight={entry.type === 'folder' ? 600 : 500}
                                 sx={{
                                   whiteSpace: 'nowrap',
                                   overflow: 'hidden',
                                   textOverflow: 'ellipsis',
-                                  maxWidth: { xs: 150, sm: 250, md: 'none' },
+                                  maxWidth: { xs: 160, sm: 280, md: 'none' },
                                   color: isDragOver && entry.type === 'folder' ? 'primary.main' : 'inherit',
                                 }}
                               >
@@ -1070,41 +960,31 @@ export function DocumentsPage() {
                                   size="small"
                                   variant="outlined"
                                   color="default"
-                                  sx={{ fontSize: '0.7rem', height: 20 }}
+                                  sx={{ fontSize: '0.68rem', height: 18 }}
                                 />
                               )}
                             </Box>
                           </TableCell>
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
-                            <Chip
-                              label={getEntryTypeLabel(entry)}
-                              size="small"
-                              variant="outlined"
-                              color={entry.type === 'folder' ? 'primary' : 'default'}
-                              sx={{ fontSize: '0.75rem' }}
-                            />
-                          </TableCell>
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell>
                             <Typography variant="body2" color="text.secondary">
                               {entry.type === 'folder' ? '-' : formatFileSize(entry.size)}
                             </Typography>
                           </TableCell>
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell>
                             <Typography variant="body2" color="text.secondary">
                               {dayjs(entry.created_at).format('DD.MM.YYYY HH:mm')}
                             </Typography>
                           </TableCell>
-                          <TableCell sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell>
                             <Box display="flex" alignItems="center" gap={1}>
-                              <Person sx={{ fontSize: 14, color: 'text.secondary' }} />
-                              <Typography variant="body2" color="text.secondary">
+                              <Person sx={{ fontSize: 14, color: 'text.primary' }} />
+                              <Typography variant="body2" color="text.primary" sx={{ opacity: 0.85 }}>
                                 {formatCreatorName(entry)}
                               </Typography>
                             </Box>
                           </TableCell>
-                          <TableCell align="right" sx={{ position: 'relative', zIndex: 2 }}>
+                          <TableCell align="right" sx={{ pr: 1.5 }}>
                             <IconButton
-                              size="small"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleMenuClick(e, entry);
@@ -1113,6 +993,8 @@ export function DocumentsPage() {
                                 opacity: isDragging ? 0 : 1,
                                 transition: 'opacity 0.2s',
                                 visibility: isDragging ? 'hidden' : 'visible',
+                                mr: 0.5,
+                                p: 1,
                               }}
                             >
                               <MoreVert />
@@ -1139,6 +1021,29 @@ export function DocumentsPage() {
             sx={{
               borderTop: '1px solid',
               borderColor: 'divider',
+              '& .MuiTablePagination-toolbar': {
+                minHeight: 56,
+                alignItems: 'center',
+                display: 'flex',
+                gap: 1,
+              },
+              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows, & .MuiTablePagination-select': {
+                fontSize: '0.95rem',
+                color: 'text.primary',
+                lineHeight: 1.4,
+                m: 0,
+              },
+              '& .MuiTablePagination-select': {
+                display: 'inline-flex',
+                alignItems: 'center',
+              },
+              '& .MuiTablePagination-actions': {
+                alignSelf: 'center',
+                ml: 1,
+              },
+              '& .MuiTablePagination-actions .MuiIconButton-root': {
+                p: 1,
+              },
             }}
           />
         </Paper>
@@ -1184,59 +1089,37 @@ export function DocumentsPage() {
             )}
         </Menu>
 
-        {/* Улучшенный оверлей для drag-and-drop */}
-        {dragOver && (
-          <Fade in timeout={300}>
-            <Box
+        {/* Оверлей для drag-and-drop */}
+        {dragOverTable && (
+          <Box
+            sx={{
+              position: 'absolute',
+              inset: 0,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.08),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 15,
+              pointerEvents: 'none',
+              borderRadius: 2,
+              border: '2px dashed',
+              borderColor: 'primary.main',
+            }}
+          >
+            <Paper
+              elevation={1}
               sx={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
-                right: 0,
-                bottom: 0,
-                bgcolor: 'rgba(25, 118, 210, 0.1)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                zIndex: 15,
-                pointerEvents: 'none',
+                py: 2,
+                px: 3,
                 borderRadius: 2,
-                border: '2px dashed',
-                borderColor: 'primary.main',
+                bgcolor: 'background.paper',
               }}
             >
-              <Paper
-                elevation={4}
-                sx={{
-                  p: 4,
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 2,
-                  borderRadius: 3,
-                  bgcolor: 'background.paper',
-                  boxShadow: (theme) =>
-                    `0 8px 24px ${alpha(theme.palette.primary.main, 0.25)}`,
-                }}
-              >
-                <Box sx={{ position: 'relative' }}>
-                  <Upload sx={{ fontSize: 64, color: 'primary.main' }} />
-                  <CircularProgress
-                    size={72}
-                    thickness={4}
-                    sx={{
-                      position: 'absolute',
-                      color: 'primary.light',
-                      animationDuration: '1.5s'
-                    }}
-                  />
-                </Box>
-                <Typography variant="h5" fontWeight="bold" color="primary">
-                  Отпустите файлы для загрузки
-                </Typography>
-              </Paper>
-            </Box>
-          </Fade>
+              <Typography variant="body1" fontWeight={600} color="primary.main">
+                Отпустите файлы для загрузки
+              </Typography>
+            </Paper>
+          </Box>
         )}
       </Box>
 
@@ -1296,6 +1179,7 @@ export function DocumentsPage() {
               setEntryToDelete(null);
             }}
             color="primary"
+            sx={actionButtonSx}
           >
             Отмена
           </Button>
@@ -1309,6 +1193,7 @@ export function DocumentsPage() {
               !entryToDelete ||
               !entryToDelete.id
             }
+            sx={actionButtonSx}
           >
             {deleteDocument.isPending || deleteFolder.isPending ? (
               <CircularProgress size={20} sx={{ mr: 1 }} />
@@ -1336,11 +1221,12 @@ export function DocumentsPage() {
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setCreateFolderOpen(false)}>Отмена</Button>
+          <Button onClick={() => setCreateFolderOpen(false)} sx={actionButtonSx}>Отмена</Button>
           <Button
             onClick={handleCreateFolder}
             variant="contained"
             disabled={!newFolderName.trim() || createFolder.isPending}
+            sx={actionButtonSx}
           >
             {createFolder.isPending ? <CircularProgress size={20} /> : 'Создать'}
           </Button>
@@ -1357,6 +1243,7 @@ export function DocumentsPage() {
           setUploadCaseId('');
           setSelectedCase(null);
           setCaseSearchQuery('');
+          setDragOverUploadDialog(false);
         }}
         maxWidth="sm"
         fullWidth
@@ -1413,11 +1300,11 @@ export function DocumentsPage() {
             <Box
               sx={{
                 border: '2px dashed',
-                borderColor: dragOver ? 'primary.dark' : 'primary.main',
+                borderColor: dragOverUploadDialog ? 'primary.dark' : 'primary.main',
                 borderRadius: 2,
                 p: 3,
                 textAlign: 'center',
-                bgcolor: dragOver ? 'primary.lighter' : 'action.hover',
+                bgcolor: dragOverUploadDialog ? 'primary.lighter' : 'action.hover',
                 cursor: 'pointer',
                 transition: 'all 0.2s',
                 '&:hover': {
@@ -1428,17 +1315,17 @@ export function DocumentsPage() {
               onDragOver={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(true);
+                setDragOverUploadDialog(true);
               }}
               onDragLeave={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(false);
+                setDragOverUploadDialog(false);
               }}
               onDrop={(e) => {
                 e.preventDefault();
                 e.stopPropagation();
-                setDragOver(false);
+                setDragOverUploadDialog(false);
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const files = Array.from(e.dataTransfer.files);
                   setSelectedFiles(prev => [...prev, ...files]);
@@ -1467,7 +1354,9 @@ export function DocumentsPage() {
               setUploadCaseId('');
               setSelectedCase(null);
               setCaseSearchQuery('');
+              setDragOverUploadDialog(false);
             }}
+            sx={actionButtonSx}
           >
             Отмена
           </Button>
@@ -1475,6 +1364,7 @@ export function DocumentsPage() {
             variant="contained"
             onClick={handleUpload}
             disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            sx={actionButtonSx}
           >
             {uploadDocument.isPending ? (
               <CircularProgress size={20} />
@@ -1497,29 +1387,6 @@ export function DocumentsPage() {
         loading={updateAsset.isPending}
       />
 
-      {/* Глобальные стили для анимаций */}
-      <style>{`
-        @keyframes pulseTable {
-          0%, 100% { opacity: 0.3; }
-          50% { opacity: 0.7; }
-        }
-        @keyframes pulsePath {
-          0%, 100% { opacity: 0.4; }
-          50% { opacity: 0.8; }
-        }
-        @keyframes bounceFolder {
-          from {
-            transform: scale(1) translateY(0);
-          }
-          to {
-            transform: scale(1.1) translateY(-4px);
-          }
-        }
-        @keyframes floatIcon {
-          0%, 100% { transform: translate(-50%, -50%) scale(2); opacity: 0.2; }
-          50% { transform: translate(-50%, -55%) scale(2.2); opacity: 0.3; }
-        }
-      `}</style>
     </Box>
   );
 }
