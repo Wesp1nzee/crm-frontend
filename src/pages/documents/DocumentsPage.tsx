@@ -472,7 +472,7 @@ export function DocumentsPage() {
     e.preventDefault();
     e.stopPropagation();
     const hasInternalData = e.dataTransfer.types.includes('application/json');
-    if (hasInternalData) {
+    if (hasInternalData || Boolean(draggedItemId)) {
       setDragOverFolderPathIndex(index);
     }
   };
@@ -483,9 +483,12 @@ export function DocumentsPage() {
     setDragOverFolderPathIndex(null);
   };
 
-  const handlePathDragOver = (e: React.DragEvent) => {
+  const handlePathDragOver = (e: React.DragEvent, index: number) => {
     e.preventDefault();
     e.stopPropagation();
+    if (draggedItemId) {
+      setDragOverFolderPathIndex(index);
+    }
     e.dataTransfer.dropEffect = 'move';
   };
 
@@ -712,7 +715,7 @@ export function DocumentsPage() {
                   color={isCurrent ? 'primary' : 'inherit'}
                   onDragEnter={(e) => handlePathDragEnter(e, index)}
                   onDragLeave={handlePathDragLeave}
-                  onDragOver={handlePathDragOver}
+                  onDragOver={(e) => handlePathDragOver(e, index)}
                   onDrop={(e) => handlePathDrop(e, index)}
                   onClick={() => handleBreadcrumbClick(index)}
                   startIcon={index === 0 ? <Home fontSize="small" /> : <FolderOutlined fontSize="small" />}
@@ -721,10 +724,14 @@ export function DocumentsPage() {
                     minHeight: 38,
                     borderRadius: 1,
                     px: 1.25,
-                    border: isDragOver ? (theme) => `1px solid ${theme.palette.primary.main}` : undefined,
-                    bgcolor: isDragOver ? (theme) => alpha(theme.palette.primary.main, 0.14) : undefined,
+                    border: isDragOver ? (theme) => `2px solid ${theme.palette.primary.main}` : undefined,
+                    bgcolor: isDragOver ? (theme) => alpha(theme.palette.primary.main, 0.2) : undefined,
+                    boxShadow: isDragOver ? (theme) => `0 0 0 2px ${alpha(theme.palette.primary.main, 0.18)}` : 'none',
                     maxWidth: 220,
-                    '& .MuiButton-startIcon': { mr: 0.5 },
+                    '& .MuiButton-startIcon': {
+                      mr: 0.5,
+                      color: isDragOver ? 'primary.main' : 'inherit',
+                    },
                   }}
                 >
                   <Box
