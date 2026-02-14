@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { Box, Toolbar } from '@mui/material';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { Topbar } from './Topbar';
 import { Sidebar } from './Sidebar';
 import { Breadcrumbs } from '../shared/ui/Breadcrumbs';
 
 export function Layout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { pathname } = useLocation();
+  const isHomePage = pathname === '/crm';
 
   const handleMenuClick = () => {
     setSidebarOpen(!sidebarOpen);
@@ -28,9 +30,11 @@ export function Layout() {
         }}
       >
         <Toolbar />
-        <Box sx={{ mb: 2 }}>
-          <Breadcrumbs />
-        </Box>
+        {!isHomePage && (
+          <Box sx={{ mb: 2 }}>
+            <Breadcrumbs />
+          </Box>
+        )}
         <Outlet />
       </Box>
     </Box>
