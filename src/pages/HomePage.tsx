@@ -12,6 +12,7 @@ import {
   ListItemText,
   Chip,
   IconButton,
+  Divider,
 } from '@mui/material';
 import {
   TrendingUp,
@@ -21,13 +22,15 @@ import {
   Add,
   Gavel,
   People,
-  AccountBalance,
-  Notifications,
   ArrowForward,
+  AutoGraph,
+  DonutLarge,
+  Bolt,
 } from '@mui/icons-material';
+import { alpha } from '@mui/material/styles';
 import { useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
-import { useCases, useInvoices } from '../shared/hooks/useCases';
+import { useCases } from '../shared/hooks/useCases';
 import { usePermissions } from '../shared/hooks/usePermissions';
 import { ExpertHomePage } from './ExpertHomePage';
 import { useQuery } from '@tanstack/react-query';
@@ -44,10 +47,38 @@ interface FinancialSummary {
   overdue_cases: number;
 }
 
+const palette = {
+  deepSlate: '#0E1628',
+  deepSlateLight: '#16243B',
+  cyberBlue: '#2A7FFF',
+  cyberBlueGlow: '#63A4FF',
+  softChalk: '#EAF1FF',
+};
+
 const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
   const response = await axios.get('/api/cases/financial-summary');
   return response.data;
 };
+
+const glassCardSx = {
+  borderRadius: 6,
+  backdropFilter: 'blur(18px)',
+  background: `linear-gradient(145deg, ${alpha('#FFFFFF', 0.16)} 0%, ${alpha('#FFFFFF', 0.06)} 100%)`,
+  border: `1px solid ${alpha('#FFFFFF', 0.2)}`,
+  boxShadow: `0 20px 45px ${alpha('#050910', 0.35)}`,
+};
+
+function formatCompactCurrency(value: number): string {
+  if (value >= 1_000_000) {
+    return `${(value / 1_000_000).toFixed(1)}M`;
+  }
+
+  if (value >= 1_000) {
+    return `${Math.round(value / 1_000)}K`;
+  }
+
+  return `${value}`;
+}
 
 export function HomePage() {
   const { isExpert } = usePermissions();
@@ -61,201 +92,292 @@ export function HomePage() {
 
 function AdminHomePage() {
   const navigate = useNavigate();
-  const { data: casesResponse } = useCases(); // Получаем весь объект ответа
-  const { data: financialSummary, isLoading: isFinancialLoading } = useQuery<FinancialSummary>({
+  const { data: casesResponse } = useCases();
+  const { data: financialSummary } = useQuery<FinancialSummary>({
     queryKey: ['financial-summary'],
     queryFn: fetchFinancialSummary,
   });
 
-  // Извлекаем массив дел из объекта ответа
-  const cases = casesResponse?.data || []; // Теперь берем из data вместо items
-  
-  const activeCases = cases.filter(c => c.status === 'in_work'); // Активные - только в работе
-  const overdueCases = activeCases.filter(c => dayjs(c.deadline).isBefore(dayjs(), 'day'));
+  const cases = casesResponse?.data || [];
+  const activeCases = cases.filter((caseItem) => caseItem.status === 'in_work');
+  const overdueCases = activeCases.filter((caseItem) => dayjs(caseItem.deadline).isBefore(dayjs(), 'day'));
   const recentCases = cases.slice(0, 5);
 
-  // Используем данные из финансовой сводки если они доступны
   const totalRevenue = financialSummary?.total_revenue || 0;
   const pendingPayments = financialSummary?.pending_payments || 0;
   const averageCaseCost = financialSummary?.average_case_cost || 0;
 
-  const completedCases = cases.filter(c => c.status !== 'in_work');
+  const completedCases = cases.filter((caseItem) => caseItem.status !== 'in_work');
   const completionRate = cases.length ? Math.round((completedCases.length / cases.length) * 100) : 0;
 
+  const collectionRate = totalRevenue + (financialSummary?.pending_amount || 0)
+    ? Math.round((totalRevenue / (totalRevenue + (financialSummary?.pending_amount || 0))) * 100)
+    : 100;
+
   return (
-    <Box sx={{ width: '100%', maxWidth: 'none' }}>
-      <Box mb={4}>
-        <Typography variant="h3" fontWeight="bold" gutterBottom>
-          Добро пожаловать в CRM
-        </Typography>
-        <Typography variant="h6" color="text.secondary">
-          {dayjs().format('DD MMMM YYYY')} • Обзор деятельности
-        </Typography>
-      </Box>
-
-      <Box 
-        sx={{ 
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
-          gap: 3,
-          mb: 4
+    <Box
+      sx={{
+        width: '100%',
+        color: palette.softChalk,
+        borderRadius: 8,
+        p: { xs: 2, md: 4 },
+        background: `radial-gradient(circle at 15% 15%, ${alpha(palette.cyberBlueGlow, 0.22)} 0%, transparent 40%),
+          radial-gradient(circle at 85% 80%, ${alpha('#7E8FFF', 0.2)} 0%, transparent 35%),
+          linear-gradient(145deg, ${palette.deepSlate} 0%, ${palette.deepSlateLight} 55%, #0A101E 100%)`,
+        position: 'relative',
+        overflow: 'hidden',
+      }}
+    >
+      <Box
+        sx={{
+          position: 'absolute',
+          inset: 0,
+          pointerEvents: 'none',
+          background: `linear-gradient(120deg, ${alpha('#FFFFFF', 0.05)} 0%, transparent 60%)`,
         }}
-      >
-        <Card sx={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)', color: 'white' }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="h4" fontWeight="bold">{activeCases.length}</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>Активных дел</Typography>
-              </Box>
-              <Schedule sx={{ fontSize: 48, opacity: 0.8 }} />
-            </Box>
-          </CardContent>
-        </Card>
+      />
 
-        <Card sx={{ background: 'linear-gradient(135deg, #f093fb 0%, #f5576c 100%)', color: 'white' }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="h4" fontWeight="bold">{overdueCases.length}</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>Просрочено</Typography>
-              </Box>
-              <Warning sx={{ fontSize: 48, opacity: 0.8 }} />
-            </Box>
-          </CardContent>
-        </Card>
+      <Box sx={{ position: 'relative', zIndex: 2 }}>
+        <Box mb={4}>
+          <Typography variant="overline" sx={{ color: alpha(palette.softChalk, 0.75), letterSpacing: 2.4 }}>
+            Executive control room • 8K ready layout
+          </Typography>
+          <Typography variant="h3" fontWeight={700} sx={{ mt: 0.5 }}>
+            CRM Performance Atlas
+          </Typography>
+          <Typography variant="h6" sx={{ color: alpha(palette.softChalk, 0.75) }}>
+            {dayjs().format('DD MMMM YYYY')} • Премиальный обзор бизнеса
+          </Typography>
+        </Box>
 
-        <Card sx={{ background: 'linear-gradient(135deg, #4facfe 0%, #00f2fe 100%)', color: 'white' }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="h4" fontWeight="bold">{Math.round(totalRevenue / 1000)}K</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>Выручка (₽)</Typography>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: 'repeat(12, minmax(0, 1fr))' },
+            gap: 2.5,
+          }}
+        >
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Активные дела</Typography>
+              <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h3" fontWeight={700}>{activeCases.length}</Typography>
+                <Schedule sx={{ fontSize: 42, color: palette.cyberBlueGlow }} />
               </Box>
-              <TrendingUp sx={{ fontSize: 48, opacity: 0.8 }} />
-            </Box>
-          </CardContent>
-        </Card>
+              <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
+                В работе прямо сейчас
+              </Typography>
+            </CardContent>
+          </Card>
 
-        <Card sx={{ background: 'linear-gradient(135deg, #43e97b 0%, #38f9d7 100%)', color: 'white' }}>
-          <CardContent>
-            <Box display="flex" alignItems="center" justifyContent="space-between">
-              <Box>
-                <Typography variant="h4" fontWeight="bold">{completionRate}%</Typography>
-                <Typography variant="body2" sx={{ opacity: 0.9 }}>Завершено</Typography>
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Просроченные дедлайны</Typography>
+              <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h3" fontWeight={700}>{overdueCases.length}</Typography>
+                <Warning sx={{ fontSize: 42, color: '#FF9B8D' }} />
               </Box>
-              <CheckCircle sx={{ fontSize: 48, opacity: 0.8 }} />
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+              <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
+                Требуют немедленного внимания
+              </Typography>
+            </CardContent>
+          </Card>
 
-      <Box 
-        sx={{ 
-          display: 'grid',
-          gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-          gap: 3,
-          mb: 3
-        }}
-      >
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom fontWeight="bold">Быстрые действия</Typography>
-            <Box display="flex" flexDirection="column" gap={2}>
-              <Button variant="contained" size="large" startIcon={<Add />} fullWidth onClick={() => navigate('/cases')} sx={{ py: 1.5 }}>
-                Новое дело
-              </Button>
-              <Button variant="outlined" size="large" startIcon={<People />} fullWidth onClick={() => navigate('/clients')} sx={{ py: 1.5 }}>
-                Клиенты
-              </Button>
-              {/* <Button variant="outlined" size="large" startIcon={<AccountBalance />} fullWidth onClick={() => navigate('/finance')} sx={{ py: 1.5 }}>
-                Финансы
-              </Button> */}
-            </Box>
-          </CardContent>
-        </Card>
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Оборот</Typography>
+              <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h3" fontWeight={700}>{formatCompactCurrency(totalRevenue)}₽</Typography>
+                <TrendingUp sx={{ fontSize: 42, color: '#83D7FF' }} />
+              </Box>
+              <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
+                Суммарная выручка системы
+              </Typography>
+            </CardContent>
+          </Card>
 
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom fontWeight="bold">Прогресс работы</Typography>
-            <Box mb={3}>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Завершение дел</Typography>
-                <Typography variant="body2" fontWeight="bold">{completionRate}%</Typography>
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+            <CardContent>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Завершено</Typography>
+              <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
+                <Typography variant="h3" fontWeight={700}>{completionRate}%</Typography>
+                <CheckCircle sx={{ fontSize: 42, color: '#91F5C8' }} />
               </Box>
-              <LinearProgress variant="determinate" value={completionRate} sx={{ height: 8, borderRadius: 4 }} />
-            </Box>
-            <Box mb={2}>
-              <Box display="flex" justifyContent="space-between" mb={1}>
-                <Typography variant="body2">Активные дела</Typography>
-                <Typography variant="body2" fontWeight="bold">{activeCases.length}</Typography>
-              </Box>
-              <LinearProgress variant="determinate" value={Math.min((activeCases.length / 10) * 100, 100)} sx={{ height: 8, borderRadius: 4 }} color="secondary" />
-            </Box>
-            {pendingPayments > 0 && (
-              <Chip icon={<Notifications />} label={`${pendingPayments} ожидают оплаты`} color="warning" variant="outlined" />
-            )}
-          </CardContent>
-        </Card>
+              <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
+                Конверсия дел в завершение
+              </Typography>
+            </CardContent>
+          </Card>
 
-        <Card sx={{ height: '100%' }}>
-          <CardContent>
-            <Typography variant="h6" gutterBottom fontWeight="bold">Финансовая сводка</Typography>
-            <Box mt={2}>
-              <Box mb={2}>
-                <Typography variant="body2" color="text.secondary">Общая выручка</Typography>
-                <Typography variant="h5" color="success.main">{totalRevenue.toLocaleString()} ₽</Typography>
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 5' }, minHeight: 280 }}>
+            <CardContent>
+              <Typography variant="h6" fontWeight={700} gutterBottom>Быстрые действия</Typography>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68), mb: 2 }}>
+                Контролируйте pipeline в пару кликов
+              </Typography>
+              <Box display="flex" flexDirection="column" gap={1.5}>
+                <Button
+                  variant="contained"
+                  size="large"
+                  startIcon={<Add />}
+                  onClick={() => navigate('/cases')}
+                  sx={{
+                    borderRadius: 4,
+                    py: 1.4,
+                    textTransform: 'none',
+                    bgcolor: palette.cyberBlue,
+                    boxShadow: `0 10px 30px ${alpha(palette.cyberBlue, 0.5)}`,
+                    '&:hover': { bgcolor: '#3A8BFF' },
+                  }}
+                >
+                  Запустить новое дело
+                </Button>
+                <Button
+                  variant="outlined"
+                  size="large"
+                  startIcon={<People />}
+                  onClick={() => navigate('/clients')}
+                  sx={{
+                    borderRadius: 4,
+                    py: 1.4,
+                    textTransform: 'none',
+                    color: palette.softChalk,
+                    borderColor: alpha(palette.softChalk, 0.35),
+                    '&:hover': { borderColor: alpha(palette.softChalk, 0.7), bgcolor: alpha('#FFFFFF', 0.04) },
+                  }}
+                >
+                  Управление клиентами
+                </Button>
               </Box>
-              <Box mb={2}>
-                <Typography variant="body2" color="text.secondary">Средняя стоимость дела</Typography>
-                <Typography variant="h6">
-                  {averageCaseCost.toLocaleString()} ₽
-                </Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 4' }, minHeight: 280 }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <DonutLarge sx={{ color: palette.cyberBlueGlow }} />
+                <Typography variant="h6" fontWeight={700}>Эффективность</Typography>
+              </Box>
+              <Box mb={2.5}>
+                <Box display="flex" justifyContent="space-between" mb={1}>
+                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>Выполнение по делам</Typography>
+                  <Typography variant="body2" fontWeight={600}>{completionRate}%</Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={completionRate}
+                  sx={{
+                    height: 10,
+                    borderRadius: 12,
+                    bgcolor: alpha('#FFFFFF', 0.14),
+                    '& .MuiLinearProgress-bar': { bgcolor: '#92F5CC', borderRadius: 12 },
+                  }}
+                />
+              </Box>
+              <Box mb={2.5}>
+                <Box display="flex" justifyContent="space-between" mb={1}>
+                  <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.75) }}>Инкассация</Typography>
+                  <Typography variant="body2" fontWeight={600}>{collectionRate}%</Typography>
+                </Box>
+                <LinearProgress
+                  variant="determinate"
+                  value={collectionRate}
+                  sx={{
+                    height: 10,
+                    borderRadius: 12,
+                    bgcolor: alpha('#FFFFFF', 0.14),
+                    '& .MuiLinearProgress-bar': { bgcolor: palette.cyberBlueGlow, borderRadius: 12 },
+                  }}
+                />
               </Box>
               {pendingPayments > 0 && (
-                <Box>
-                  <Typography variant="body2" color="text.secondary">Долг</Typography>
-                  <Typography variant="h6" color="warning.main">
-                    {financialSummary?.pending_amount.toLocaleString()} ₽
-                  </Typography>
-                </Box>
+                <Chip
+                  icon={<Bolt />}
+                  label={`${pendingPayments} ожидают оплаты`}
+                  sx={{
+                    color: palette.softChalk,
+                    bgcolor: alpha('#FFBA7A', 0.2),
+                    border: `1px solid ${alpha('#FFD5A8', 0.35)}`,
+                  }}
+                />
               )}
-            </Box>
-          </CardContent>
-        </Card>
-      </Box>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardContent>
-          <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-            <Typography variant="h6" fontWeight="bold">Последние дела</Typography>
-            <IconButton onClick={() => navigate('/cases')}><ArrowForward /></IconButton>
-          </Box>
-          <List>
-            {recentCases.map((case_) => (
-              <ListItem 
-                key={case_.id}
-                sx={{ cursor: 'pointer', borderRadius: 1, '&:hover': { bgcolor: 'action.hover' } }}
-                onClick={() => navigate(`/cases/${case_.id}`)}
-              >
-                <ListItemAvatar>
-                  <Avatar sx={{ bgcolor: 'primary.main' }}><Gavel /></Avatar>
-                </ListItemAvatar>
-                <ListItemText
-                  primary={case_.case_number}
-                  secondary={case_.object_address}
-                  primaryTypographyProps={{ fontWeight: 'medium' }}
-                />
-                <Chip 
-                  size="small" 
-                  label={dayjs(case_.deadline).format('DD.MM')}
-                  color={dayjs(case_.deadline).isBefore(dayjs(), 'day') ? 'error' : 'default'}
-                />
-              </ListItem>
-            ))}
-          </List>
-        </CardContent>
-      </Card>
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' }, minHeight: 280 }}>
+            <CardContent>
+              <Box display="flex" alignItems="center" gap={1} mb={2}>
+                <AutoGraph sx={{ color: '#83D7FF' }} />
+                <Typography variant="h6" fontWeight={700}>Finance Pulse</Typography>
+              </Box>
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Средняя стоимость дела</Typography>
+              <Typography variant="h4" fontWeight={700} mt={0.5}>{averageCaseCost.toLocaleString()} ₽</Typography>
+              <Divider sx={{ my: 1.8, borderColor: alpha('#FFFFFF', 0.15) }} />
+              <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Потенциальный долг</Typography>
+              <Typography variant="h5" fontWeight={700} color="#FFB6A9" mt={0.5}>
+                {(financialSummary?.pending_amount || 0).toLocaleString()} ₽
+              </Typography>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 12' } }}>
+            <CardContent>
+              <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
+                <Typography variant="h6" fontWeight={700}>Последние дела</Typography>
+                <IconButton
+                  onClick={() => navigate('/cases')}
+                  sx={{ color: palette.softChalk, border: `1px solid ${alpha('#FFFFFF', 0.2)}` }}
+                >
+                  <ArrowForward />
+                </IconButton>
+              </Box>
+              <List sx={{ py: 0 }}>
+                {recentCases.map((caseItem) => (
+                  <ListItem
+                    key={caseItem.id}
+                    sx={{
+                      px: 1,
+                      borderRadius: 3,
+                      '&:hover': { bgcolor: alpha('#FFFFFF', 0.05) },
+                      cursor: 'pointer',
+                    }}
+                    onClick={() => navigate(`/cases/${caseItem.id}`)}
+                  >
+                    <ListItemAvatar>
+                      <Avatar
+                        sx={{
+                          bgcolor: alpha(palette.cyberBlue, 0.28),
+                          border: `1px solid ${alpha('#FFFFFF', 0.2)}`,
+                          color: palette.softChalk,
+                        }}
+                      >
+                        <Gavel />
+                      </Avatar>
+                    </ListItemAvatar>
+                    <ListItemText
+                      primary={caseItem.case_number}
+                      secondary={caseItem.object_address}
+                      primaryTypographyProps={{ fontWeight: 600, color: palette.softChalk }}
+                      secondaryTypographyProps={{ color: alpha(palette.softChalk, 0.65) }}
+                    />
+                    <Chip
+                      size="small"
+                      label={dayjs(caseItem.deadline).format('DD.MM')}
+                      sx={{
+                        color: palette.softChalk,
+                        bgcolor: dayjs(caseItem.deadline).isBefore(dayjs(), 'day')
+                          ? alpha('#FF8D8D', 0.2)
+                          : alpha('#89CBFF', 0.2),
+                        border: `1px solid ${alpha('#FFFFFF', 0.2)}`,
+                      }}
+                    />
+                  </ListItem>
+                ))}
+              </List>
+            </CardContent>
+          </Card>
+        </Box>
+      </Box>
     </Box>
   );
 }
