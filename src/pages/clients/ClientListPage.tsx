@@ -12,8 +12,9 @@ import {
   Chip,
   Button,
   Alert,
+  alpha,
 } from '@mui/material';
-import { Add } from '@mui/icons-material';
+import { Add, AccountBalance, Gavel, PersonOutline } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useClients, useCreateClient } from '../../shared/hooks/useClients';
 import { useState } from 'react';
@@ -21,15 +22,15 @@ import { ClientCreateDialog } from './ClientCreateDialog';
 import { notificationService } from '../../shared/services/notifications';
 
 const TYPE_ICONS = {
-  legal: '🏢',
-  individual: '👤',
-  court: '⚖️',
+  legal: <AccountBalance sx={{ fontSize: 18 }} />,
+  individual: <PersonOutline sx={{ fontSize: 18 }} />,
+  court: <Gavel sx={{ fontSize: 18 }} />,
 };
 
 export function ClientListPage() {
   const navigate = useNavigate();
   const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients();
-  
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const createClient = useCreateClient();
 
@@ -43,14 +44,6 @@ export function ClientListPage() {
       console.error('Ошибка создания клиента:', error);
       notificationService.error(error?.response?.data?.detail || 'Ошибка создания клиента');
     }
-  };
-
-  const handleOpenCreateDialog = () => {
-    setCreateDialogOpen(true);
-  };
-
-  const handleCloseDialog = () => {
-    setCreateDialogOpen(false);
   };
 
   if (clientsLoading) {
@@ -78,83 +71,75 @@ export function ClientListPage() {
             Всего: {clients?.items?.length || 0} клиентов
           </Typography>
         </Box>
-        <Button 
-          variant="contained" 
-          color="primary"
-          startIcon={<Add />}
-          onClick={handleOpenCreateDialog}
-        >
+        <Button variant="contained" color="primary" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)}>
           Добавить клиента
         </Button>
       </Box>
-      
-      <TableContainer component={Paper}>
+
+      <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
         <Table>
           <TableHead>
             <TableRow>
               <TableCell>Название</TableCell>
-              <TableCell>Email</TableCell>
-              <TableCell>Телефон</TableCell>
+              <TableCell>Контакты</TableCell>
               <TableCell>Тип</TableCell>
               <TableCell>ИНН</TableCell>
-              <TableCell>Активные дела</TableCell>
+              <TableCell>Дела</TableCell>
               <TableCell>Действия</TableCell>
             </TableRow>
           </TableHead>
           <TableBody>
             {clients?.items && clients.items.length > 0 ? (
-              clients.items.map((client) => {
-                return (
-                  <TableRow key={client.id} hover>
-                    <TableCell>
-                      <Typography variant="body1" fontWeight="medium">
-                        {client.name}
+              clients.items.map((client, index) => (
+                <TableRow
+                  key={client.id}
+                  hover
+                  sx={{
+                    backgroundColor: (theme) =>
+                      index % 2 === 1 ? alpha(theme.palette.common.black, 0.02) : 'transparent',
+                  }}
+                >
+                  <TableCell>
+                    <Typography variant="body1" fontWeight="medium">
+                      {client.name}
+                    </Typography>
+                    {client.short_name && (
+                      <Typography variant="caption" color="text.secondary">
+                        {client.short_name}
                       </Typography>
-                      {client.short_name && (
-                        <Typography variant="caption" color="text.secondary">
-                          {client.short_name}
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell>{client.email || '-'}</TableCell>
-                    <TableCell>{client.phone || '-'}</TableCell>
-                    <TableCell>
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <span>{TYPE_ICONS[client.type]}</span>
-                        <span>
-                          {client.type === 'legal' ? 'ЮЛ' : client.type === 'individual' ? 'ФЛ' : 'Суд'}
-                        </span>
-                      </Box>
-                    </TableCell>
-                    <TableCell>{client.inn || '-'}</TableCell>
-                    <TableCell>
-                      <Box display="flex" gap={1}>
-                        <Chip
-                          label={`${client.active_cases} активных`}
-                          color={client.active_cases > 0 ? 'primary' : 'default'}
-                          size="small"
-                        />
-                        <Chip
-                          label={`${client.total_cases} всего`}
-                          variant="outlined"
-                          size="small"
-                        />
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Button
-                        size="small"
-                        onClick={() => navigate(`/crm/cases?client=${client.id}`)}
-                      >
-                        Дела
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                );
-              })
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2">{client.email || '—'}</Typography>
+                    <Typography variant="caption" color="text.secondary">
+                      {client.phone || 'Телефон не указан'}
+                    </Typography>
+                  </TableCell>
+                  <TableCell>
+                    <Box display="flex" alignItems="center" gap={1} color="text.secondary">
+                      {TYPE_ICONS[client.type]}
+                      <Typography variant="body2" color="text.primary">
+                        {client.type === 'legal' ? 'ЮЛ' : client.type === 'individual' ? 'ФЛ' : 'Суд'}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>{client.inn || '—'}</TableCell>
+                  <TableCell>
+                    <Box display="flex" gap={1}>
+                      <Chip label={`${client.active_cases} активных`} size="small" sx={{ bgcolor: 'rgba(79,144,255,0.12)' }} />
+                      <Chip label={`${client.total_cases} всего`} size="small" variant="outlined" />
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Button size="small" onClick={() => navigate(`/crm/cases?client=${client.id}`)}>
+                      Дела
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))
             ) : (
               <TableRow>
-                <TableCell colSpan={7} align="center">
+                <TableCell colSpan={6} align="center">
                   Нет данных
                 </TableCell>
               </TableRow>
@@ -162,10 +147,10 @@ export function ClientListPage() {
           </TableBody>
         </Table>
       </TableContainer>
-      
+
       <ClientCreateDialog
         open={createDialogOpen}
-        onClose={handleCloseDialog}
+        onClose={() => setCreateDialogOpen(false)}
         onSubmit={handleCreateClient}
         isLoading={createClient.isPending}
       />

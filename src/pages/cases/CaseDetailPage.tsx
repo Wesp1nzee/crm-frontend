@@ -15,14 +15,10 @@ import {
   ListItem,
   ListItemText,
   ListItemAvatar,
-  Divider,
   Card,
   CardContent,
   CardHeader,
   IconButton,
-  Accordion,
-  AccordionSummary,
-  AccordionDetails,
   Alert,
   TextField,
   LinearProgress,
@@ -33,6 +29,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Switch,
 } from '@mui/material';
 import {
   Edit,
@@ -75,15 +72,6 @@ const statusLabels: Record<CaseStatus, string> = {
   fssp: 'ФССП',
 };
 
-const statusColors: Record<CaseStatus, 'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info'> = {
-  archive: 'default',
-  in_work: 'primary',
-  debt: 'warning',
-  executed: 'success',
-  withdrawn: 'secondary',
-  cancelled: 'error',
-  fssp: 'info',
-};
 
 const statusSeverity: Record<CaseStatus, 'error' | 'info' | 'success' | 'warning'> = {
   archive: 'info',
@@ -107,20 +95,20 @@ const getFileIcon = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
     case 'pdf':
-      return <PictureAsPdf />;
+      return <PictureAsPdf sx={{ color: '#D94343', filter: 'drop-shadow(0 6px 10px rgba(217,67,67,0.28))' }} />;
     case 'doc':
     case 'docx':
-      return <Description />;
+      return <Description sx={{ color: '#4F90FF', filter: 'drop-shadow(0 6px 10px rgba(79,144,255,0.24))' }} />;
     case 'xls':
     case 'xlsx':
-      return <Description />;
+      return <Description sx={{ color: '#4F90FF', filter: 'drop-shadow(0 6px 10px rgba(79,144,255,0.24))' }} />;
     case 'jpg':
     case 'jpeg':
     case 'png':
     case 'gif':
-      return <Description />;
+      return <Description sx={{ color: '#4F90FF', filter: 'drop-shadow(0 6px 10px rgba(79,144,255,0.24))' }} />;
     default:
-      return <InsertDriveFile />;
+      return <InsertDriveFile sx={{ color: '#7E8796', filter: 'drop-shadow(0 6px 10px rgba(126,135,150,0.2))' }} />;
   }
 };
 
@@ -291,6 +279,7 @@ export function CaseDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [zenMode, setZenMode] = useState(false);
 
   useEffect(() => {
     if (caseData) {
@@ -445,7 +434,11 @@ export function CaseDetailPage() {
       mx: 'auto',
       p: { xs: 2, sm: 3 },
       bgcolor: 'background.default',
-      minHeight: 'calc(100vh - 120px)'
+      minHeight: 'calc(100vh - 120px)',
+      '@keyframes cardIn': {
+        '0%': { opacity: 0, transform: 'translateY(12px) scale(0.95)' },
+        '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+      },
     }}>
       {/* Navigation Header */}
       <Box
@@ -537,7 +530,7 @@ export function CaseDetailPage() {
         {/* Main Info - Обновлено */}
         <Grid size={{ xs: 12, md: 8 }}>
           {/* Case Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -636,7 +629,7 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Client Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '470ms', animationFillMode: 'both' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -806,7 +799,7 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Documents Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '520ms', animationFillMode: 'both' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -1023,13 +1016,18 @@ export function CaseDetailPage() {
 
         {/* Sidebar - Обновлено */}
         <Grid size={{ xs: 12, md: 4 }}>
-          {/* Status & Dates Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 4, boxShadow: 2 }}>
             <CardHeader
               title={
-                <Typography variant="h6" fontWeight="bold">
-                  Статус и сроки
-                </Typography>
+                <Box display="flex" alignItems="center" justifyContent="space-between" gap={1.5}>
+                  <Typography variant="h6" fontWeight="bold">
+                    Состояние
+                  </Typography>
+                  <Stack direction="row" spacing={1} alignItems="center">
+                    <Typography variant="caption" color="text.secondary">Zen Mode</Typography>
+                    <Switch size="small" checked={zenMode} onChange={(_, checked) => setZenMode(checked)} />
+                  </Stack>
+                </Box>
               }
             />
             <CardContent>
@@ -1040,11 +1038,6 @@ export function CaseDetailPage() {
                     value={status || case_.status}
                     label="Статус дела"
                     onChange={(e) => setStatus(e.target.value as CaseStatus)}
-                    sx={{
-                      '& .MuiSelect-select': {
-                        fontWeight: 'medium'
-                      }
-                    }}
                   >
                     {Object.entries(statusLabels).map(([value, label]) => (
                       <MenuItem key={value} value={value}>
@@ -1061,92 +1054,42 @@ export function CaseDetailPage() {
                       fullWidth
                       onClick={handleStatusUpdate}
                       disabled={patchCase.isPending}
-                      startIcon={patchCase.isPending ? <CircularProgress size={16} /> : undefined}
                     >
                       {patchCase.isPending ? 'Сохранение...' : 'Сохранить статус'}
                     </Button>
                   </Box>
                 )}
               </Box>
-              <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 1 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                  Дата начала
-                </Typography>
-                <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  <CalendarToday fontSize="small" color="action" />
-                  {dayjs(case_.start_date).format('DD.MM.YYYY')}
-                </Typography>
-              </Box>
-              <Box
-                sx={{
-                  mb: 2.5,
-                  p: 1.5,
-                  bgcolor: isOverdue && !isCompleted
-                    ? (theme.palette.mode === 'dark'
-                      ? 'rgba(244, 67, 54, 0.2)'
-                      : 'rgba(244, 67, 54, 0.08)')
-                    : 'background.default',
-                  borderRadius: 1,
-                  border: isOverdue && !isCompleted
-                    ? `1px solid ${theme.palette.error.main}`
-                    : 'none'
-                }}
-              >
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                  {isOverdue && !isCompleted ? 'Срок просрочен' : 'Срок исполнения'}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  color={isOverdue && !isCompleted ? 'error' : 'inherit'}
-                  sx={{ display: 'flex', alignItems: 'center', gap: 1 }}
-                >
-                  <CalendarToday
-                    fontSize="small"
-                    color={isOverdue && !isCompleted ? 'error' : 'action'}
-                  />
-                  {dayjs(case_.deadline).format('DD.MM.YYYY')}
-                  {isOverdue && !isCompleted && (
-                    <Chip
-                      label={`Просрочено на ${dayjs().diff(dayjs(case_.deadline), 'day')} дн.`}
-                      size="small"
-                      color="error"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
-                </Typography>
-              </Box>
-              {hasCompletionDate && (
-                <Box sx={{ p: 1.5, bgcolor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(76, 175, 80, 0.08)', borderRadius: 1, border: `1px solid ${theme.palette.success.main}` }}>
-                  <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                    Дата завершения
-                  </Typography>
-                  <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                    <CalendarToday fontSize="small" color="success" />
-                    {dayjs(case_.completion_date).format('DD.MM.YYYY')}
-                  </Typography>
-                </Box>
-              )}
-            </CardContent>
-          </Card>
 
-          {/* Financial Info Card - Обновлено: Убрана иконка AttachMoney */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2 }}>
-            <CardHeader
-              title={
-                <Typography variant="h6" fontWeight="bold">
-                  Финансовая информация
-                </Typography>
-              }
-            />
-            <CardContent>
-              {/* Payment Progress Bar */}
+              {!zenMode && (
+                <>
+                  <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                      Дата начала
+                    </Typography>
+                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CalendarToday fontSize="small" color="action" />
+                      {dayjs(case_.start_date).format('DD.MM.YYYY')}
+                    </Typography>
+                  </Box>
+
+                  <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                      {isOverdue && !isCompleted ? 'Срок просрочен' : 'Срок исполнения'}
+                    </Typography>
+                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                      <CalendarToday fontSize="small" color={isOverdue && !isCompleted ? 'error' : 'action'} />
+                      {dayjs(case_.deadline).format('DD.MM.YYYY')}
+                    </Typography>
+                  </Box>
+                </>
+              )}
+
               {costNum > 0 && (
                 <Box sx={{ mb: 3 }}>
                   <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 1 }}>
-                    <Typography variant="body2" color="text.secondary">
-                      Оплата
-                    </Typography>
-                    <Typography variant="body2" fontWeight="medium">
+                    <Typography variant="body2" color="text.secondary">Оплата</Typography>
+                    <Typography variant="body2" fontWeight="medium" sx={{ fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' }}>
                       {Math.round(progressPercent)}%
                     </Typography>
                   </Box>
@@ -1156,25 +1099,16 @@ export function CaseDetailPage() {
                     sx={{
                       height: 10,
                       borderRadius: 5,
-                      bgcolor: theme.palette.mode === 'dark'
-                        ? 'rgba(79, 144, 255, 0.3)'
-                        : 'rgba(79, 144, 255, 0.1)',
+                      bgcolor: 'rgba(79, 144, 255, 0.1)',
                       '& .MuiLinearProgress-bar': {
                         bgcolor: progressPercent >= 100 ? theme.palette.success.main : theme.palette.primary.main,
-                        borderRadius: 5
-                      }
+                        borderRadius: 5,
+                      },
                     }}
                   />
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', mt: 1 }}>
-                    <Typography variant="caption" color="text.secondary">
-                      Оплачено: {totalPaid.toLocaleString('ru-RU')} ₽
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      Всего: {costNum.toLocaleString('ru-RU')} ₽
-                    </Typography>
-                  </Box>
                 </Box>
               )}
+
               <Box sx={{ mb: 2.5 }}>
                 <EditableField
                   field="cost"
@@ -1188,51 +1122,41 @@ export function CaseDetailPage() {
                   type="number"
                 />
               </Box>
-              <Box sx={{ mb: 2.5 }}>
-                <EditableField
-                  field="bank_transfer_amount"
-                  value={case_.bank_transfer_amount}
-                  label="Безналичная оплата"
-                  editingField={editingField}
-                  editValues={editValues}
-                  onEdit={handleFieldEdit}
-                  onSave={handleFieldSave}
-                  onCancel={handleFieldCancel}
-                  type="number"
-                />
-              </Box>
-              <Box sx={{ mb: 2.5 }}>
-                <EditableField
-                  field="cash_amount"
-                  value={case_.cash_amount}
-                  label="Наличная оплата"
-                  editingField={editingField}
-                  editValues={editValues}
-                  onEdit={handleFieldEdit}
-                  onSave={handleFieldSave}
-                  onCancel={handleFieldCancel}
-                  type="number"
-                />
-              </Box>
-              <Box sx={{ p: 1.5, bgcolor: remainingDebtNum > 0
-                ? (theme.palette.mode === 'dark'
-                  ? 'rgba(244, 67, 54, 0.2)'
-                  : 'rgba(244, 67, 54, 0.08)')
-                : (theme.palette.mode === 'dark'
-                  ? 'rgba(76, 175, 80, 0.2)'
-                  : 'rgba(76, 175, 80, 0.08)'),
-                borderRadius: 1,
-                border: `1px solid ${remainingDebtNum > 0 ? theme.palette.error.main : theme.palette.success.main}`
-              }}>
+              {!zenMode && (
+                <>
+                  <Box sx={{ mb: 2.5 }}>
+                    <EditableField
+                      field="bank_transfer_amount"
+                      value={case_.bank_transfer_amount}
+                      label="Безналичная оплата"
+                      editingField={editingField}
+                      editValues={editValues}
+                      onEdit={handleFieldEdit}
+                      onSave={handleFieldSave}
+                      onCancel={handleFieldCancel}
+                      type="number"
+                    />
+                  </Box>
+                  <Box sx={{ mb: 2.5 }}>
+                    <EditableField
+                      field="cash_amount"
+                      value={case_.cash_amount}
+                      label="Наличная оплата"
+                      editingField={editingField}
+                      editValues={editValues}
+                      onEdit={handleFieldEdit}
+                      onSave={handleFieldSave}
+                      onCancel={handleFieldCancel}
+                      type="number"
+                    />
+                  </Box>
+                </>
+              )}
+              <Box sx={{ p: 1.5, bgcolor: remainingDebtNum > 0 ? 'rgba(244,67,54,0.08)' : 'rgba(76,175,80,0.08)', borderRadius: 2, border: `1px solid ${remainingDebtNum > 0 ? theme.palette.error.main : theme.palette.success.main}` }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
                   Остаток долга
                 </Typography>
-                <Typography
-                  variant="h6"
-                  fontWeight="bold"
-                  color={remainingDebtNum > 0 ? 'error' : 'success'}
-                >
-                  {/* Убрана иконка <AttachMoney /> */}
+                <Typography variant="h6" fontWeight="bold" color={remainingDebtNum > 0 ? 'error' : 'success'} sx={{ fontFamily: '"JetBrains Mono", "Roboto Mono", monospace' }}>
                   {remainingDebtNum.toLocaleString('ru-RU')} ₽
                 </Typography>
               </Box>

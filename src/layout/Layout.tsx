@@ -22,11 +22,12 @@ export function Layout() {
         component="main" 
         sx={{ 
           flexGrow: 1, 
-          p: 3,
+          p: { xs: 2, md: 3 },
           width: '100%',
           minWidth: 0,
           display: 'flex',
-          flexDirection: 'column'
+          flexDirection: 'column',
+          pl: { xs: 2, md: 4 },
         }}
       >
         <Toolbar />

@@ -1,4 +1,4 @@
-import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar } from '@mui/material';
+import { Drawer, List, ListItem, ListItemButton, ListItemIcon, ListItemText, Toolbar, Box } from '@mui/material';
 import { Link, useLocation } from 'react-router-dom';
 import {
   Home,
@@ -7,15 +7,14 @@ import {
   Engineering,
   Description,
   // AccountBalance,
-  Assessment,
   // CalendarMonth,
   // Calculate,
   // Email
 } from '@mui/icons-material';
 import { usePermissions } from '../shared/hooks/usePermissions';
 
-const drawerWidth = 240;
-const miniDrawerWidth = 64;
+const drawerWidth = 244;
+const miniDrawerWidth = 84;
 
 const menuItems = [
   { text: 'Главная', path: '/crm', icon: <Home /> },
@@ -41,20 +40,30 @@ export function Sidebar({ open }: SidebarProps) {
   const filteredMenuItems = menuItems.filter(item => canAccessRoute(item.path));
 
   return (
-    <Drawer
-      variant="permanent"
-      sx={{
-        width: open ? drawerWidth : miniDrawerWidth,
-        flexShrink: 0,
-        '& .MuiDrawer-paper': {
+    <Box sx={{ p: 3, pr: 0, position: 'relative' }}>
+      <Drawer
+        variant="permanent"
+        sx={{
           width: open ? drawerWidth : miniDrawerWidth,
-          boxSizing: 'border-box',
-          transition: 'width 0.3s',
-          overflowX: 'hidden',
-        },
-      }}
-    >
-      <Toolbar />
+          flexShrink: 0,
+          '& .MuiDrawer-paper': {
+            width: open ? drawerWidth : miniDrawerWidth,
+            boxSizing: 'border-box',
+            transition: 'width 0.3s',
+            overflowX: 'hidden',
+            borderRadius: 8,
+            border: '1px solid rgba(255,255,255,0.95)',
+            backgroundColor: 'rgba(255,255,255,0.78)',
+            backdropFilter: 'blur(25px)',
+            p: 1,
+            height: 'calc(100% - 48px)',
+            top: 24,
+            left: 24,
+            boxShadow: '0 12px 32px rgba(31, 53, 85, 0.08)',
+          },
+        }}
+      >
+      <Toolbar sx={{ minHeight: 56 }} />
       <List>
         {filteredMenuItems.map((item) => (
           <ListItem key={item.path} disablePadding>
@@ -63,16 +72,39 @@ export function Sidebar({ open }: SidebarProps) {
               to={item.path}
               selected={location.pathname === item.path || (item.path === '/' && location.pathname === '/')}
               sx={{
-                minHeight: 48,
+                minHeight: 52,
                 justifyContent: open ? 'initial' : 'center',
-                px: 2.5,
+                px: 2,
+                my: 0.5,
+                borderRadius: 4,
+                '&.Mui-selected': {
+                  backgroundColor: 'transparent',
+                  position: 'relative',
+                  '&::before': {
+                    content: '""',
+                    position: 'absolute',
+                    left: 6,
+                    top: 12,
+                    bottom: 12,
+                    width: 4,
+                    borderRadius: 4,
+                    backgroundColor: 'primary.main',
+                  },
+                  '& .MuiListItemIcon-root': {
+                    filter: 'drop-shadow(0 0 10px rgba(79,144,255,0.45))',
+                  },
+                },
               }}
             >
               <ListItemIcon
                 sx={{
                   minWidth: 0,
-                  mr: open ? 3 : 'auto',
+                  mr: open ? 2 : 'auto',
                   justifyContent: 'center',
+                  '& svg': {
+                    fontSize: 22,
+                    strokeWidth: 1.5,
+                  },
                 }}
               >
                 {item.icon}
@@ -86,5 +118,6 @@ export function Sidebar({ open }: SidebarProps) {
         ))}
       </List>
     </Drawer>
+  </Box>
   );
 }

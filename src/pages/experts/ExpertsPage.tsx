@@ -27,6 +27,7 @@ import {
   InputAdornment,
   ToggleButton,
   ToggleButtonGroup,
+  alpha,
 } from '@mui/material';
 import {
   Add,
@@ -240,8 +241,8 @@ export function ExpertsPage() {
     <Box>
       {/* Заголовок и кнопки */}
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4">
-          Пользователи
+        <Typography variant="h4" sx={{ fontSize: { xs: 32, md: 36 }, fontWeight: 800 }}>
+          Эксперты
         </Typography>
         <Box display="flex" gap={1}>
           <Button
@@ -334,7 +335,7 @@ export function ExpertsPage() {
       </Paper>
 
       {/* Таблица */}
-      <TableContainer component={Paper}>
+      <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
         <Table>
           <TableHead>
             <TableRow>
@@ -347,8 +348,8 @@ export function ExpertsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {experts?.map((expert) => (
-              <TableRow key={expert.id} hover>
+            {experts?.map((expert, index) => (
+              <TableRow key={expert.id} hover sx={{ backgroundColor: (theme) => index % 2 ? alpha(theme.palette.common.black, 0.02) : "transparent" }}>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
                     <Person fontSize="small" />
@@ -357,11 +358,22 @@ export function ExpertsPage() {
                 </TableCell>
                 <TableCell>{expert.email}</TableCell>
                 <TableCell>
-                  <Chip
-                    label={expert.role === UserRole.EXPERT ? 'Эксперт' : 'Бухгалтер'}
-                    color={expert.role === UserRole.EXPERT ? 'primary' : 'secondary'}
-                    size="small"
-                  />
+                  <Box display="flex" alignItems="center" gap={1}>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: '50%',
+                        bgcolor: expert.role === UserRole.EXPERT ? 'primary.main' : 'secondary.main',
+                        boxShadow: expert.role === UserRole.EXPERT
+                          ? '0 0 8px rgba(79,144,255,0.55)'
+                          : '0 0 8px rgba(227,138,181,0.45)',
+                      }}
+                    />
+                    <Typography variant="body2" color="text.secondary">
+                      {expert.role === UserRole.EXPERT ? 'Эксперт' : 'Бухгалтер'}
+                    </Typography>
+                  </Box>
                 </TableCell>
                 <TableCell>
                   {expert.specialization?.length > 0 ? (
@@ -375,8 +387,11 @@ export function ExpertsPage() {
                 <TableCell>
                   <Chip
                     label={expert.status === 'active' ? 'Активен' : 'Неактивен'}
-                    color={expert.status === 'active' ? 'success' : 'default'}
                     size="small"
+                    sx={{
+                      bgcolor: expert.status === 'active' ? 'rgba(76,175,80,0.14)' : 'rgba(120,120,120,0.12)',
+                      color: expert.status === 'active' ? 'success.dark' : 'text.secondary',
+                    }}
                   />
                 </TableCell>
                 <TableCell>

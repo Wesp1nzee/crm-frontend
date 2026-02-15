@@ -92,7 +92,17 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   };
 
   return (
-    <AppBar position="fixed" sx={{ zIndex: (theme) => theme.zIndex.drawer + 1 }}>
+    <AppBar
+      position="fixed"
+      elevation={0}
+      sx={{
+        zIndex: (theme) => theme.zIndex.drawer + 1,
+        bgcolor: 'rgba(245, 247, 250, 0.78)',
+        backdropFilter: 'blur(25px)',
+        borderBottom: '1px solid rgba(255,255,255,0.9)',
+        color: 'text.primary',
+      }}
+    >
       <Toolbar>
         {/* Левая часть: меню и заголовок */}
         <Box sx={{ display: 'flex', alignItems: 'center' }}>
@@ -105,7 +115,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ mr: 4 }}>
+          <Typography variant="h6" noWrap component="div" sx={{ mr: 4, fontWeight: 700 }}>
             CRM
           </Typography>
         </Box>
@@ -152,7 +162,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           */}
           
           <IconButton 
-            color="inherit" 
+            color="inherit"
             onClick={handleProfileClick}
             sx={{
               transition: 'transform 0.2s',

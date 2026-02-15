@@ -660,7 +660,7 @@ export function DocumentsPage() {
         gap={1.5}
         mb={2}
       >
-        <Typography variant="h5" fontWeight={700}>
+        <Typography variant="h4" sx={{ fontSize: { xs: 32, md: 38 }, fontWeight: 800 }}>
           Документы
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap">
@@ -687,7 +687,7 @@ export function DocumentsPage() {
       </Box>
 
       {/* Навигация и поиск */}
-      <Paper sx={{ p: 1.5, mb: 2, borderRadius: 2 }}>
+      <Paper sx={{ p: 2, mb: 2, borderRadius: 4 }}>
         <Box mb={1}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1, fontWeight: 600 }}>
             Текущая папка (можно перетащить элемент в любой сегмент пути)
@@ -916,7 +916,7 @@ export function DocumentsPage() {
                             opacity: isDragging ? 0.65 : 1,
                             backgroundColor: isDragOver
                               ? (theme) => alpha(theme.palette.primary.main, 0.08)
-                              : 'transparent',
+                              : (theme) => (entriesArray.indexOf(entry) % 2 ? alpha(theme.palette.common.black, 0.02) : 'transparent'),
                             borderLeft: isDragOver
                               ? (theme) => `3px solid ${theme.palette.primary.main}`
                               : '3px solid transparent',
@@ -925,19 +925,33 @@ export function DocumentsPage() {
                               bgcolor: 'action.hover',
                             },
                             '& > td': {
-                              py: 0.75,
-                              borderBottomColor: 'divider',
+                              py: 1.2,
+                              borderBottom: 'none',
+                              lineHeight: 1.6,
                             },
                           }}
                           onClick={() => entry.type === 'folder' && handleFolderClick(entry)}
                           onDoubleClick={() => handleFileDoubleClick(entry)}
                         >
                           <TableCell>
-                            <Box display="flex" alignItems="center" gap={1}>
-                              <Tooltip title={entry.type === 'folder' ? 'Перетащите сюда файл или папку' : 'Файл'}>
-                                <Box sx={{ color: isDragOver ? 'primary.main' : 'inherit' }}>{getFileIcon(entry)}</Box>
-                              </Tooltip>
-                            </Box>
+                            <Tooltip title={entry.type === 'folder' ? 'Перетащите сюда файл или папку' : 'Файл'}>
+                              <Box
+                                sx={{
+                                  width: 46,
+                                  height: 46,
+                                  borderRadius: 2.5,
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'center',
+                                  bgcolor: 'rgba(255,255,255,0.78)',
+                                  border: '1px solid rgba(255,255,255,0.95)',
+                                  boxShadow: '0 8px 18px rgba(48,69,103,0.08)',
+                                  color: isDragOver ? 'primary.main' : 'inherit',
+                                }}
+                              >
+                                {getFileIcon(entry)}
+                              </Box>
+                            </Tooltip>
                           </TableCell>
                           <TableCell>
                             <Box display="flex" alignItems="center" gap={1}>
@@ -960,7 +974,7 @@ export function DocumentsPage() {
                                   size="small"
                                   variant="outlined"
                                   color="default"
-                                  sx={{ fontSize: '0.68rem', height: 18 }}
+                                  sx={{ fontSize: '0.68rem', height: 18, bgcolor: 'rgba(79,144,255,0.1)', border: 'none' }}
                                 />
                               )}
                             </Box>
