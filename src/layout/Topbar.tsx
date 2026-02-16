@@ -98,7 +98,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
         bgcolor: 'rgba(245, 247, 250, 0.78)',
-        backdropFilter: 'blur(25px)',
+        backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.9)',
         color: 'text.primary',
       }}

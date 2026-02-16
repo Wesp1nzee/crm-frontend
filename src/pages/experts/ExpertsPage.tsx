@@ -275,7 +275,7 @@ export function ExpertsPage() {
             <TextField
               fullWidth
               size="small"
-              sx={{ '& .MuiOutlinedInput-root': { minHeight: 50 } }}
+              sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}
               placeholder="Поиск по имени или email..."
               value={filters.search}
               onChange={handleSearchChange}
@@ -292,7 +292,7 @@ export function ExpertsPage() {
           </Grid>
           
           <Grid size={{ xs: 12, md: 3 }}>
-            <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { minHeight: 50 } }}>
+            <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}>
               <InputLabel>Роль</InputLabel>
               <Select
                 value={filters.role}
@@ -309,7 +309,7 @@ export function ExpertsPage() {
           <Grid size={{ xs: 12, md: 3 }}>
             <ToggleButtonGroup
               value={filters.status}
-              sx={{ '& .MuiToggleButton-root': { minHeight: 50, borderRadius: 2 } }}
+              sx={{ '& .MuiToggleButton-root': { minHeight: 48, borderRadius: 2 } }}
               exclusive
               onChange={handleStatusChange}
               fullWidth
@@ -344,7 +344,7 @@ export function ExpertsPage() {
 
       {/* Таблица */}
       <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table>
+        <Table sx={{ "& th:first-of-type, & td:first-of-type": { pl: 4 }, "& th:last-of-type, & td:last-of-type": { pr: 4 } }}>
           <TableHead>
             <TableRow>
               <TableCell>Имя</TableCell>

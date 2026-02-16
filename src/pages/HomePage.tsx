@@ -66,7 +66,10 @@ const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
 };
 
 const glassCardSx = {
-  borderRadius: 6,
+  borderRadius: 4,
+  '& .MuiCardContent-root': {
+    padding: 5,
+  },
   backdropFilter: 'blur(18px)',
   background: `linear-gradient(145deg, ${alpha('#FFFFFF', 0.88)} 0%, ${alpha('#F7FAFF', 0.7)} 100%)`,
   border: `1px solid ${alpha('#A9C2EA', 0.45)}`,
@@ -226,9 +229,9 @@ function AdminHomePage() {
                   variant="contained"
                   size="large"
                   startIcon={<Add />}
-                  onClick={() => navigate('/cases')}
+                  onClick={() => navigate('/crm/cases')}
                   sx={{
-                    borderRadius: 4,
+                    borderRadius: 1.5,
                     py: 1.4,
                     textTransform: 'none',
                     background: 'linear-gradient(145deg, #3B82F6 0%, #2563EB 100%)',
@@ -243,9 +246,9 @@ function AdminHomePage() {
                   variant="outlined"
                   size="large"
                   startIcon={<People />}
-                  onClick={() => navigate('/clients')}
+                  onClick={() => navigate('/crm/clients')}
                   sx={{
-                    borderRadius: 4,
+                    borderRadius: 1.5,
                     py: 1.4,
                     textTransform: 'none',
                     color: palette.softChalk,
@@ -350,7 +353,7 @@ function AdminHomePage() {
               <Box display="flex" justifyContent="space-between" alignItems="center" mb={1.5}>
                 <Typography variant="h6" fontWeight={700}>Последние дела</Typography>
                 <IconButton
-                  onClick={() => navigate('/cases')}
+                  onClick={() => navigate('/crm/cases')}
                   sx={{ color: palette.softChalk, border: `1px solid ${alpha('#FFFFFF', 0.2)}` }}
                 >
                   <ArrowForward />
@@ -391,7 +394,7 @@ function AdminHomePage() {
                       '&:hover': { bgcolor: alpha('#FFFFFF', 0.05) },
                       cursor: 'pointer',
                     }}
-                    onClick={() => navigate(`/cases/${caseItem.id}`)}
+                    onClick={() => navigate(`/crm/cases/${caseItem.id}`)}
                   >
                     <ListItemAvatar>
                       <Avatar

@@ -55,7 +55,7 @@ const SORT_FIELDS = [
 
 const premiumFieldSx = {
   '& .MuiOutlinedInput-root': {
-    minHeight: 50,
+    minHeight: 48,
   },
 };
 

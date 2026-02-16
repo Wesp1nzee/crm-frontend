@@ -77,7 +77,7 @@ export function ClientListPage() {
       </Box>
 
       <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table>
+        <Table sx={{ "& th:first-of-type, & td:first-of-type": { pl: 4 }, "& th:last-of-type, & td:last-of-type": { pr: 4 } }}>
           <TableHead>
             <TableRow>
               <TableCell>Название</TableCell>

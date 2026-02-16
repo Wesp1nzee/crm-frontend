@@ -179,7 +179,7 @@ export function CaseListPage() {
           startIcon={<AddIcon />}
           onClick={() => setCreateDialogOpen(true)}
           size="large"
-          sx={{ borderRadius: 3, px: 2.25 }}
+          sx={{ borderRadius: 1.5, px: 2.25 }}
         >
           Создать дело
         </Button>
@@ -191,7 +191,7 @@ export function CaseListPage() {
       {/* Table */}
       <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 4 }}>
         <TableContainer>
-          <Table>
+          <Table sx={{ '& th:first-of-type, & td:first-of-type': { pl: 4 }, '& th:last-of-type, & td:last-of-type': { pr: 4 } }}>
             <TableHead>
               <TableRow sx={{ backgroundColor: 'background.paper' }}>
                 <TableCell width="5%">№</TableCell>

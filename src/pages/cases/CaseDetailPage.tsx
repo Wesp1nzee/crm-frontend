@@ -546,7 +546,7 @@ export function CaseDetailPage() {
               }
               sx={{ pb: 0 }}
             />
-            <CardContent>
+            <CardContent sx={{ p: 4 }}>
               <Grid container spacing={2.5}>
                 {/* Обновлены все Grid items в этой секции */}
                 <Grid size={{ xs: 12, sm: 6 }}>
@@ -645,7 +645,7 @@ export function CaseDetailPage() {
               }
               sx={{ pb: 0 }}
             />
-            <CardContent>
+            <CardContent sx={{ p: 4 }}>
               <Box display="flex" alignItems="center" gap={2.5} mb={3} p={2} sx={{ bgcolor: 'background.default', borderRadius: 2 }}>
                 <Avatar sx={{ bgcolor: 'primary.main', width: 64, height: 64 }}>
                   {client.type === 'legal' ? <Business fontSize="large" /> : <Person fontSize="large" />}
@@ -1020,7 +1020,7 @@ export function CaseDetailPage() {
 
         {/* Sidebar - Обновлено */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ mb: 3, borderRadius: 4, boxShadow: 2 }}>
+          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 2 }}>
             <CardHeader
               title={
                 <Typography variant="h6" fontWeight="bold">
@@ -1028,7 +1028,7 @@ export function CaseDetailPage() {
                 </Typography>
               }
             />
-            <CardContent>
+            <CardContent sx={{ p: 4 }}>
               <Box sx={{ mb: 2.5 }}>
                 <FormControl size="small" fullWidth>
                   <InputLabel>Статус дела</InputLabel>

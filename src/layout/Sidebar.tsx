@@ -40,7 +40,7 @@ export function Sidebar({ open }: SidebarProps) {
   const filteredMenuItems = menuItems.filter(item => canAccessRoute(item.path));
 
   return (
-    <Box sx={{ p: 3, pr: 0, position: 'relative' }}>
+    <Box sx={{ p: 0, position: 'relative' }}>
       <Drawer
         variant="permanent"
         sx={{
@@ -56,10 +56,10 @@ export function Sidebar({ open }: SidebarProps) {
             backgroundColor: 'rgba(255,255,255,0.78)',
             backdropFilter: 'blur(25px)',
             p: 1,
-            height: 'calc(100% - 48px)',
             top: 24,
             left: 24,
             boxShadow: '0 12px 32px rgba(31, 53, 85, 0.08)',
+            bottom: 24,
           },
         }}
       >
@@ -73,7 +73,8 @@ export function Sidebar({ open }: SidebarProps) {
               selected={location.pathname === item.path || (item.path === '/' && location.pathname === '/')}
               sx={{
                 minHeight: 52,
-                justifyContent: open ? 'initial' : 'center',
+                alignItems: 'center',
+                justifyContent: open ? 'flex-start' : 'center',
                 px: 2,
                 my: 0.5,
                 borderRadius: 4,
@@ -96,7 +97,7 @@ export function Sidebar({ open }: SidebarProps) {
               <ListItemIcon
                 sx={{
                   minWidth: 0,
-                  mr: open ? 2 : 'auto',
+                  mr: open ? 2.25 : 'auto',
                   justifyContent: 'center',
                   '& svg': {
                     fontSize: 22,
@@ -106,9 +107,10 @@ export function Sidebar({ open }: SidebarProps) {
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText 
-                primary={item.text} 
-                sx={{ opacity: open ? 1 : 0 }}
+              <ListItemText
+                primary={item.text}
+                primaryTypographyProps={{ fontWeight: 500, lineHeight: 1.2 }}
+                sx={{ opacity: open ? 1 : 0, my: 0 }}
               />
             </ListItemButton>
           </ListItem>
