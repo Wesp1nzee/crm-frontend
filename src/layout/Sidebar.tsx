@@ -15,6 +15,7 @@ import { usePermissions } from '../shared/hooks/usePermissions';
 
 const drawerWidth = 244;
 const miniDrawerWidth = 84;
+const sidebarInset = 24;
 
 const menuItems = [
   { text: 'Главная', path: '/crm', icon: <Home /> },
@@ -38,16 +39,18 @@ export function Sidebar({ open }: SidebarProps) {
   const { canAccessRoute } = usePermissions();
 
   const filteredMenuItems = menuItems.filter(item => canAccessRoute(item.path));
+  const sidebarWidth = open ? drawerWidth : miniDrawerWidth;
+  const occupiedWidth = sidebarWidth + sidebarInset;
 
   return (
-    <Box sx={{ p: 0, position: 'relative' }}>
+    <Box sx={{ p: 0, position: 'relative', width: occupiedWidth, flexShrink: 0 }}>
       <Drawer
         variant="permanent"
         sx={{
-          width: open ? drawerWidth : miniDrawerWidth,
+          width: occupiedWidth,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
-            width: open ? drawerWidth : miniDrawerWidth,
+            width: sidebarWidth,
             boxSizing: 'border-box',
             transition: 'width 0.3s',
             overflowX: 'hidden',
@@ -56,10 +59,10 @@ export function Sidebar({ open }: SidebarProps) {
             backgroundColor: 'rgba(255,255,255,0.78)',
             backdropFilter: 'blur(25px)',
             p: 1,
-            top: 24,
-            left: 24,
+            top: sidebarInset,
+            left: sidebarInset,
             boxShadow: '0 12px 32px rgba(31, 53, 85, 0.08)',
-            bottom: 24,
+            bottom: sidebarInset,
           },
         }}
       >
