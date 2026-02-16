@@ -67,13 +67,28 @@ const fetchFinancialSummary = async (): Promise<FinancialSummary> => {
 
 const glassCardSx = {
   borderRadius: 4,
+  height: '100%',
   '& .MuiCardContent-root': {
-    padding: 5,
+    padding: { xs: 3, md: 4 },
+    '&:last-child': {
+      paddingBottom: { xs: 3, md: 4 },
+    },
   },
   backdropFilter: 'blur(18px)',
   background: `linear-gradient(145deg, ${alpha('#FFFFFF', 0.88)} 0%, ${alpha('#F7FAFF', 0.7)} 100%)`,
   border: `1px solid ${alpha('#A9C2EA', 0.45)}`,
   boxShadow: `0 18px 40px ${alpha('#6785B5', 0.16)}`,
+};
+
+const statCardSx = {
+  ...glassCardSx,
+  '& .MuiCardContent-root': {
+    ...glassCardSx['& .MuiCardContent-root'],
+    minHeight: 190,
+    display: 'flex',
+    flexDirection: 'column',
+    justifyContent: 'center',
+  },
 };
 
 function formatCompactCurrency(value: number): string {
@@ -132,7 +147,7 @@ function AdminHomePage() {
         width: '100%',
         color: palette.softChalk,
         borderRadius: 8,
-        p: { xs: 2, md: 4 },
+        p: { xs: 2.5, md: 4.5 },
         background: `radial-gradient(circle at 15% 15%, ${alpha(palette.cyberBlueGlow, 0.18)} 0%, transparent 40%),
           radial-gradient(circle at 85% 80%, ${alpha('#7E8FFF', 0.12)} 0%, transparent 35%),
           linear-gradient(145deg, ${palette.deepSlate} 0%, ${palette.deepSlateLight} 55%, #DDE8FD 100%)`,
@@ -150,8 +165,8 @@ function AdminHomePage() {
       />
 
       <Box sx={{ position: 'relative', zIndex: 2 }}>
-        <Box mb={4}>
-          <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5 }}>
+        <Box mb={4} sx={{ pl: { xs: 0.5, md: 1 }, pr: { xs: 0.5, md: 0 } }}>
+          <Typography variant="h4" fontWeight={700} sx={{ mt: 0.5, lineHeight: 1.25 }}>
             Главная панель CRM
           </Typography>
           <Typography variant="h6" sx={{ color: alpha(palette.softChalk, 0.7) }}>
@@ -166,7 +181,7 @@ function AdminHomePage() {
             gap: 3,
           }}
         >
-          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+          <Card sx={{ ...statCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Активные дела</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
@@ -179,7 +194,7 @@ function AdminHomePage() {
             </CardContent>
           </Card>
 
-          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+          <Card sx={{ ...statCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Просроченные дедлайны</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
@@ -192,7 +207,7 @@ function AdminHomePage() {
             </CardContent>
           </Card>
 
-          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+          <Card sx={{ ...statCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Оборот</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
@@ -205,7 +220,7 @@ function AdminHomePage() {
             </CardContent>
           </Card>
 
-          <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
+          <Card sx={{ ...statCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Завершено</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">

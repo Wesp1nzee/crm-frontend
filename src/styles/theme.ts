@@ -15,7 +15,7 @@ export const theme = createTheme({
     },
   },
   shape: {
-    borderRadius: 16,
+    borderRadius: 14,
   },
   typography: {
     fontFamily: '"Inter Tight", "SF Pro Display", Inter, Roboto, sans-serif',
@@ -49,6 +49,7 @@ export const theme = createTheme({
           backgroundColor: 'rgba(255,255,255,0.8)',
           border: '1px solid rgba(255,255,255,0.9)',
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
+          borderRadius: 14,
         },
       },
     },
@@ -56,6 +57,17 @@ export const theme = createTheme({
       styleOverrides: {
         root: {
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
+          borderRadius: 14,
+        },
+      },
+    },
+    MuiCardContent: {
+      styleOverrides: {
+        root: {
+          padding: '20px 22px',
+          '&:last-child': {
+            paddingBottom: '20px',
+          },
         },
       },
     },
