@@ -40,14 +40,13 @@ export function Sidebar({ open }: SidebarProps) {
 
   const filteredMenuItems = menuItems.filter(item => canAccessRoute(item.path));
   const sidebarWidth = open ? drawerWidth : miniDrawerWidth;
-  const occupiedWidth = sidebarWidth + sidebarInset;
 
   return (
-    <Box sx={{ p: 0, position: 'relative', width: occupiedWidth, flexShrink: 0 }}>
+    <Box sx={{ p: 0, position: 'relative', width: sidebarWidth, flexShrink: 0 }}>
       <Drawer
         variant="permanent"
         sx={{
-          width: occupiedWidth,
+          width: sidebarWidth,
           flexShrink: 0,
           '& .MuiDrawer-paper': {
             width: sidebarWidth,
@@ -60,7 +59,7 @@ export function Sidebar({ open }: SidebarProps) {
             backdropFilter: 'blur(25px)',
             p: 1,
             top: sidebarInset,
-            left: sidebarInset,
+            left: 0,
             boxShadow: '0 12px 32px rgba(31, 53, 85, 0.08)',
             bottom: sidebarInset,
           },
@@ -77,8 +76,8 @@ export function Sidebar({ open }: SidebarProps) {
               sx={{
                 minHeight: 52,
                 alignItems: 'center',
-                justifyContent: open ? 'flex-start' : 'center',
-                px: 2,
+                justifyContent: 'center',
+                px: 0,
                 my: 0.5,
                 borderRadius: 4,
                 '&.Mui-selected': {
@@ -99,22 +98,30 @@ export function Sidebar({ open }: SidebarProps) {
             >
               <ListItemIcon
                 sx={{
-                  minWidth: 0,
-                  mr: open ? 2.25 : 'auto',
+                  minWidth: 'unset',
+                  width: 'fit-content',
+                  height: 'fit-content',
+                  mr: open ? 2 : 0,
+                  ml: open ? 2 : 0,
+                  display: 'inline-flex',
                   justifyContent: 'center',
+                  alignItems: 'center',
                   '& svg': {
                     fontSize: 22,
                     strokeWidth: 1.2,
+                    display: 'block',
                   },
                 }}
               >
                 {item.icon}
               </ListItemIcon>
-              <ListItemText
-                primary={item.text}
-                primaryTypographyProps={{ fontWeight: 500, lineHeight: 1.2 }}
-                sx={{ opacity: open ? 1 : 0, my: 0 }}
-              />
+              {open && (
+                <ListItemText
+                  primary={item.text}
+                  primaryTypographyProps={{ fontWeight: 500, lineHeight: 1.2 }}
+                  sx={{ my: 0, mr: 2 }} 
+                />
+              )}
             </ListItemButton>
           </ListItem>
         ))}
