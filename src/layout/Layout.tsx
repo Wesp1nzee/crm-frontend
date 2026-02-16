@@ -29,11 +29,16 @@ export function Layout() {
           flexDirection: 'column',
           px: { xs: 2, md: 4 },
           pb: { xs: 3, md: 4 },
+          animation: 'mainFadeIn 320ms ease',
+          '@keyframes mainFadeIn': {
+            '0%': { opacity: 0, transform: 'translateY(6px)' },
+            '100%': { opacity: 1, transform: 'translateY(0)' },
+          },
         }}
       >
         <Toolbar />
         {!isHomePage && (
-          <Box sx={{ mb: 2 }}>
+          <Box sx={{ mb: 2, animation: 'mainFadeIn 360ms ease' }}>
             <Breadcrumbs />
           </Box>
         )}

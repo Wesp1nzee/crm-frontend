@@ -51,9 +51,9 @@ export function Sidebar({ open }: SidebarProps) {
           '& .MuiDrawer-paper': {
             width: sidebarWidth,
             boxSizing: 'border-box',
-            transition: 'width 0.3s',
+            transition: 'width 0.3s ease, border-radius 0.25s ease, box-shadow 0.25s ease',
             overflowX: 'hidden',
-            borderRadius: 8,
+            borderRadius: open ? 0 : 8,
             border: '1px solid rgba(255,255,255,0.95)',
             backgroundColor: 'rgba(255,255,255,0.78)',
             backdropFilter: 'blur(25px)',
@@ -80,6 +80,10 @@ export function Sidebar({ open }: SidebarProps) {
                 px: 0,
                 my: 0.5,
                 borderRadius: 4,
+                transition: 'transform 200ms ease, background-color 200ms ease',
+                '&:hover': {
+                  transform: 'translateX(2px)',
+                },
                 '&.Mui-selected': {
                   backgroundColor: 'transparent',
                   position: 'relative',

@@ -101,6 +101,11 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         backdropFilter: 'blur(20px)',
         borderBottom: '1px solid rgba(255,255,255,0.9)',
         color: 'text.primary',
+        animation: 'topbarDropIn 260ms ease',
+        '@keyframes topbarDropIn': {
+          '0%': { opacity: 0, transform: 'translateY(-8px)' },
+          '100%': { opacity: 1, transform: 'translateY(0)' },
+        },
       }}
     >
       <Toolbar>
@@ -110,12 +115,29 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             color="inherit"
             edge="start"
             onClick={onMenuClick}
-            sx={{ mr: 2 }}
+            sx={{
+              mr: 2,
+              transition: 'transform 180ms ease, background-color 180ms ease',
+              '&:hover': { transform: 'rotate(-8deg) scale(1.04)' },
+            }}
           >
             <MenuIcon />
           </IconButton>
           
-          <Typography variant="h6" noWrap component="div" sx={{ mr: 4, fontWeight: 700 }}>
+          <Typography
+            variant="h6"
+            noWrap
+            component="div"
+            sx={{
+              mr: 4,
+              fontWeight: 700,
+              transition: 'letter-spacing 220ms ease, opacity 220ms ease',
+              '&:hover': {
+                letterSpacing: '0.02em',
+                opacity: 0.9,
+              },
+            }}
+          >
             CRM
           </Typography>
         </Box>
@@ -165,8 +187,8 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             color="inherit"
             onClick={handleProfileClick}
             sx={{
-              transition: 'transform 0.2s',
-              '&:hover': { transform: 'scale(1.1)' }
+              transition: 'transform 0.2s ease, background-color 0.2s ease',
+              '&:hover': { transform: 'scale(1.08)' }
             }}
           >
             <AccountCircle />
@@ -253,6 +275,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             sx: {
               width: 280,
               mt: 1,
+              animation: 'profileMenuIn 180ms ease',
+              transformOrigin: 'top right',
+              '@keyframes profileMenuIn': {
+                '0%': { opacity: 0, transform: 'translateY(-6px) scale(0.98)' },
+                '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+              },
             }
           }}
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
