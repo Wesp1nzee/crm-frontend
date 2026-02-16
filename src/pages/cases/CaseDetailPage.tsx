@@ -23,14 +23,13 @@ import {
   TextField,
   LinearProgress,
   Tooltip,
-  Stack,
   useTheme,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Switch,
 } from '@mui/material';
+import { alpha } from '@mui/material/styles';
 import {
   Edit,
   Person,
@@ -279,7 +278,6 @@ export function CaseDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
-  const [zenMode, setZenMode] = useState(false);
 
   useEffect(() => {
     if (caseData) {
@@ -344,6 +342,8 @@ export function CaseDetailPage() {
   const isOverdue = dayjs(case_.deadline).isBefore(dayjs(), 'day');
   const isCompleted = case_.status === 'executed' || case_.status === 'archive';
   const hasCompletionDate = !!case_.completion_date;
+  const statusVariant = isOverdue && !isCompleted ? 'error' : statusSeverity[case_.status];
+  const bannerAccentColor = theme.palette[statusVariant].main;
 
   // Calculate payment progress
   const costNum = Number(case_.cost) || 0;
@@ -439,6 +439,10 @@ export function CaseDetailPage() {
         '0%': { opacity: 0, transform: 'translateY(12px) scale(0.95)' },
         '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
       },
+      '@keyframes fadeSlideIn': {
+        '0%': { opacity: 0, transform: 'translateY(-8px)' },
+        '100%': { opacity: 1, transform: 'translateY(0)' },
+      },
     }}>
       {/* Navigation Header */}
       <Box
@@ -450,7 +454,13 @@ export function CaseDetailPage() {
           p: 2,
           bgcolor: 'background.paper',
           borderRadius: 3,
-          boxShadow: 1
+          boxShadow: 1,
+          animation: 'fadeSlideIn 320ms ease',
+          transition: 'box-shadow 220ms ease, transform 220ms ease',
+          '&:hover': {
+            boxShadow: 3,
+            transform: 'translateY(-1px)',
+          },
         }}
       >
         <Box display="flex" alignItems="center" gap={2}>
@@ -467,20 +477,22 @@ export function CaseDetailPage() {
             {case_.case_number}
           </Typography>
         </Box>
-        <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 2 }}>
-          <Typography variant="body2" color="text.secondary">Zen Mode</Typography>
-          <Switch size="small" checked={zenMode} onChange={(_, checked) => setZenMode(checked)} />
-        </Stack>
       </Box>
 
       {/* Status Banner */}
       <Alert
-        severity={isOverdue && !isCompleted ? 'error' : statusSeverity[case_.status]}
+        severity={statusVariant}
         icon={isOverdue && !isCompleted ? <Warning /> : <CheckCircle />}
         sx={{
           mb: 3,
           borderRadius: 2,
           boxShadow: 2,
+          animation: 'fadeSlideIn 360ms ease',
+          transition: 'transform 220ms ease, box-shadow 220ms ease',
+          '&:hover': {
+            transform: 'translateY(-1px)',
+            boxShadow: 4,
+          },
           '& .MuiAlert-message': {
             width: '100%',
             display: 'flex',
@@ -511,20 +523,30 @@ export function CaseDetailPage() {
               alignItems: 'center',
               gap: 2,
               p: 1,
-              bgcolor: 'background.paper',
-              borderRadius: 1
+              bgcolor: alpha(bannerAccentColor, 0.12),
+              border: `1px solid ${alpha(bannerAccentColor, 0.25)}`,
+              borderRadius: 2
             }}
           >
             <Chip
               label={case_.case_type}
               size="small"
-              variant="outlined"
+              variant="filled"
+              sx={{
+                bgcolor: alpha(bannerAccentColor, 0.15),
+                color: bannerAccentColor,
+                fontWeight: 600,
+              }}
             />
             <Chip
               label={case_.object_type}
               size="small"
-              variant="outlined"
-              color="primary"
+              variant="filled"
+              sx={{
+                bgcolor: alpha(bannerAccentColor, 0.22),
+                color: bannerAccentColor,
+                fontWeight: 600,
+              }}
             />
           </Box>
         )}
@@ -1020,7 +1042,18 @@ export function CaseDetailPage() {
 
         {/* Sidebar - Обновлено */}
         <Grid size={{ xs: 12, md: 4 }}>
-          <Card sx={{ mb: 3, borderRadius: 3, boxShadow: 2 }}>
+          <Card
+            sx={{
+              mb: 3,
+              borderRadius: 3,
+              boxShadow: 2,
+              transition: 'transform 240ms ease, box-shadow 240ms ease',
+              '&:hover': {
+                transform: 'translateY(-2px)',
+                boxShadow: 4,
+              },
+            }}
+          >
             <CardHeader
               title={
                 <Typography variant="h6" fontWeight="bold">
@@ -1059,29 +1092,25 @@ export function CaseDetailPage() {
                 )}
               </Box>
 
-              {!zenMode && (
-                <>
-                  <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                      Дата начала
-                    </Typography>
-                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" color="action" />
-                      {dayjs(case_.start_date).format('DD.MM.YYYY')}
-                    </Typography>
-                  </Box>
+              <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                  Дата начала
+                </Typography>
+                <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CalendarToday fontSize="small" color="action" />
+                  {dayjs(case_.start_date).format('DD.MM.YYYY')}
+                </Typography>
+              </Box>
 
-                  <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
-                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                      {isOverdue && !isCompleted ? 'Срок просрочен' : 'Срок исполнения'}
-                    </Typography>
-                    <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                      <CalendarToday fontSize="small" color={isOverdue && !isCompleted ? 'error' : 'action'} />
-                      {dayjs(case_.deadline).format('DD.MM.YYYY')}
-                    </Typography>
-                  </Box>
-                </>
-              )}
+              <Box sx={{ mb: 2.5, p: 1.5, bgcolor: 'background.default', borderRadius: 2 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                  {isOverdue && !isCompleted ? 'Срок просрочен' : 'Срок исполнения'}
+                </Typography>
+                <Typography variant="body1" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <CalendarToday fontSize="small" color={isOverdue && !isCompleted ? 'error' : 'action'} />
+                  {dayjs(case_.deadline).format('DD.MM.YYYY')}
+                </Typography>
+              </Box>
 
               {costNum > 0 && (
                 <Box sx={{ mb: 3 }}>
@@ -1120,36 +1149,32 @@ export function CaseDetailPage() {
                   type="number"
                 />
               </Box>
-              {!zenMode && (
-                <>
-                  <Box sx={{ mb: 2.5 }}>
-                    <EditableField
-                      field="bank_transfer_amount"
-                      value={case_.bank_transfer_amount}
-                      label="Безналичная оплата"
-                      editingField={editingField}
-                      editValues={editValues}
-                      onEdit={handleFieldEdit}
-                      onSave={handleFieldSave}
-                      onCancel={handleFieldCancel}
-                      type="number"
-                    />
-                  </Box>
-                  <Box sx={{ mb: 2.5 }}>
-                    <EditableField
-                      field="cash_amount"
-                      value={case_.cash_amount}
-                      label="Наличная оплата"
-                      editingField={editingField}
-                      editValues={editValues}
-                      onEdit={handleFieldEdit}
-                      onSave={handleFieldSave}
-                      onCancel={handleFieldCancel}
-                      type="number"
-                    />
-                  </Box>
-                </>
-              )}
+              <Box sx={{ mb: 2.5 }}>
+                <EditableField
+                  field="bank_transfer_amount"
+                  value={case_.bank_transfer_amount}
+                  label="Безналичная оплата"
+                  editingField={editingField}
+                  editValues={editValues}
+                  onEdit={handleFieldEdit}
+                  onSave={handleFieldSave}
+                  onCancel={handleFieldCancel}
+                  type="number"
+                />
+              </Box>
+              <Box sx={{ mb: 2.5 }}>
+                <EditableField
+                  field="cash_amount"
+                  value={case_.cash_amount}
+                  label="Наличная оплата"
+                  editingField={editingField}
+                  editValues={editValues}
+                  onEdit={handleFieldEdit}
+                  onSave={handleFieldSave}
+                  onCancel={handleFieldCancel}
+                  type="number"
+                />
+              </Box>
               <Box sx={{ p: 1.5, bgcolor: remainingDebtNum > 0 ? 'rgba(244,67,54,0.08)' : 'rgba(76,175,80,0.08)', borderRadius: 2, border: `1px solid ${remainingDebtNum > 0 ? theme.palette.error.main : theme.palette.success.main}` }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
                   Остаток долга
