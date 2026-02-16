@@ -27,7 +27,8 @@ export function Layout() {
           minWidth: 0,
           display: 'flex',
           flexDirection: 'column',
-          pl: { xs: 2, md: 4 },
+          px: { xs: 2, md: 4 },
+          pb: { xs: 3, md: 4 },
         }}
       >
         <Toolbar />
