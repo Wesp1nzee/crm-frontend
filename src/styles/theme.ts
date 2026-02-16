@@ -50,6 +50,7 @@ export const theme = createTheme({
           border: '1px solid rgba(255,255,255,0.9)',
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
           borderRadius: 14,
+          transition: 'background-color 220ms ease, box-shadow 220ms ease, transform 220ms ease',
         },
       },
     },
@@ -58,6 +59,11 @@ export const theme = createTheme({
         root: {
           boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
           borderRadius: 14,
+          transition: 'transform 220ms ease, box-shadow 220ms ease',
+          '&:hover': {
+            transform: 'translateY(-2px)',
+            boxShadow: '0 16px 28px -14px rgba(31,53,85,0.35)',
+          },
         },
       },
     },
@@ -73,12 +79,41 @@ export const theme = createTheme({
     },
     MuiButton: {
       styleOverrides: {
+        root: {
+          transition: 'transform 180ms ease, box-shadow 180ms ease, opacity 180ms ease',
+          '&:hover': {
+            transform: 'translateY(-1px)',
+          },
+          '&:active': {
+            transform: 'translateY(0)',
+          },
+        },
         containedPrimary: {
           background: 'linear-gradient(145deg, #3B82F6 0%, #2563EB 100%)',
           borderTop: '1px solid rgba(255,255,255,0.85)',
           boxShadow: '0 10px 24px -12px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.35)',
           '&:hover': {
             background: 'linear-gradient(145deg, #4B8CFA 0%, #2D6BF0 100%)',
+          },
+        },
+      },
+    },
+    MuiIconButton: {
+      styleOverrides: {
+        root: {
+          transition: 'transform 180ms ease, background-color 180ms ease',
+          '&:hover': {
+            transform: 'scale(1.05)',
+          },
+        },
+      },
+    },
+    MuiListItemButton: {
+      styleOverrides: {
+        root: {
+          transition: 'transform 200ms ease, background-color 200ms ease, box-shadow 200ms ease',
+          '&:hover': {
+            transform: 'translateX(2px)',
           },
         },
       },
