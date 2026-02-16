@@ -83,15 +83,12 @@ export function Sidebar({ open }: SidebarProps) {
                   '&::before': {
                     content: '""',
                     position: 'absolute',
-                    left: 6,
-                    top: 12,
-                    bottom: 12,
-                    width: 4,
-                    borderRadius: 4,
-                    backgroundColor: 'primary.main',
+                    inset: 0,
+                    borderRadius: 16,
+                    boxShadow: 'inset 0 0 22px rgba(79,144,255,0.16)',
                   },
                   '& .MuiListItemIcon-root': {
-                    filter: 'drop-shadow(0 0 10px rgba(79,144,255,0.45))',
+                    filter: 'drop-shadow(0 0 6px rgba(79,144,255,0.35))',
                   },
                 },
               }}
@@ -103,7 +100,7 @@ export function Sidebar({ open }: SidebarProps) {
                   justifyContent: 'center',
                   '& svg': {
                     fontSize: 22,
-                    strokeWidth: 1.5,
+                    strokeWidth: 1.2,
                   },
                 }}
               >

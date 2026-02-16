@@ -53,18 +53,6 @@ const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   fssp: 'ФССП',
 };
 
-const CASE_STATUS_COLORS: Record<
-  CaseStatus,
-  'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info'
-> = {
-  archive: 'default',
-  in_work: 'primary',
-  debt: 'warning',
-  executed: 'success',
-  withdrawn: 'secondary',
-  cancelled: 'error',
-  fssp: 'info',
-};
 
 // ── Component ────────────────────────────────────────────────────────────────
 
@@ -191,6 +179,7 @@ export function CaseListPage() {
           startIcon={<AddIcon />}
           onClick={() => setCreateDialogOpen(true)}
           size="large"
+          sx={{ borderRadius: 3, px: 2.25 }}
         >
           Создать дело
         </Button>
@@ -200,7 +189,7 @@ export function CaseListPage() {
       <CaseFilters filters={filters} onFiltersChange={setFilters} />
 
       {/* Table */}
-      <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 2 }}>
+      <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 4 }}>
         <TableContainer>
           <Table>
             <TableHead>
@@ -219,7 +208,7 @@ export function CaseListPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {cases.map((case_) => (
+              {cases.map((case_, index) => (
                 <TableRow
                   key={case_.id}
                   hover
@@ -228,6 +217,7 @@ export function CaseListPage() {
                     cursor: 'pointer',
                     '&:hover': { backgroundColor: 'action.hover' },
                     transition: 'background-color 0.15s ease',
+                    backgroundColor: index % 2 ? 'rgba(0,0,0,0.02)' : 'transparent',
                   }}
                 >
                   <TableCell>
@@ -263,9 +253,23 @@ export function CaseListPage() {
                     <Chip
                       label={CASE_STATUS_LABELS[case_.status]}
                       size="small"
-                      color={CASE_STATUS_COLORS[case_.status]}
                       variant="filled"
-                      sx={{ fontWeight: 'medium', fontSize: '0.75rem', height: 24 }}
+                      sx={{
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        height: 24,
+                        bgcolor:
+                          case_.status === 'executed' ? 'rgba(34,197,94,0.14)' :
+                          case_.status === 'debt' ? 'rgba(245,158,11,0.14)' :
+                          case_.status === 'cancelled' ? 'rgba(239,68,68,0.14)' :
+                          case_.status === 'in_work' ? 'rgba(79,144,255,0.14)' :
+                          'rgba(120,120,120,0.12)',
+                        color:
+                          case_.status === 'executed' ? 'success.dark' :
+                          case_.status === 'debt' ? 'warning.dark' :
+                          case_.status === 'cancelled' ? 'error.dark' :
+                          case_.status === 'in_work' ? 'primary.dark' : 'text.secondary',
+                      }}
                     />
                   </TableCell>
                   <TableCell>
@@ -324,15 +328,15 @@ export function CaseListPage() {
                       <Tooltip title="Удалить" arrow>
                         <IconButton
                           size="small"
-                          color="error"
                           onClick={(e) => {
                             e.stopPropagation();
                             handleOpenDelete(case_.id);
                           }}
                           sx={{
+                            color: 'text.secondary',
                             '&:hover': {
-                              backgroundColor: 'error.light',
-                              color: 'error.contrastText',
+                              backgroundColor: 'action.hover',
+                              color: 'text.primary',
                             },
                           }}
                         >
@@ -347,7 +351,19 @@ export function CaseListPage() {
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Stack spacing={2} alignItems="center">
-                      <InfoIcon color="disabled" sx={{ fontSize: 60 }} />
+                      <Box sx={{
+                        width: 88,
+                        height: 88,
+                        borderRadius: 6,
+                        background: 'linear-gradient(160deg, rgba(79,144,255,0.3), rgba(255,255,255,0.75))',
+                        border: '1px solid rgba(255,255,255,0.9)',
+                        backdropFilter: 'blur(10px)',
+                        display: 'grid',
+                        placeItems: 'center',
+                        boxShadow: '0 14px 30px rgba(79,144,255,0.18)',
+                      }}>
+                        <InfoIcon sx={{ color: 'primary.main', fontSize: 40 }} />
+                      </Box>
                       <Typography variant="h6" color="text.secondary">
                         Нет данных
                       </Typography>

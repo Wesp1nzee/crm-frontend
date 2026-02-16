@@ -53,6 +53,12 @@ const SORT_FIELDS = [
   { value: 'expert_name', label: 'Имя эксперта' },
 ];
 
+const premiumFieldSx = {
+  '& .MuiOutlinedInput-root': {
+    minHeight: 50,
+  },
+};
+
 interface CaseFiltersProps {
   filters: GetCasesQuery;
   onFiltersChange: (filters: GetCasesQuery) => void;
@@ -76,13 +82,14 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
   );
 
   return (
-    <Paper sx={{ p: 2, mb: 3 }}>
+    <Paper sx={{ p: 2.5, mb: 3, borderRadius: 4 }}>
       {/* Basic Filters */}
-      <Grid container spacing={2} alignItems="center">
+      <Grid container spacing={3} alignItems="center">
         <Grid size={{ xs: 12, md: 4 }}>
           <TextField
             fullWidth
             size="small"
+            sx={premiumFieldSx}
             placeholder="Поиск по всем полям..."
             value={filters.search || ''}
             onChange={(e) => updateFilter('search', e.target.value)}
@@ -100,12 +107,13 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
           <Autocomplete
             multiple
             size="small"
+            sx={premiumFieldSx}
             options={CASE_STATUSES}
             getOptionLabel={(option) => option.label}
             value={CASE_STATUSES.filter(s => filters.status?.includes(s.value)) || []}
             onChange={(_, value) => updateFilter('status', value.map(v => v.value))}
             renderInput={(params) => (
-              <TextField {...params} label="Статус" />
+              <TextField {...params} label="Статус" sx={premiumFieldSx} />
             )}
             renderTags={(value, getTagProps) =>
               value.map((option, index) => (
@@ -121,7 +129,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
         </Grid>
 
         <Grid size={{ xs: 12, md: 3 }}>
-          <FormControl fullWidth size="small">
+          <FormControl fullWidth size="small" sx={premiumFieldSx}>
             <InputLabel>Эксперт</InputLabel>
             <Select
               value={filters.expert_id || ''}
@@ -167,10 +175,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             Расширенные фильтры
           </Typography>
           
-          <Grid container spacing={2}>
+          <Grid container spacing={3}>
             {/* Client Filter */}
             <Grid size={{ xs: 12, md: 3 }}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Клиент</InputLabel>
                 <Select
                   value={filters.client_id || ''}
@@ -192,6 +200,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Тип дела"
                 value={filters.case_type || ''}
                 onChange={(e) => updateFilter('case_type', e.target.value)}
@@ -203,6 +212,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Тип объекта"
                 value={filters.object_type || ''}
                 onChange={(e) => updateFilter('object_type', e.target.value)}
@@ -214,6 +224,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Орган власти"
                 value={filters.authority || ''}
                 onChange={(e) => updateFilter('authority', e.target.value)}
@@ -225,6 +236,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Адрес объекта"
                 value={filters.object_address || ''}
                 onChange={(e) => updateFilter('object_address', e.target.value)}
@@ -236,6 +248,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Номер дела"
                 value={filters.number || ''}
                 onChange={(e) => updateFilter('number', e.target.value)}
@@ -246,6 +259,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 label="Номер производства"
                 value={filters.case_number || ''}
                 onChange={(e) => updateFilter('case_number', e.target.value)}
@@ -257,6 +271,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 type="number"
                 label="Мин. стоимость"
                 value={filters.min_cost || ''}
@@ -268,6 +283,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
+            sx={premiumFieldSx}
                 type="number"
                 label="Макс. стоимость"
                 value={filters.max_cost || ''}
@@ -281,7 +297,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
                 label="Дата начала от"
                 value={filters.start_date ? dayjs(filters.start_date) : null}
                 onChange={(date) => updateFilter('start_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
               />
             </Grid>
 
@@ -290,7 +306,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
                 label="Дата начала до"
                 value={filters.end_date ? dayjs(filters.end_date) : null}
                 onChange={(date) => updateFilter('end_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
               />
             </Grid>
 
@@ -299,7 +315,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
                 label="Срок от"
                 value={filters.deadline_start_date ? dayjs(filters.deadline_start_date) : null}
                 onChange={(date) => updateFilter('deadline_start_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
               />
             </Grid>
 
@@ -308,13 +324,13 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
                 label="Срок до"
                 value={filters.deadline_end_date ? dayjs(filters.deadline_end_date) : null}
                 onChange={(date) => updateFilter('deadline_end_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
               />
             </Grid>
 
             {/* Sorting */}
             <Grid size={{ xs: 12, md: 4 }}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Сортировка</InputLabel>
                 <Select
                   value={filters.sort_field || 'created_at'}
@@ -331,7 +347,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             </Grid>
 
             <Grid size={{ xs: 12, md: 2 }}>
-              <FormControl fullWidth size="small">
+              <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Порядок</InputLabel>
                 <Select
                   value={filters.sort_order || 'desc'}

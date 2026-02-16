@@ -445,11 +445,11 @@ export function CaseDetailPage() {
         display="flex"
         justifyContent="space-between"
         alignItems="center"
-        mb={2}
+        mb={3}
         sx={{
           p: 2,
           bgcolor: 'background.paper',
-          borderRadius: 2,
+          borderRadius: 3,
           boxShadow: 1
         }}
       >
@@ -467,6 +467,10 @@ export function CaseDetailPage() {
             {case_.case_number}
           </Typography>
         </Box>
+        <Stack direction="row" spacing={1} alignItems="center" sx={{ ml: 2 }}>
+          <Typography variant="body2" color="text.secondary">Zen Mode</Typography>
+          <Switch size="small" checked={zenMode} onChange={(_, checked) => setZenMode(checked)} />
+        </Stack>
       </Box>
 
       {/* Status Banner */}
@@ -1019,15 +1023,9 @@ export function CaseDetailPage() {
           <Card sx={{ mb: 3, borderRadius: 4, boxShadow: 2 }}>
             <CardHeader
               title={
-                <Box display="flex" alignItems="center" justifyContent="space-between" gap={1.5}>
-                  <Typography variant="h6" fontWeight="bold">
-                    Состояние
-                  </Typography>
-                  <Stack direction="row" spacing={1} alignItems="center">
-                    <Typography variant="caption" color="text.secondary">Zen Mode</Typography>
-                    <Switch size="small" checked={zenMode} onChange={(_, checked) => setZenMode(checked)} />
-                  </Stack>
-                </Box>
+                <Typography variant="h6" fontWeight="bold">
+                  Состояние
+                </Typography>
               }
             />
             <CardContent>
@@ -1097,12 +1095,12 @@ export function CaseDetailPage() {
                     variant="determinate"
                     value={progressPercent}
                     sx={{
-                      height: 10,
-                      borderRadius: 5,
-                      bgcolor: 'rgba(79, 144, 255, 0.1)',
+                      height: 13,
+                      borderRadius: 8,
+                      bgcolor: 'rgba(148,163,184,0.2)',
                       '& .MuiLinearProgress-bar': {
-                        bgcolor: progressPercent >= 100 ? theme.palette.success.main : theme.palette.primary.main,
-                        borderRadius: 5,
+                        background: 'linear-gradient(90deg, #94A3B8 0%, #22C55E 100%)',
+                        borderRadius: 8,
                       },
                     }}
                   />

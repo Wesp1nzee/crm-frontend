@@ -829,7 +829,7 @@ export function DocumentsPage() {
             <Table size="small">
               <TableHead sx={{ bgcolor: 'grey.50' }}>
                 <TableRow>
-                  <TableCell sx={{ width: 44, py: 1 }} />
+                  <TableCell sx={{ width: 84, py: 1 }}>Превью</TableCell>
                   <TableCell>
                     <TableSortLabel
                       active={sortField === 'name'}
@@ -925,7 +925,7 @@ export function DocumentsPage() {
                               bgcolor: 'action.hover',
                             },
                             '& > td': {
-                              py: 1.2,
+                              py: 1,
                               borderBottom: 'none',
                               lineHeight: 1.6,
                             },

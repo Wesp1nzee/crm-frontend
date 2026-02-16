@@ -160,14 +160,14 @@ function AdminHomePage() {
           sx={{
             display: 'grid',
             gridTemplateColumns: { xs: '1fr', lg: 'repeat(12, minmax(0, 1fr))' },
-            gap: 2.5,
+            gap: 3,
           }}
         >
           <Card sx={{ ...glassCardSx, gridColumn: { xs: 'span 1', lg: 'span 3' } }}>
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Активные дела</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{activeCasesCount}</Typography>
+                <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: '0.02em' }}>{activeCasesCount}</Typography>
                 <Schedule sx={{ fontSize: 42, color: palette.cyberBlueGlow }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -180,7 +180,7 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Просроченные дедлайны</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{overdueCasesCount}</Typography>
+                <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: '0.02em' }}>{overdueCasesCount}</Typography>
                 <Warning sx={{ fontSize: 42, color: '#DF6E5B' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -193,7 +193,7 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Оборот</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{formatCompactCurrency(totalRevenue)}₽</Typography>
+                <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: '0.02em' }}>{formatCompactCurrency(totalRevenue)}₽</Typography>
                 <TrendingUp sx={{ fontSize: 42, color: '#83D7FF' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -206,7 +206,7 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.72) }}>Завершено</Typography>
               <Box mt={1.2} display="flex" justifyContent="space-between" alignItems="center">
-                <Typography variant="h3" fontWeight={700}>{completedCases}</Typography>
+                <Typography variant="h3" fontWeight={700} sx={{ letterSpacing: '0.02em' }}>{completedCases}</Typography>
                 <CheckCircle sx={{ fontSize: 42, color: '#2D9B6A' }} />
               </Box>
               <Typography variant="caption" sx={{ color: alpha(palette.softChalk, 0.68) }}>
@@ -231,9 +231,10 @@ function AdminHomePage() {
                     borderRadius: 4,
                     py: 1.4,
                     textTransform: 'none',
-                    bgcolor: palette.cyberBlue,
-                    boxShadow: `0 10px 30px ${alpha(palette.cyberBlue, 0.5)}`,
-                    '&:hover': { bgcolor: '#3A8BFF' },
+                    background: 'linear-gradient(145deg, #3B82F6 0%, #2563EB 100%)',
+                    borderTop: '1px solid rgba(255,255,255,0.8)',
+                    boxShadow: '0 16px 34px rgba(37,99,235,0.28), inset 0 1px 0 rgba(255,255,255,0.35)',
+                    '&:hover': { background: 'linear-gradient(145deg, #4B8CFA 0%, #2D6BF0 100%)' },
                   }}
                 >
                   Запустить новое дело
@@ -338,7 +339,7 @@ function AdminHomePage() {
                 </Box>
               </Box>
               <Typography variant="body2" sx={{ color: alpha(palette.softChalk, 0.68) }}>Потенциальный долг</Typography>
-              <Typography variant="h5" fontWeight={700} color="#FFB6A9" mt={0.5}>
+              <Typography variant="h5" fontWeight={700} color="#FFB6A9" mt={0.5} sx={{ letterSpacing: '0.02em' }}>
                 {(financialSummary?.pending_amount || 0).toLocaleString()} ₽
               </Typography>
             </CardContent>
@@ -356,6 +357,31 @@ function AdminHomePage() {
                 </IconButton>
               </Box>
               <List sx={{ py: 0 }}>
+                {recentCases.length === 0 && (
+                  <Box sx={{ py: 5, textAlign: 'center' }}>
+                    <Box sx={{
+                      width: 94,
+                      height: 94,
+                      mx: 'auto',
+                      borderRadius: 7,
+                      background: 'linear-gradient(160deg, rgba(79,144,255,0.32), rgba(255,255,255,0.8))',
+                      border: '1px solid rgba(255,255,255,0.9)',
+                      backdropFilter: 'blur(14px)',
+                      boxShadow: '0 18px 36px rgba(79,144,255,0.22)',
+                      display: 'grid',
+                      placeItems: 'center',
+                      mb: 2,
+                    }}>
+                      <Gavel sx={{ fontSize: 42, color: palette.cyberBlue }} />
+                    </Box>
+                    <Typography variant="h6" color={alpha(palette.softChalk, 0.8)}>
+                      Пока нет дел
+                    </Typography>
+                    <Typography variant="body2" color={alpha(palette.softChalk, 0.6)}>
+                      Добавьте первое дело, чтобы начать работу
+                    </Typography>
+                  </Box>
+                )}
                 {recentCases.map((caseItem) => (
                   <ListItem
                     key={caseItem.id}

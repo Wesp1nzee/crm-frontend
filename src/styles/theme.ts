@@ -4,6 +4,7 @@ export const theme = createTheme({
   palette: {
     primary: {
       main: '#4F90FF',
+      dark: '#2563EB',
     },
     secondary: {
       main: '#E38AB5',
@@ -47,6 +48,47 @@ export const theme = createTheme({
           backdropFilter: 'blur(25px)',
           backgroundColor: 'rgba(255,255,255,0.8)',
           border: '1px solid rgba(255,255,255,0.9)',
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
+        },
+      },
+    },
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          boxShadow: '0 10px 15px -3px rgba(0,0,0,0.05), 0 4px 6px -2px rgba(0,0,0,0.02)',
+        },
+      },
+    },
+    MuiButton: {
+      styleOverrides: {
+        containedPrimary: {
+          background: 'linear-gradient(145deg, #3B82F6 0%, #2563EB 100%)',
+          borderTop: '1px solid rgba(255,255,255,0.85)',
+          boxShadow: '0 10px 24px -12px rgba(37,99,235,0.85), inset 0 1px 0 rgba(255,255,255,0.35)',
+          '&:hover': {
+            background: 'linear-gradient(145deg, #4B8CFA 0%, #2D6BF0 100%)',
+          },
+        },
+      },
+    },
+    MuiOutlinedInput: {
+      styleOverrides: {
+        root: {
+          minHeight: 50,
+          borderRadius: 14,
+          backgroundColor: 'rgba(255,255,255,0.9)',
+          '& .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#E2E8F0',
+          },
+          '&:hover .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#CBD5E1',
+          },
+          '&.Mui-focused .MuiOutlinedInput-notchedOutline': {
+            borderColor: '#4F90FF',
+          },
+          '&.Mui-focused': {
+            boxShadow: '0 0 0 4px rgba(79,144,255,0.12)',
+          },
         },
       },
     },
