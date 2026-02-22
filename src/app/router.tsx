@@ -58,6 +58,7 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'cases', element: <Suspense fallback={<PageLoader />}><CaseListPage /></Suspense> },
       { path: 'cases/:id', element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense> },
+      { path: 'case/:id', element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense> },
       { path: 'clients', element: <Suspense fallback={<PageLoader />}><ClientListPage /></Suspense> },
       { path: 'clients/:id', element: <Suspense fallback={<PageLoader />}><ClientDetailPage /></Suspense> },
       { path: 'experts', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ExpertsPage /></RoleGuard></Suspense> },

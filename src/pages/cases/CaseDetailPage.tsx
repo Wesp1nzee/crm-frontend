@@ -1202,61 +1202,6 @@ export function CaseDetailPage() {
                   type="number"
                 />
               </Box>
-              <Box sx={{ mb: 2.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
-                  Назначенный эксперт
-                </Typography>
-                <Autocomplete
-                  fullWidth
-                  options={expertSuggestions}
-                  getOptionLabel={(option) => option.name || ''}
-                  value={selectedExpert}
-                  inputValue={expertInputValue}
-                  loading={isExpertSuggestLoading}
-                  filterOptions={(options) => options}
-                  noOptionsText={
-                    expertInputValue.trim().length === 0
-                      ? 'Начните ввод для поиска...'
-                      : isExpertSuggestLoading
-                      ? 'Поиск...'
-                      : 'Эксперты не найдены'
-                  }
-                  onInputChange={(_e, newInputValue, reason) => {
-                    setExpertInputValue(newInputValue);
-                    if (reason === 'clear') {
-                      clearExpertSuggestions();
-                    } else if (reason === 'input') {
-                      fetchExpertSuggestions(newInputValue);
-                    }
-                  }}
-                  onChange={handleExpertChange}
-                  isOptionEqualToValue={(option, value) => option.id === value?.id}
-                  renderOption={(props, option) => (
-                    <li {...props} key={option.id}>
-                      <Typography variant="body2" fontWeight={500}>
-                        {option.name}
-                      </Typography>
-                    </li>
-                  )}
-                  renderInput={(params) => (
-                    <TextField
-                      {...params}
-                      size="small"
-                      placeholder="Введите имя эксперта..."
-                      InputProps={{
-                        ...params.InputProps,
-                        endAdornment: (
-                          <>
-                            {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
-                            {params.InputProps.endAdornment}
-                          </>
-                        ),
-                      }}
-                    />
-                  )}
-                />
-              </Box>
-
               <Box sx={{ p: 1.5, bgcolor: remainingDebtNum > 0 ? 'rgba(244,67,54,0.08)' : 'rgba(76,175,80,0.08)', borderRadius: 2, border: `1px solid ${remainingDebtNum > 0 ? theme.palette.error.main : theme.palette.success.main}` }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
                   Остаток долга
@@ -1265,6 +1210,65 @@ export function CaseDetailPage() {
                   {remainingDebtNum.toLocaleString('ru-RU')} ₽
                 </Typography>
               </Box>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
+            <CardHeader
+              title={<Typography variant="h6" fontWeight="bold">Смена эксперта</Typography>}
+              subheader="Изменение эксперта для текущего дела"
+            />
+            <CardContent>
+              <Autocomplete
+                fullWidth
+                options={expertSuggestions}
+                getOptionLabel={(option) => option.name || ''}
+                value={selectedExpert}
+                inputValue={expertInputValue}
+                loading={isExpertSuggestLoading}
+                filterOptions={(options) => options}
+                noOptionsText={
+                  expertInputValue.trim().length === 0
+                    ? 'Начните ввод для поиска...'
+                    : isExpertSuggestLoading
+                    ? 'Поиск...'
+                    : 'Эксперты не найдены'
+                }
+                onInputChange={(_e, newInputValue, reason) => {
+                  setExpertInputValue(newInputValue);
+                  if (reason === 'clear') {
+                    clearExpertSuggestions();
+                  } else if (reason === 'input') {
+                    fetchExpertSuggestions(newInputValue);
+                  }
+                }}
+                onChange={handleExpertChange}
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Typography variant="body2" fontWeight={500}>
+                      {option.name}
+                    </Typography>
+                  </li>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    size="small"
+                    label="Назначенный эксперт"
+                    placeholder="Введите имя эксперта..."
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+              />
             </CardContent>
           </Card>
 
