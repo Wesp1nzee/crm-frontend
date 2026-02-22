@@ -2,12 +2,16 @@ import { Box, Breadcrumbs as MuiBreadcrumbs, Link, Typography, IconButton } from
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { ArrowBack, NavigateNext } from '@mui/icons-material';
 import { useCases } from '../hooks/useCases';
+import { useClient } from '../hooks/useClients';
 export function Breadcrumbs() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: cases } = useCases();
-
   const pathnames = location.pathname.split('/').filter(x => x);
+
+  const clientIdIndex = pathnames.findIndex((segment, index) => segment === 'clients' && index < pathnames.length - 1);
+  const clientId = clientIdIndex >= 0 ? pathnames[clientIdIndex + 1] : '';
+  const { data: client } = useClient(clientId);
 
   const breadcrumbsSegments = pathnames[0] === 'crm' ? pathnames.slice(1) : pathnames;
 
@@ -23,6 +27,10 @@ export function Breadcrumbs() {
     if (originalIndex > 0 && pathnames[originalIndex - 1] === 'cases') {
       const case_ = cases?.data?.find(c => c.id === segment);
       return case_ ? `Дело ${case_.case_number}` : `Дело ${segment}`;
+    }
+
+    if (originalIndex > 0 && pathnames[originalIndex - 1] === 'clients') {
+      return client?.name ?? 'Клиент';
     }
 
     return `Страница ${segment}`;
