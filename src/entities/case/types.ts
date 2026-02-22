@@ -141,7 +141,7 @@ export interface CasePatchRequest {
   cash_amount?: string;
   remaining_debt?: string;
   completion_date?: string;
-  assigned_user_id?: string;
+  assigned_user_id?: string | null;
   archive_status?: string;
   remarks?: string;
 }

@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Autocomplete,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -60,6 +61,7 @@ import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
 import { useState, useEffect, useRef } from 'react';
 import { notificationService } from '../../shared/services/notifications';
+import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
 
 const statusLabels: Record<CaseStatus, string> = {
   archive: 'Архив',
@@ -278,10 +280,22 @@ export function CaseDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
+  const [expertInputValue, setExpertInputValue] = useState('');
+  const { suggestions: expertSuggestions, isLoading: isExpertSuggestLoading, fetchSuggestions: fetchExpertSuggestions, clearSuggestions: clearExpertSuggestions } = useExpertsSuggest();
 
   useEffect(() => {
     if (caseData) {
       setStatus(caseData.case.status);
+      const currentExpert = caseData.assigned_experts?.[0];
+      if (currentExpert) {
+        const expertOption = { id: currentExpert.id, name: currentExpert.full_name };
+        setSelectedExpert(expertOption);
+        setExpertInputValue(currentExpert.full_name);
+      } else {
+        setSelectedExpert(null);
+        setExpertInputValue('');
+      }
     }
   }, [caseData]);
 
@@ -357,6 +371,19 @@ export function CaseDetailPage() {
     if (status && status !== case_.status) {
       patchCase.mutate({ id: case_.id, data: { status } });
     }
+  };
+
+  const handleExpertChange = (_event: unknown, value: { id: string; name: string } | null) => {
+    const nextExpertId = value?.id ?? null;
+    const currentExpertId = case_.assigned_user_id ?? null;
+
+    if (nextExpertId === currentExpertId) {
+      return;
+    }
+
+    setSelectedExpert(value);
+    setExpertInputValue(value?.name ?? '');
+    patchCase.mutate({ id: case_.id, data: { assigned_user_id: nextExpertId } });
   };
 
   const handleFieldEdit = (field: string, value: string) => {
@@ -1175,6 +1202,61 @@ export function CaseDetailPage() {
                   type="number"
                 />
               </Box>
+              <Box sx={{ mb: 2.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
+                  Назначенный эксперт
+                </Typography>
+                <Autocomplete
+                  fullWidth
+                  options={expertSuggestions}
+                  getOptionLabel={(option) => option.name || ''}
+                  value={selectedExpert}
+                  inputValue={expertInputValue}
+                  loading={isExpertSuggestLoading}
+                  filterOptions={(options) => options}
+                  noOptionsText={
+                    expertInputValue.trim().length === 0
+                      ? 'Начните ввод для поиска...'
+                      : isExpertSuggestLoading
+                      ? 'Поиск...'
+                      : 'Эксперты не найдены'
+                  }
+                  onInputChange={(_e, newInputValue, reason) => {
+                    setExpertInputValue(newInputValue);
+                    if (reason === 'clear') {
+                      clearExpertSuggestions();
+                    } else if (reason === 'input') {
+                      fetchExpertSuggestions(newInputValue);
+                    }
+                  }}
+                  onChange={handleExpertChange}
+                  isOptionEqualToValue={(option, value) => option.id === value?.id}
+                  renderOption={(props, option) => (
+                    <li {...props} key={option.id}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {option.name}
+                      </Typography>
+                    </li>
+                  )}
+                  renderInput={(params) => (
+                    <TextField
+                      {...params}
+                      size="small"
+                      placeholder="Введите имя эксперта..."
+                      InputProps={{
+                        ...params.InputProps,
+                        endAdornment: (
+                          <>
+                            {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                            {params.InputProps.endAdornment}
+                          </>
+                        ),
+                      }}
+                    />
+                  )}
+                />
+              </Box>
+
               <Box sx={{ p: 1.5, bgcolor: remainingDebtNum > 0 ? 'rgba(244,67,54,0.08)' : 'rgba(76,175,80,0.08)', borderRadius: 2, border: `1px solid ${remainingDebtNum > 0 ? theme.palette.error.main : theme.palette.success.main}` }}>
                 <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
                   Остаток долга
