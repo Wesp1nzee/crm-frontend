@@ -227,16 +227,20 @@ const EditableField = ({
           gap={1.5}
           sx={{
             p: 1.5,
-            borderRadius: 1,
-            bgcolor: 'background.default',
+            borderRadius: 2,
+            bgcolor: theme.palette.mode === 'dark'
+              ? 'rgba(148, 163, 184, 0.08)'
+              : 'rgba(148, 163, 184, 0.08)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.28)' : 'rgba(148,163,184,0.35)'}`,
             minHeight: 48,
             cursor: 'pointer',
             transition: 'all 0.2s',
             '&:hover': {
               bgcolor: theme.palette.mode === 'dark'
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'rgba(0, 0, 0, 0.04)',
-              boxShadow: theme.shadows[1]
+                ? 'rgba(79, 144, 255, 0.16)'
+                : 'rgba(79, 144, 255, 0.1)',
+              borderColor: theme.palette.primary.main,
+              boxShadow: theme.shadows[2]
             }
           }}
           onClick={() => onEdit(field, value)}
@@ -482,8 +486,11 @@ export function CaseDetailPage() {
       maxWidth: 1400,
       mx: 'auto',
       p: { xs: 2, sm: 3 },
-      bgcolor: 'background.default',
       minHeight: 'calc(100vh - 120px)',
+      borderRadius: 4,
+      background: theme.palette.mode === 'dark'
+        ? 'linear-gradient(180deg, rgba(30,41,59,0.45) 0%, rgba(15,23,42,0.25) 100%)'
+        : 'linear-gradient(180deg, rgba(79,144,255,0.08) 0%, rgba(15,23,42,0.03) 100%)',
       '@keyframes cardIn': {
         '0%': { opacity: 0, transform: 'translateY(12px) scale(0.95)' },
         '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
@@ -502,7 +509,8 @@ export function CaseDetailPage() {
         sx={{
           p: 2,
           bgcolor: 'background.paper',
-          borderRadius: 3,
+          borderRadius: 4,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.16)}`,
           boxShadow: 1,
           animation: 'fadeSlideIn 320ms ease',
           transition: 'box-shadow 220ms ease, transform 220ms ease',
@@ -605,7 +613,7 @@ export function CaseDetailPage() {
         {/* Main Info - Обновлено */}
         <Grid size={{ xs: 12, md: 8 }}>
           {/* Case Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -625,6 +633,18 @@ export function CaseDetailPage() {
                     field="number"
                     value={case_.number}
                     label="№ п/п"
+                    editingField={editingField}
+                    editValues={editValues}
+                    onEdit={handleFieldEdit}
+                    onSave={handleFieldSave}
+                    onCancel={handleFieldCancel}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <EditableField
+                    field="case_number"
+                    value={case_.case_number}
+                    label="Номер дела"
                     editingField={editingField}
                     editValues={editValues}
                     onEdit={handleFieldEdit}
@@ -704,7 +724,7 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Client Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '470ms', animationFillMode: 'both' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '470ms', animationFillMode: 'both' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
