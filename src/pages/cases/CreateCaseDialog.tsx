@@ -73,6 +73,7 @@ export function createInitialFormData(): CaseCreateRequest {
     case_type: '',
     object_type: '',
     object_address: '',
+    judge_name: '',
     status: 'in_work' as CaseStatus,
     start_date: dayjs().toISOString(),
     deadline: dayjs().add(30, 'day').toISOString(),
@@ -173,6 +174,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     case_type: formData.case_type.trim(),
     object_type: formData.object_type.trim(),
     object_address: formData.object_address.trim(),
+    judge_name: formData.judge_name?.trim() || null,
     status: formData.status,
     start_date: formData.start_date, // ISO string
     deadline: formData.deadline, // ISO string
@@ -653,6 +655,15 @@ export function CreateCaseDialog({
                 }}
                 error={!!errors.authority}
                 helperText={errors.authority}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="ФИО судьи"
+                value={formData.judge_name || ''}
+                onChange={(e) => setFormData((prev) => ({ ...prev, judge_name: e.target.value }))}
                 sx={singleLineInputSx}
               />
             </Grid>

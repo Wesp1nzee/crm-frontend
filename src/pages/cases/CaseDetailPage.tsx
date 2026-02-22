@@ -676,6 +676,18 @@ export function CaseDetailPage() {
                     onCancel={handleFieldCancel}
                   />
                 </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <EditableField
+                    field="judge_name"
+                    value={case_.judge_name || ''}
+                    label="ФИО судьи"
+                    editingField={editingField}
+                    editValues={editValues}
+                    onEdit={handleFieldEdit}
+                    onSave={handleFieldSave}
+                    onCancel={handleFieldCancel}
+                  />
+                </Grid>
                 {case_.plaintiff && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <EditableField

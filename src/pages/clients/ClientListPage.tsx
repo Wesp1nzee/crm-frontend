@@ -94,17 +94,17 @@ export function ClientListPage() {
                 <TableRow
                   key={client.id}
                   hover
+                  onClick={() => navigate(`/crm/clients/${client.id}`)}
                   sx={{
+                    cursor: 'pointer',
                     backgroundColor: (theme) =>
                       index % 2 === 1 ? alpha(theme.palette.common.black, 0.02) : 'transparent',
                   }}
                 >
                   <TableCell>
-                    <Button variant="text" sx={{ p: 0, minWidth: 0, textTransform: 'none' }} onClick={() => navigate(`/crm/clients/${client.id}`)}>
-                      <Typography variant="body1" fontWeight="medium" textAlign="left">
-                        {client.name}
-                      </Typography>
-                    </Button>
+                    <Typography variant="body1" fontWeight="medium" textAlign="left">
+                      {client.name}
+                    </Typography>
                     {client.short_name && (
                       <Typography variant="caption" color="text.secondary">
                         {client.short_name}
@@ -133,7 +133,13 @@ export function ClientListPage() {
                     </Box>
                   </TableCell>
                   <TableCell>
-                    <Button size="small" onClick={() => navigate(`/crm/cases?client=${client.id}`)}>
+                    <Button
+                      size="small"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        navigate(`/crm/cases?client=${client.id}`);
+                      }}
+                    >
                       Дела
                     </Button>
                   </TableCell>
