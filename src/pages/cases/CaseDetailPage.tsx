@@ -1347,40 +1347,7 @@ export function CaseDetailPage() {
                 </Box>
               )}
 
-              {assigned_experts.length > 0 ? (
-                <List dense sx={{ p: 0 }}>
-                  {assigned_experts.map((expert) => (
-                    <ListItem
-                      key={expert.id}
-                      sx={{
-                        px: 0,
-                        py: 1.5,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider'
-                      }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-                          <Person fontSize="small" />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1" fontWeight="medium">
-                            {expert.full_name}
-                          </Typography>
-                        }
-                        secondary={
-                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                            <Email fontSize="small" color="action" />
-                            {expert.email}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
-              ) : (
+              {!selectedExpert && (
                 <Typography variant="body2" color="text.secondary">Эксперт пока не назначен.</Typography>
               )}
             </CardContent>
