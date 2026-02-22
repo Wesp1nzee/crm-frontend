@@ -100,9 +100,11 @@ export function ClientListPage() {
                   }}
                 >
                   <TableCell>
-                    <Typography variant="body1" fontWeight="medium">
-                      {client.name}
-                    </Typography>
+                    <Button variant="text" sx={{ p: 0, minWidth: 0, textTransform: 'none' }} onClick={() => navigate(`/crm/clients/${client.id}`)}>
+                      <Typography variant="body1" fontWeight="medium" textAlign="left">
+                        {client.name}
+                      </Typography>
+                    </Button>
                     {client.short_name && (
                       <Typography variant="caption" color="text.secondary">
                         {client.short_name}
