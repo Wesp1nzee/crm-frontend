@@ -1235,12 +1235,16 @@ export function CaseDetailPage() {
             </CardContent>
           </Card>
 
+          {/* Assigned Experts Card */}
           <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
             <CardHeader
-              title={<Typography variant="h6" fontWeight="bold">Смена эксперта</Typography>}
-              subheader="Изменение эксперта для текущего дела"
+              title={
+                <Typography variant="h6" fontWeight="bold">
+                  Назначенные эксперты ({assigned_experts.length})
+                </Typography>
+              }
             />
-            <CardContent>
+            <CardContent sx={{ pt: 0 }}>
               {!isEditingExpert ? (
                 <Box
                   display="flex"
@@ -1251,6 +1255,7 @@ export function CaseDetailPage() {
                     borderRadius: 1,
                     bgcolor: 'background.default',
                     minHeight: 48,
+                    mb: 2,
                   }}
                 >
                   <Typography variant="body1" sx={{ flexGrow: 1, color: selectedExpert ? 'text.primary' : 'text.disabled' }}>
@@ -1272,6 +1277,7 @@ export function CaseDetailPage() {
                     borderRadius: 1,
                     bgcolor: theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.1)' : 'rgba(79, 144, 255, 0.04)',
                     border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.3)' : 'rgba(79, 144, 255, 0.2)'}`,
+                    mb: 2,
                   }}
                 >
                   <Autocomplete
@@ -1340,26 +1346,14 @@ export function CaseDetailPage() {
                   </Tooltip>
                 </Box>
               )}
-            </CardContent>
-          </Card>
 
-          {/* Assigned Experts Card */}
-          {assigned_experts.length > 0 && (
-            <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
-              <CardHeader
-                title={
-                  <Typography variant="h6" fontWeight="bold">
-                    Назначенные эксперты ({assigned_experts.length})
-                  </Typography>
-                }
-              />
-              <CardContent sx={{ p: 0 }}>
+              {assigned_experts.length > 0 ? (
                 <List dense sx={{ p: 0 }}>
                   {assigned_experts.map((expert) => (
                     <ListItem
                       key={expert.id}
                       sx={{
-                        px: 2,
+                        px: 0,
                         py: 1.5,
                         borderBottom: '1px solid',
                         borderColor: 'divider'
@@ -1386,9 +1380,11 @@ export function CaseDetailPage() {
                     </ListItem>
                   ))}
                 </List>
-              </CardContent>
-            </Card>
-          )}
+              ) : (
+                <Typography variant="body2" color="text.secondary">Эксперт пока не назначен.</Typography>
+              )}
+            </CardContent>
+          </Card>
         </Grid>
       </Grid>
 
