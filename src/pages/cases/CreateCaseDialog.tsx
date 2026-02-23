@@ -1,5 +1,5 @@
 // src/pages/cases/CreateCaseDialog.tsx
-import { useState, useCallback, useEffect } from 'react';
+import React, { useState, useCallback,  memo, useMemo } from 'react';
 import {
   Box,
   Typography,
@@ -41,7 +41,9 @@ import type { ClientCreateRequest as ClientCreateRequestType } from '../../entit
 import { ClientCreateDialog } from '../clients/ClientCreateDialog';
 import { notificationService } from '../../shared/services/notifications';
 
+// ===== КОНСТАНТЫ (вынесены за пределы компонента) =====
 const INPUT_HEIGHT = 54;
+
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   archive: 'Архив',
   in_work: 'В работе',
@@ -51,6 +53,7 @@ const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   cancelled: 'Отменено',
   fssp: 'ФССП',
 };
+
 const CASE_STATUS_COLORS: Record<
   CaseStatus,
   'default' | 'primary' | 'secondary' | 'error' | 'warning' | 'success' | 'info'
@@ -63,7 +66,25 @@ const CASE_STATUS_COLORS: Record<
   cancelled: 'error',
   fssp: 'info',
 };
+const singleLineInputSx = {
+  '& .MuiInputBase-root': {
+    height: INPUT_HEIGHT,
+    minHeight: INPUT_HEIGHT,
+    boxSizing: 'border-box',
+    px: 1.5,
+    width: '100%',
+  },
+  '& .MuiOutlinedInput-input': {
+    py: 0,
+    minHeight: INPUT_HEIGHT - 2,
+    boxSizing: 'border-box',
+    width: '100%',
+  },
+} as const;
 
+// ... остальные стили ...
+
+// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 export function createInitialFormData(): CaseCreateRequest {
   return {
     client_id: '',
@@ -88,85 +109,8 @@ export function createInitialFormData(): CaseCreateRequest {
   };
 }
 
-interface SectionHeaderProps {
-  icon: React.ReactNode;
-  title: string;
-  subtitle?: string;
-}
-
-function SectionHeader({ icon, title, subtitle }: SectionHeaderProps) {
-  return (
-    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, mt: 0.5 }}>
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 36,
-          height: 36,
-          borderRadius: '10px',
-          bgcolor: 'primary.main',
-          color: '#fff',
-          flexShrink: 0,
-        }}
-      >
-        {icon}
-      </Box>
-      <Box>
-        <Typography variant="subtitle2" fontWeight={600} color="text.primary" lineHeight={1.3}>
-          {title}
-        </Typography>
-        {subtitle && (
-          <Typography variant="caption" color="text.secondary">
-            {subtitle}
-          </Typography>
-        )}
-      </Box>
-    </Box>
-  );
-}
-
-function FormSection({ children }: { children: React.ReactNode }) {
-  return (
-    <Box
-      sx={{
-        bgcolor: 'grey.50',
-        borderRadius: '12px',
-        border: '1px solid',
-        borderColor: 'divider',
-        p: 2.5,
-        '&:first-of-type': { mt: 0 },
-      }}
-    >
-      {children}
-    </Box>
-  );
-}
-
-// Reusable sx для однострочных input-ов
-const singleLineInputSx = {
-  '& .MuiInputBase-root': {
-    height: INPUT_HEIGHT,
-    minHeight: INPUT_HEIGHT,
-    boxSizing: 'border-box',
-    px: 1.5,
-    width: '100%',
-  },
-  '& .MuiOutlinedInput-input': {
-    py: 0,
-    minHeight: INPUT_HEIGHT - 2,
-    boxSizing: 'border-box',
-    width: '100%',
-  },
-} as const;
-
-/**
- * Нормализует данные формы перед отправкой на бэкенд
- * Соответствует схеме CaseBase на бэкенде
- */
 function normalizeCasePayload(formData: CaseCreateRequest) {
   return {
-    // Обязательные поля
     client_id: formData.client_id.trim(),
     number: formData.number.trim(),
     case_number: formData.case_number.trim(),
@@ -176,30 +120,208 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     object_address: formData.object_address.trim(),
     judge_name: formData.judge_name?.trim() || null,
     status: formData.status,
-    start_date: formData.start_date, // ISO string
-    deadline: formData.deadline, // ISO string
-    
-    // Финансы - конвертируем в строки с 2 знаками после запятой для точности Decimal
+    start_date: formData.start_date,
+    deadline: formData.deadline,
     cost: formData.cost.toFixed(2),
     bank_transfer_amount: formData.bank_transfer_amount.toFixed(2),
     cash_amount: formData.cash_amount.toFixed(2),
     remaining_debt: formData.remaining_debt.toFixed(2),
-    
-    // Опциональные поля - пустые строки → null
     plaintiff: formData.plaintiff?.trim() || null,
     defendant: formData.defendant?.trim() || null,
     remarks: formData.remarks?.trim() || null,
-    
-    // assigned_user_id: пустая строка → null
     assigned_user_id: formData.assigned_user_id?.trim() || null,
-    
-    // Поля, которые НЕ отправляются при создании (только при обновлении)
-    // completion_date: null, // будет установлено бэкендом при завершении
-    // expert_painting: null, // не используется в форме создания
-    // archive_status: null, // будет установлено бэкендом при архивации
   };
 }
 
+// ===== МЕМОИЗИРОВАННЫЕ КОМПОНЕНТЫ =====
+interface SectionHeaderProps {
+  icon: React.ReactNode;
+  title: string;
+  subtitle?: string;
+}
+
+const SectionHeader = memo(({ icon, title, subtitle }: SectionHeaderProps) => (
+  <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5, mb: 2, mt: 0.5 }}>
+    <Box
+      sx={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 36,
+        height: 36,
+        borderRadius: '10px',
+        bgcolor: 'primary.main',
+        color: '#fff',
+        flexShrink: 0,
+      }}
+    >
+      {icon}
+    </Box>
+    <Box>
+      <Typography variant="subtitle2" fontWeight={600} color="text.primary" lineHeight={1.3}>
+        {title}
+      </Typography>
+      {subtitle && (
+        <Typography variant="caption" color="text.secondary">
+          {subtitle}
+        </Typography>
+      )}
+    </Box>
+  </Box>
+));
+
+SectionHeader.displayName = 'SectionHeader';
+
+const FormSection = memo(({ children }: { children: React.ReactNode }) => (
+  <Box
+    sx={{
+      bgcolor: 'grey.50',
+      borderRadius: '12px',
+      border: '1px solid',
+      borderColor: 'divider',
+      p: 2.5,
+      '&:first-of-type': { mt: 0 },
+    }}
+  >
+    {children}
+  </Box>
+));
+
+FormSection.displayName = 'FormSection';
+
+interface FormFieldProps {
+  label: string;
+  value: string | number;
+  onChange: (value: string) => void;
+  error?: string;
+  required?: boolean;
+  type?: string;
+  multiline?: boolean;
+  rows?: number;
+  autoFocus?: boolean;
+  startAdornment?: React.ReactNode;
+  endAdornment?: React.ReactNode;
+  inputSx?: object;
+}
+
+const FormField = memo(({
+  label,
+  value,
+  onChange,
+  error,
+  required = false,
+  type = 'text',
+  multiline = false,
+  rows = 1,
+  autoFocus = false,
+  startAdornment,
+  endAdornment,
+  inputSx = singleLineInputSx,
+}: FormFieldProps) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  }, [onChange]);
+
+  return (
+    <TextField
+      fullWidth
+      label={label}
+      value={value}
+      onChange={handleChange}
+      error={!!error}
+      helperText={error}
+      required={required}
+      type={type}
+      multiline={multiline}
+      rows={rows}
+      autoFocus={autoFocus}
+      sx={inputSx}
+      InputProps={{
+        startAdornment: startAdornment ? (
+          <InputAdornment position="start" sx={{ mr: 1 }}>{startAdornment}</InputAdornment>
+        ) : undefined,
+        endAdornment,
+      }}
+    />
+  );
+});
+
+FormField.displayName = 'FormField';
+
+// ✅ ИСПРАВЛЕННОЕ финансовое поле
+interface FinancialFieldProps {
+  field: string;
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+}
+
+const FinancialField = memo(({ field, label, value, onChange }: FinancialFieldProps) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(e.target.value);
+  }, [onChange]);
+
+  return (
+    <Grid size={{ xs: 12, sm: 3 }}>
+      <TextField
+        fullWidth
+        label={label}
+        type="text"
+        inputMode="decimal"
+        value={value}
+        onChange={handleChange}
+        placeholder="0"
+        InputProps={{
+          endAdornment: (
+            <InputAdornment position="end">₽</InputAdornment>
+          ),
+          inputProps: {
+            style: { textAlign: 'right' },
+          },
+        }}
+        sx={singleLineInputSx}
+      />
+    </Grid>
+  );
+});
+
+FinancialField.displayName = 'FinancialField';
+
+interface PartyFieldProps {
+  field: 'plaintiff' | 'defendant';
+  label: string;
+  value: string;
+  onChange: (field: 'plaintiff' | 'defendant', value: string) => void;
+}
+
+const PartyField = memo(({ field, label, value, onChange }: PartyFieldProps) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    onChange(field, e.target.value);
+  }, [field, onChange]);
+
+  return (
+    <Grid size={{ xs: 12, sm: 6 }}>
+      <TextField
+        fullWidth
+        label={label}
+        value={value}
+        onChange={handleChange}
+        InputProps={{
+          startAdornment: (
+            <InputAdornment position="start" sx={{ mr: 1 }}>
+              <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+            </InputAdornment>
+          ),
+        }}
+        sx={singleLineInputSx}
+      />
+    </Grid>
+  );
+});
+
+PartyField.displayName = 'PartyField';
+
+// ===== ОСНОВНОЙ КОМПОНЕНТ =====
 interface CreateCaseDialogProps {
   open: boolean;
   isPending: boolean;
@@ -207,55 +329,70 @@ interface CreateCaseDialogProps {
   onSubmit: (data: CaseCreateRequest) => Promise<void>;
 }
 
-export function CreateCaseDialog({
+export const CreateCaseDialog = memo(({
   open,
   isPending,
   onClose,
   onSubmit,
-}: CreateCaseDialogProps) {
-  const [formData, setFormData] = useState<CaseCreateRequest>(createInitialFormData);
+}: CreateCaseDialogProps) => {
+  // ===== STATE =====
+  const [formData, setFormData] = useState<CaseCreateRequest>(createInitialFormData());
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const { suggestions, isLoading: isSuggestLoading, fetchSuggestions, clearSuggestions } =
-    useClientsSuggest();
+  const [clientInputValue, setClientInputValue] = useState('');
+  const [expertInputValue, setExpertInputValue] = useState('');
+  const [selectedClient, setSelectedClient] = useState<{ id: string; name: string } | null>(null);
+  const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
+  const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
+  const [clientCreatedFromDialog, setClientCreatedFromDialog] = useState(false);
+  
+  // ✅ НОВОЕ: Отдельный state для финансовых полей (строки для редактирования)
+  const [financialValues, setFinancialValues] = useState({
+    cost: '0',
+    bank_transfer_amount: '0',
+    cash_amount: '0',
+    remaining_debt: '0',
+  });
+
+  // ===== HOOKS =====
+  const {
+    suggestions,
+    isLoading: isSuggestLoading,
+    fetchSuggestions,
+    clearSuggestions,
+  } = useClientsSuggest();
+
   const {
     suggestions: expertSuggestions,
     isLoading: isExpertSuggestLoading,
     fetchSuggestions: fetchExpertSuggestions,
     clearSuggestions: clearExpertSuggestions,
   } = useExpertsSuggest();
-  
+
   const createClient = useCreateClient();
-  
-  const [clientInputValue, setClientInputValue] = useState('');
-  const [expertInputValue, setExpertInputValue] = useState('');
-  
-  // Выбранный клиент — отдельный state, не зависит от suggestions
-  const [selectedClient, setSelectedClient] = useState<{ id: string; name: string } | null>(null);
-  const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
-  
-  // Состояние для модального окна создания клиента
-  const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
-  
-  // Флаг для отслеживания создания клиента через модальное окно
-  const [clientCreatedFromDialog, setClientCreatedFromDialog] = useState(false);
 
-  // Сброс формы при закрытии диалога
-  const handleClose = useCallback(() => {
-    setFormData(createInitialFormData());
-    setErrors({});
-    setClientInputValue('');
-    setExpertInputValue('');
-    setSelectedClient(null);
-    setSelectedExpert(null);
-    setClientCreatedFromDialog(false);
-    clearSuggestions();
-    clearExpertSuggestions();
-    onClose();
-  }, [onClose, clearSuggestions, clearExpertSuggestions]);
+  // ===== MEMOIZED VALUES =====
+  const isFormValid = useMemo(() => 
+    formData.client_id.trim() &&
+    formData.number.trim() &&
+    formData.case_number.trim() &&
+    formData.authority.trim() &&
+    formData.case_type.trim() &&
+    formData.object_type.trim() &&
+    formData.object_address.trim(),
+    [formData.client_id, formData.number, formData.case_number, formData.authority, 
+     formData.case_type, formData.object_type, formData.object_address]
+  );
 
-  // Сброс формы при открытии (на случай повторного открытия)
-  const handleEntered = useCallback(() => {
-    setFormData(createInitialFormData());
+  // ===== CALLBACKS =====
+  const resetForm = useCallback(() => {
+    const initial = createInitialFormData();
+    setFormData(initial);
+    setFinancialValues({
+      cost: initial.cost.toString(),
+      bank_transfer_amount: initial.bank_transfer_amount.toString(),
+      cash_amount: initial.cash_amount.toString(),
+      remaining_debt: initial.remaining_debt.toString(),
+    });
     setErrors({});
     setClientInputValue('');
     setExpertInputValue('');
@@ -266,17 +403,55 @@ export function CreateCaseDialog({
     clearExpertSuggestions();
   }, [clearSuggestions, clearExpertSuggestions]);
 
-  // ── Validation ─────────────────────────────────────────────────────────────
-  const isFormValid =
-    formData.client_id.trim() &&
-    formData.number.trim() &&
-    formData.case_number.trim() &&
-    formData.authority.trim() &&
-    formData.case_type.trim() &&
-    formData.object_type.trim() &&
-    formData.object_address.trim();
+  const handleClose = useCallback(() => {
+    resetForm();
+    onClose();
+  }, [resetForm, onClose]);
 
-  const validateForm = (): boolean => {
+  const handleEntered = useCallback(() => {
+    resetForm();
+  }, [resetForm]);
+
+  const clearError = useCallback((field: string) => {
+    setErrors((prev) => {
+      if (!prev[field]) return prev;
+      const newErrors = { ...prev };
+      delete newErrors[field];
+      return newErrors;
+    });
+  }, []);
+
+  const handleFieldChange = useCallback((field: keyof CaseCreateRequest, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+    if (errors[field]) {
+      clearError(field);
+    }
+  }, [errors, clearError]);
+
+  // ✅ ИСПРАВЛЕНО: Обработка финансовых полей
+  const handleFinancialChange = useCallback((
+    field: 'cost' | 'bank_transfer_amount' | 'cash_amount' | 'remaining_debt',
+    value: string
+  ) => {
+    // Разрешаем пустую строку и цифры с точкой
+    if (value === '' || /^\d*\.?\d*$/.test(value)) {
+      setFinancialValues((prev) => ({ ...prev, [field]: value }));
+      // Обновляем formData для отправки (пустая строка = 0)
+      setFormData((prev) => ({ 
+        ...prev, 
+        [field]: value === '' ? 0 : Number(value) 
+      }));
+    }
+  }, []);
+
+  const handlePartyChange = useCallback((
+    field: 'plaintiff' | 'defendant',
+    value: string
+  ) => {
+    setFormData((prev) => ({ ...prev, [field]: value }));
+  }, []);
+
+  const validateForm = useCallback((): boolean => {
     const newErrors: Record<string, string> = {};
     if (!formData.client_id.trim()) newErrors.client_id = 'Выберите клиента';
     if (!formData.number.trim()) newErrors.number = 'Обязательное поле';
@@ -287,177 +462,268 @@ export function CreateCaseDialog({
     if (!formData.object_address.trim()) newErrors.object_address = 'Обязательное поле';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  };
+  }, [formData]);
 
-  // ── Handlers ───────────────────────────────────────────────────────────────
-  const handleSubmit = async () => {
+  const handleSubmit = useCallback(async () => {
     if (!validateForm()) return;
-    
-    // Нормализуем данные перед отправкой
     const normalizedData = normalizeCasePayload(formData);
-    
-    // Отправляем нормализованные данные
     await onSubmit(normalizedData as CaseCreateRequest);
-  };
+  }, [formData, validateForm, onSubmit]);
 
-  const clearError = (field: string) => {
-    setErrors((prev) => {
-      if (!prev[field]) return prev;
-      return { ...prev, [field]: '' };
-    });
-  };
+  const handleClientInputChange = useCallback((_e: any, newInputValue: string, reason: string) => {
+    setClientInputValue(newInputValue);
+    if (reason === 'clear') {
+      clearSuggestions();
+    } else if (reason === 'input' && newInputValue.trim().length >= 2) {
+      fetchSuggestions(newInputValue);
+    }
+  }, [fetchSuggestions, clearSuggestions]);
 
-  // Обработчик создания клиента из модального окна
-  const handleCreateClient = async (clientData: ClientCreateRequestType) => {
+  const handleClientChange = useCallback((_e: any, value: any, reason: string) => {
+    if (reason === 'clear') {
+      setFormData((prev) => ({ ...prev, client_id: '' }));
+      setSelectedClient(null);
+      setClientInputValue('');
+      clearSuggestions();
+      setClientCreatedFromDialog(false);
+    } else if (value) {
+      setFormData((prev) => ({ ...prev, client_id: value.id }));
+      setSelectedClient(value);
+      setClientInputValue(value.name);
+      clearError('client_id');
+      setClientCreatedFromDialog(false);
+    }
+  }, [clearSuggestions, clearError]);
+
+  const handleExpertInputChange = useCallback((_e: any, newInputValue: string, reason: string) => {
+    setExpertInputValue(newInputValue);
+    if (reason === 'clear') {
+      clearExpertSuggestions();
+    } else if (reason === 'input' && newInputValue.trim().length >= 2) {
+      fetchExpertSuggestions(newInputValue);
+    }
+  }, [fetchExpertSuggestions, clearExpertSuggestions]);
+
+  const handleExpertChange = useCallback((_e: any, value: any, reason: string) => {
+    if (reason === 'clear') {
+      setFormData((prev) => ({ ...prev, assigned_user_id: '' }));
+      setSelectedExpert(null);
+      setExpertInputValue('');
+      clearExpertSuggestions();
+    } else if (value) {
+      setFormData((prev) => ({ ...prev, assigned_user_id: value.id }));
+      setSelectedExpert(value);
+    }
+  }, [clearExpertSuggestions]);
+
+  const handleCreateClient = useCallback(async (clientData: ClientCreateRequestType) => {
     try {
       const newClient = await createClient.mutateAsync(clientData);
-      
-      // Автоматически выбираем созданного клиента в поле
       setFormData((prev) => ({ ...prev, client_id: newClient.id }));
       setSelectedClient({ id: newClient.id, name: newClient.name });
       setClientInputValue(newClient.name);
       setClientCreatedFromDialog(true);
-      
-      // Очищаем ошибку, если она была
       clearError('client_id');
-      
-      // Закрываем модальное окно создания клиента
       setCreateClientDialogOpen(false);
       notificationService.success('Клиент успешно создан и выбран');
     } catch (error) {
       console.error('Ошибка создания клиента:', error);
       notificationService.error('Не удалось создать клиента');
     }
-  };
+  }, [createClient, clearError]);
 
-  // ── Render ─────────────────────────────────────────────────────────────────
+  // ===== RENDER =====
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="lg"
-      fullWidth
-      TransitionComponent={Fade}
-      transitionDuration={240}
-      TransitionProps={{ onEntered: handleEntered }}
-      PaperProps={{
-        sx: {
-          borderRadius: '16px',
-          boxShadow: '0 24px 48px -12px rgba(0,0,0,0.18)',
-          overflow: 'hidden',
-          maxHeight: '90vh',
-        },
-      }}
-    >
-      {/* ── Header ── */}
-      <DialogTitle
-        sx={{
-          px: 3,
-          py: 2.5,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
-          background: 'linear-gradient(135deg, #1a2332 0%, #0f172a 100%)',
-          color: '#fff',
+    <>
+      <Dialog
+        open={open}
+        onClose={handleClose}
+        maxWidth="lg"
+        fullWidth
+        TransitionComponent={Fade}
+        transitionDuration={240}
+        TransitionProps={{ onEntered: handleEntered }}
+        PaperProps={{ 
+          sx: {
+            borderRadius: '16px',
+            boxShadow: '0 24px 48px -12px rgba(0,0,0,0.18)',
+            overflow: 'hidden',
+            maxHeight: '90vh',
+          } 
         }}
       >
-        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-          <Box
-            sx={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 40,
-              height: 40,
-              borderRadius: '10px',
-              bgcolor: 'rgba(255,255,255,0.12)',
-            }}
-          >
-            <BusinessCenterIcon sx={{ color: '#fff', fontSize: 22 }} />
-          </Box>
-          <Box>
-            <Typography variant="h6" fontWeight={600} sx={{ color: '#fff', lineHeight: 1.3 }}>
-              Новое дело
-            </Typography>
-            <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
-              Заполните обязательные поля и сохраните
-            </Typography>
-          </Box>
-        </Box>
-        <IconButton
-          onClick={handleClose}
+        {/* Header */}
+        <DialogTitle
           sx={{
-            color: 'rgba(255,255,255,0.5)',
-            '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+            px: 3,
+            py: 2.5,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            background: 'linear-gradient(135deg, #1a2332 0%, #0f172a 100%)',
+            color: '#fff',
           }}
         >
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </DialogTitle>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+            <Box
+              sx={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 40,
+                height: 40,
+                borderRadius: '10px',
+                bgcolor: 'rgba(255,255,255,0.12)',
+              }}
+            >
+              <BusinessCenterIcon sx={{ color: '#fff', fontSize: 22 }} />
+            </Box>
+            <Box>
+              <Typography variant="h6" fontWeight={600} sx={{ color: '#fff', lineHeight: 1.3 }}>
+                Новое дело
+              </Typography>
+              <Typography variant="caption" sx={{ color: 'rgba(255,255,255,0.5)' }}>
+                Заполните обязательные поля и сохраните
+              </Typography>
+            </Box>
+          </Box>
+          <IconButton
+            onClick={handleClose}
+            sx={{
+              color: 'rgba(255,255,255,0.5)',
+              '&:hover': { color: '#fff', bgcolor: 'rgba(255,255,255,0.1)' },
+            }}
+          >
+            <CloseIcon fontSize="small" />
+          </IconButton>
+        </DialogTitle>
 
-      {/* ── Body ── */}
-      <DialogContent
-        sx={{
-          p: 3,
-          overflowY: 'auto',
-          display: 'flex',
-          flexDirection: 'column',
-          gap: 2.5,
-          bgcolor: '#fafbfc',
-        }}
-      >
-        {/* Клиент и реквизиты */}
-        <FormSection>
-          <SectionHeader
-            icon={<BusinessCenterIcon sx={{ fontSize: 18 }} />}
-            title="Клиент и реквизиты дела"
-            subtitle="Обязательная информация"
-          />
-          <Grid container spacing={2.5} alignItems="stretch">
-            <Grid size={{ xs: 12, sm: 6 }}>
-              <Box sx={{ position: 'relative' }}>
+        {/* Content */}
+        <DialogContent
+          sx={{
+            p: 3,
+            overflowY: 'auto',
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 2.5,
+            bgcolor: '#fafbfc',
+          }}
+        >
+          {/* Клиент и реквизиты */}
+          <FormSection>
+            <SectionHeader
+              icon={<BusinessCenterIcon sx={{ fontSize: 18 }} />}
+              title="Клиент и реквизиты дела"
+              subtitle="Обязательная информация"
+            />
+            <Grid container spacing={2.5} alignItems="stretch">
+              <Grid size={{ xs: 12, sm: 6 }}>
+                <Box sx={{ position: 'relative' }}>
+                  <Autocomplete
+                    key={`client-${selectedClient?.id || 'none'}`}
+                    fullWidth
+                    options={suggestions}
+                    getOptionLabel={(option) => option.name || ''}
+                    value={selectedClient}
+                    inputValue={clientInputValue}
+                    loading={isSuggestLoading}
+                    filterOptions={(options) => options}
+                    noOptionsText={
+                      clientInputValue.trim().length === 0
+                        ? 'Начните ввод для поиска...'
+                        : isSuggestLoading
+                        ? 'Поиск...'
+                        : clientCreatedFromDialog && selectedClient
+                        ? `Выбран: ${selectedClient.name}`
+                        : 'Клиенты не найдены'
+                    }
+                    onInputChange={handleClientInputChange}
+                    onChange={handleClientChange}
+                    isOptionEqualToValue={(option, value) => option.id === value?.id}
+                    disableClearable
+                    renderOption={(props, option) => (
+                      <li {...props} key={option.id}>
+                        <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {option.name}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {option.id}
+                          </Typography>
+                        </Box>
+                      </li>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        fullWidth
+                        label="Клиент"
+                        required
+                        placeholder="Введите название клиента..."
+                        error={!!errors.client_id}
+                        helperText={errors.client_id}
+                        sx={singleLineInputSx}
+                        InputProps={{
+                          ...params.InputProps,
+                          endAdornment: (
+                            <>
+                              {isSuggestLoading ? (
+                                <CircularProgress size={18} color="inherit" />
+                              ) : null}
+                              {params.InputProps.endAdornment}
+                            </>
+                          ),
+                          startAdornment: (
+                            <InputAdornment position="start" sx={{ mr: 1 }}>
+                              <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                            </InputAdornment>
+                          ),
+                        }}
+                      />
+                    )}
+                  />
+                  <Tooltip title="Добавить нового клиента" arrow>
+                    <IconButton
+                      onClick={() => setCreateClientDialogOpen(true)}
+                      sx={{
+                        position: 'absolute',
+                        right: 8,
+                        top: '50%',
+                        transform: 'translateY(-50%)',
+                        zIndex: 1,
+                        bgcolor: 'primary.main',
+                        color: '#fff',
+                        '&:hover': { bgcolor: 'primary.dark' },
+                        width: 36,
+                        height: 36,
+                        borderRadius: '8px',
+                      }}
+                    >
+                      <AddIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Box>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 6 }}>
                 <Autocomplete
+                  key={`expert-${selectedExpert?.id || 'none'}`}
                   fullWidth
-                  options={suggestions}
+                  options={expertSuggestions}
                   getOptionLabel={(option) => option.name || ''}
-                  value={selectedClient}
-                  inputValue={clientInputValue}
-                  loading={isSuggestLoading}
+                  value={selectedExpert}
+                  inputValue={expertInputValue}
+                  loading={isExpertSuggestLoading}
                   filterOptions={(options) => options}
                   noOptionsText={
-                    clientInputValue.trim().length === 0
+                    expertInputValue.trim().length === 0
                       ? 'Начните ввод для поиска...'
-                      : isSuggestLoading
+                      : isExpertSuggestLoading
                       ? 'Поиск...'
-                      : clientCreatedFromDialog && selectedClient
-                      ? `Выбран: ${selectedClient.name}`
-                      : 'Клиенты не найдены'
+                      : 'Эксперты не найдены'
                   }
-                  onInputChange={(_e, newInputValue, reason) => {
-                    setClientInputValue(newInputValue);
-                    if (reason === 'clear') {
-                      clearSuggestions();
-                    } else if (reason === 'input') {
-                      fetchSuggestions(newInputValue);
-                    }
-                  }}
-                  onChange={(_e, value, reason) => {
-                    if (reason === 'clear') {
-                      setFormData((prev) => ({ ...prev, client_id: '' }));
-                      setSelectedClient(null);
-                      setClientInputValue('');
-                      clearSuggestions();
-                      setClientCreatedFromDialog(false);
-                    } else if (value) {
-                      setFormData((prev) => ({ ...prev, client_id: value.id }));
-                      setSelectedClient(value);
-                      setClientInputValue(value.name);
-                      clearError('client_id');
-                      setClientCreatedFromDialog(false);
-                    }
-                  }}
+                  onInputChange={handleExpertInputChange}
+                  onChange={handleExpertChange}
                   isOptionEqualToValue={(option, value) => option.id === value?.id}
-                  // ИСПРАВЛЕНИЕ 1: Отключаем кнопку очистки
                   disableClearable
                   renderOption={(props, option) => (
                     <li {...props} key={option.id}>
@@ -466,7 +732,7 @@ export function CreateCaseDialog({
                           {option.name}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          {option.id}
+                          Эксперт
                         </Typography>
                       </Box>
                     </li>
@@ -475,18 +741,14 @@ export function CreateCaseDialog({
                     <TextField
                       {...params}
                       fullWidth
-                      label="Клиент"
-                      required
-                      placeholder="Введите название клиента..."
-                      error={!!errors.client_id}
-                      helperText={errors.client_id}
+                      label="Назначить эксперта"
+                      placeholder="Введите имя эксперта..."
                       sx={singleLineInputSx}
                       InputProps={{
                         ...params.InputProps,
-                        // Убираем стандартную кнопку очистки
                         endAdornment: (
                           <>
-                            {isSuggestLoading ? (
+                            {isExpertSuggestLoading ? (
                               <CircularProgress size={18} color="inherit" />
                             ) : null}
                             {params.InputProps.endAdornment}
@@ -733,239 +995,287 @@ export function CreateCaseDialog({
                 }}
               />
             </Grid>
-          </Grid>
-        </FormSection>
+          </FormSection>
 
-        {/* Статус и сроки */}
-        <FormSection>
-          <SectionHeader
-            icon={<CalendarTodayIcon sx={{ fontSize: 18 }} />}
-            title="Статус и сроки"
-          />
-          <Grid container spacing={2.5} alignItems="stretch">
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <FormControl fullWidth>
-                <InputLabel>Статус</InputLabel>
-                <Select
-                  fullWidth
-                  value={formData.status}
-                  label="Статус"
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, status: e.target.value as CaseStatus }))
-                  }
-                  sx={{
-                    height: INPUT_HEIGHT,
-                    '& .MuiSelect-select': {
-                      display: 'flex',
-                      alignItems: 'center',
-                      py: 0,
-                      width: '100%',
-                    },
-                    '& .MuiOutlinedInput-input': { py: 0, width: '100%' },
-                  }}
-                >
-                  {Object.entries(CASE_STATUS_LABELS).map(([value, label]) => (
-                    <MenuItem key={value} value={value}>
-                      <Chip
-                        label={label}
-                        size="small"
-                        color={CASE_STATUS_COLORS[value as CaseStatus]}
-                        variant="filled"
-                        sx={{ fontWeight: 'medium', fontSize: '0.7rem', height: 22, cursor: 'pointer' }}
-                      />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Дата начала"
-                type="date"
-                value={dayjs(formData.start_date).format('YYYY-MM-DD')}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    start_date: dayjs(e.target.value).toISOString(),
-                  }))
-                }
-                InputLabelProps={{ shrink: true }}
-                sx={singleLineInputSx}
-              />
-            </Grid>
-            <Grid size={{ xs: 12, sm: 4 }}>
-              <TextField
-                fullWidth
-                label="Срок выполнения"
-                type="date"
-                value={dayjs(formData.deadline).format('YYYY-MM-DD')}
-                onChange={(e) =>
-                  setFormData((prev) => ({
-                    ...prev,
-                    deadline: dayjs(e.target.value).toISOString(),
-                  }))
-                }
-                InputLabelProps={{ shrink: true }}
-                sx={singleLineInputSx}
-              />
-            </Grid>
-          </Grid>
-        </FormSection>
-
-        {/* Финансы */}
-        <FormSection>
-          <SectionHeader
-            icon={<AttachMoneyIcon sx={{ fontSize: 18 }} />}
-            title="Финансы"
-            subtitle="Все суммы в рублях"
-          />
-          <Grid container spacing={2.5} alignItems="stretch">
-            {(
-              [
-                { field: 'cost', label: 'Стоимость' },
-                { field: 'bank_transfer_amount', label: 'Безналичные' },
-                { field: 'cash_amount', label: 'Наличные' },
-                { field: 'remaining_debt', label: 'Остаток долга' },
-              ] as const
-            ).map(({ field, label }) => (
-              <Grid key={field} size={{ xs: 12, sm: 3 }}>
-                <TextField
-                  fullWidth
-                  label={label}
-                  type="number"
-                  value={formData[field]}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, [field]: Number(e.target.value) }))
-                  }
-                  InputProps={{
-                    endAdornment: <InputAdornment position="end">₽</InputAdornment>,
-                  }}
-                  sx={singleLineInputSx}
+          {/* Объект и орган */}
+          <FormSection>
+            <SectionHeader
+              icon={<LocationOnIcon sx={{ fontSize: 18 }} />}
+              title="Объект и орган"
+              subtitle="Сведения о предмете и рассматривающем органе"
+            />
+            <Grid container spacing={2.5} alignItems="stretch">
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <FormField
+                  label="Суд / Орган"
+                  value={formData.authority}
+                  onChange={(value) => handleFieldChange('authority', value)}
+                  error={errors.authority}
+                  required
                 />
               </Grid>
-            ))}
-          </Grid>
-        </FormSection>
-
-        {/* Стороны дела */}
-        <FormSection>
-          <SectionHeader
-            icon={<PersonIcon sx={{ fontSize: 18 }} />}
-            title="Стороны дела"
-          />
-          <Grid container spacing={2.5} alignItems="stretch">
-            {(
-              [
-                { field: 'plaintiff', label: 'Истец' },
-                { field: 'defendant', label: 'Ответчик' },
-              ] as const
-            ).map(({ field, label }) => (
-              <Grid key={field} size={{ xs: 12, sm: 6 }}>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <FormField
+                  label="Вид экспертизы"
+                  value={formData.case_type}
+                  onChange={(value) => handleFieldChange('case_type', value)}
+                  error={errors.case_type}
+                  required
+                />
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <FormField
+                  label="Тип объекта"
+                  value={formData.object_type}
+                  onChange={(value) => handleFieldChange('object_type', value)}
+                  error={errors.object_type}
+                  required
+                />
+              </Grid>
+              <Grid size={{ xs: 12 }}>
                 <TextField
                   fullWidth
-                  label={label}
-                  value={formData[field] || ''}
-                  onChange={(e) =>
-                    setFormData((prev) => ({ ...prev, [field]: e.target.value }))
-                  }
+                  label="Адрес объекта"
+                  required
+                  multiline
+                  minRows={2}
+                  value={formData.object_address}
+                  onChange={(e) => handleFieldChange('object_address', e.target.value)}
+                  error={!!errors.object_address}
+                  helperText={errors.object_address}
+                  sx={{
+                    '& .MuiInputBase-root': {
+                      minHeight: INPUT_HEIGHT * 2,
+                      boxSizing: 'border-box',
+                      px: 1.5,
+                      width: '100%',
+                    },
+                    '& .MuiOutlinedInput-input': {
+                      py: 0.75,
+                      boxSizing: 'border-box',
+                      width: '100%',
+                    },
+                  }}
                   InputProps={{
                     startAdornment: (
-                      <InputAdornment position="start" sx={{ mr: 1 }}>
-                        <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                      <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 0.5 }}>
+                        <LocationOnIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
                       </InputAdornment>
                     ),
                   }}
+                />
+              </Grid>
+            </Grid>
+          </FormSection>
+
+          {/* Статус и сроки */}
+          <FormSection>
+            <SectionHeader
+              icon={<CalendarTodayIcon sx={{ fontSize: 18 }} />}
+              title="Статус и сроки"
+            />
+            <Grid container spacing={2.5} alignItems="stretch">
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <FormControl fullWidth>
+                  <InputLabel>Статус</InputLabel>
+                  <Select
+                    fullWidth
+                    value={formData.status}
+                    label="Статус"
+                    onChange={(e) => handleFieldChange('status', e.target.value as CaseStatus)}
+                    sx={{
+                      height: INPUT_HEIGHT,
+                      '& .MuiSelect-select': {
+                        display: 'flex',
+                        alignItems: 'center',
+                        py: 0,
+                        width: '100%',
+                      },
+                      '& .MuiOutlinedInput-input': { py: 0, width: '100%' },
+                    }}
+                  >
+                    {Object.entries(CASE_STATUS_LABELS).map(([value, label]) => (
+                      <MenuItem key={value} value={value}>
+                        <Chip
+                          label={label}
+                          size="small"
+                          color={CASE_STATUS_COLORS[value as CaseStatus]}
+                          variant="filled"
+                          sx={{ fontWeight: 'medium', fontSize: '0.7rem', height: 22, cursor: 'pointer' }}
+                        />
+                      </MenuItem>
+                    ))}
+                  </Select>
+                </FormControl>
+              </Grid>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  label="Дата начала"
+                  type="date"
+                  value={dayjs(formData.start_date).format('YYYY-MM-DD')}
+                  onChange={(e) => handleFieldChange('start_date', dayjs(e.target.value).toISOString())}
+                  InputLabelProps={{ shrink: true }}
                   sx={singleLineInputSx}
                 />
               </Grid>
-            ))}
-          </Grid>
-        </FormSection>
+              <Grid size={{ xs: 12, sm: 4 }}>
+                <TextField
+                  fullWidth
+                  label="Срок выполнения"
+                  type="date"
+                  value={dayjs(formData.deadline).format('YYYY-MM-DD')}
+                  onChange={(e) => handleFieldChange('deadline', dayjs(e.target.value).toISOString())}
+                  InputLabelProps={{ shrink: true }}
+                  sx={singleLineInputSx}
+                />
+              </Grid>
+            </Grid>
+          </FormSection>
 
-        {/* Примечания */}
-        <FormSection>
-          <SectionHeader
-            icon={<DescriptionIcon sx={{ fontSize: 18 }} />}
-            title="Примечания"
-          />
-          <TextField
-            fullWidth
-            label="Примечания"
-            multiline
-            rows={4}
-            value={formData.remarks || ''}
-            onChange={(e) =>
-              setFormData((prev) => ({ ...prev, remarks: e.target.value }))
-            }
-            placeholder="Дополнительная информация о деле..."
-            sx={{
-              '& .MuiInputBase-root': {
-                minHeight: INPUT_HEIGHT * 4,
-                boxSizing: 'border-box',
-                px: 1.5,
-                width: '100%',
-              },
-              '& .MuiOutlinedInput-input': {
-                py: 0.75,
-                boxSizing: 'border-box',
-                width: '100%',
-              },
-              '& textarea.MuiInputBase-inputMultiline': {
-                width: '100%',
-                boxSizing: 'border-box',
-              },
-            }}
-          />
-        </FormSection>
-      </DialogContent>
+          {/* Финансы - ✅ ИСПРАВЛЕНО */}
+          <FormSection>
+            <SectionHeader
+              icon={<AttachMoneyIcon sx={{ fontSize: 18 }} />}
+              title="Финансы"
+              subtitle="Все суммы в рублях"
+            />
+            <Grid container spacing={2.5} alignItems="stretch">
+              <FinancialField 
+                field="cost" 
+                label="Стоимость" 
+                value={financialValues.cost} 
+                onChange={(v) => handleFinancialChange('cost', v)} 
+              />
+              <FinancialField 
+                field="bank_transfer_amount" 
+                label="Безналичные" 
+                value={financialValues.bank_transfer_amount} 
+                onChange={(v) => handleFinancialChange('bank_transfer_amount', v)} 
+              />
+              <FinancialField 
+                field="cash_amount" 
+                label="Наличные" 
+                value={financialValues.cash_amount} 
+                onChange={(v) => handleFinancialChange('cash_amount', v)} 
+              />
+              <FinancialField 
+                field="remaining_debt" 
+                label="Остаток долга" 
+                value={financialValues.remaining_debt} 
+                onChange={(v) => handleFinancialChange('remaining_debt', v)} 
+              />
+            </Grid>
+          </FormSection>
 
-      {/* ── Footer ── */}
-      <DialogActions
-        sx={{
-          px: 3,
-          py: 2,
-          bgcolor: '#fafbfc',
-          borderTop: '1px solid',
-          borderColor: 'divider',
-          justifyContent: 'space-between',
-        }}
-      >
-        <Button
-          onClick={handleClose}
-          variant="outlined"
-          size="medium"
-          color="inherit"
-          sx={{ borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'grey.100' } }}
-        >
-          Отмена
-        </Button>
-        <Button
-          onClick={handleSubmit}
-          variant="contained"
-          size="medium"
-          disabled={!isFormValid || isPending}
+          {/* Стороны дела */}
+          <FormSection>
+            <SectionHeader
+              icon={<PersonIcon sx={{ fontSize: 18 }} />}
+              title="Стороны дела"
+            />
+            <Grid container spacing={2.5} alignItems="stretch">
+              <PartyField 
+                field="plaintiff" 
+                label="Истец" 
+                value={formData.plaintiff || ''} 
+                onChange={handlePartyChange} 
+              />
+              <PartyField 
+                field="defendant" 
+                label="Ответчик" 
+                value={formData.defendant || ''} 
+                onChange={handlePartyChange} 
+              />
+            </Grid>
+          </FormSection>
+
+          {/* Примечания */}
+          <FormSection>
+            <SectionHeader
+              icon={<DescriptionIcon sx={{ fontSize: 18 }} />}
+              title="Примечания"
+            />
+            <TextField
+              fullWidth
+              label="Примечания"
+              multiline
+              rows={4}
+              value={formData.remarks || ''}
+              onChange={(e) => handleFieldChange('remarks', e.target.value)}
+              placeholder="Дополнительная информация о деле..."
+              sx={{
+                '& .MuiInputBase-root': {
+                  minHeight: INPUT_HEIGHT * 4,
+                  boxSizing: 'border-box',
+                  px: 1.5,
+                  width: '100%',
+                },
+                '& .MuiOutlinedInput-input': {
+                  py: 0.75,
+                  boxSizing: 'border-box',
+                  width: '100%',
+                },
+                '& textarea.MuiInputBase-inputMultiline': {
+                  width: '100%',
+                  boxSizing: 'border-box',
+                },
+              }}
+            />
+          </FormSection>
+        </DialogContent>
+
+        {/* Footer */}
+        <DialogActions
           sx={{
-            minWidth: 140,
-            borderRadius: '8px',
-            fontWeight: 600,
-            boxShadow: 'none',
-            '&:not(:disabled):hover': {
-              boxShadow: '0 4px 12px rgba(25,39,58,0.35)',
-            },
+            px: 3,
+            py: 2,
+            bgcolor: '#fafbfc',
+            borderTop: '1px solid',
+            borderColor: 'divider',
+            justifyContent: 'space-between',
           }}
         >
-          {isPending ? <CircularProgress size={18} color="inherit" /> : 'Создать дело'}
-        </Button>
-      </DialogActions>
+          <Button
+            onClick={handleClose}
+            variant="outlined"
+            size="medium"
+            color="inherit"
+            sx={{ borderColor: 'divider', color: 'text.secondary', '&:hover': { bgcolor: 'grey.100' } }}
+          >
+            Отмена
+          </Button>
+          <Button
+            onClick={handleSubmit}
+            variant="contained"
+            size="medium"
+            disabled={!isFormValid || isPending}
+            sx={{
+              minWidth: 140,
+              borderRadius: '8px',
+              fontWeight: 600,
+              boxShadow: 'none',
+              '&:not(:disabled):hover': {
+                boxShadow: '0 4px 12px rgba(25,39,58,0.35)',
+              },
+            }}
+          >
+            {isPending ? <CircularProgress size={18} color="inherit" /> : 'Создать дело'}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
-      {/* ── Модальное окно создания клиента ── */}
+      {/* Модальное окно создания клиента */}
       <ClientCreateDialog
         open={createClientDialogOpen}
         onClose={() => setCreateClientDialogOpen(false)}
         onSubmit={handleCreateClient}
         isLoading={createClient.isPending}
       />
-    </Dialog>
+    </>
   );
-}
+});
+
+CreateCaseDialog.displayName = 'CreateCaseDialog';
+
+export default CreateCaseDialog;
