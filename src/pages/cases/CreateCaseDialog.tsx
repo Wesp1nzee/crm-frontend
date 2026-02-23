@@ -94,6 +94,7 @@ export function createInitialFormData(): CaseCreateRequest {
     case_type: '',
     object_type: '',
     object_address: '',
+    judge_name: '',
     status: 'in_work' as CaseStatus,
     start_date: dayjs().toISOString(),
     deadline: dayjs().add(30, 'day').toISOString(),
@@ -117,6 +118,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     case_type: formData.case_type.trim(),
     object_type: formData.object_type.trim(),
     object_address: formData.object_address.trim(),
+    judge_name: formData.judge_name?.trim() || null,
     status: formData.status,
     start_date: formData.start_date,
     deadline: formData.deadline,
@@ -761,26 +763,237 @@ export const CreateCaseDialog = memo(({
                     />
                   )}
                 />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 2 }}>
-                <FormField
-                  label="№ п/п"
-                  value={formData.number}
-                  onChange={(value) => handleFieldChange('number', value)}
-                  error={errors.number}
-                  required
-                  autoFocus
-                />
-              </Grid>
-              <Grid size={{ xs: 12, sm: 4 }}>
-                <FormField
-                  label="Номер дела"
-                  value={formData.case_number}
-                  onChange={(value) => handleFieldChange('case_number', value)}
-                  error={errors.case_number}
-                  required
-                />
-              </Grid>
+                <Tooltip title="Добавить нового клиента" arrow>
+                  <IconButton
+                    onClick={() => setCreateClientDialogOpen(true)}
+                    sx={{
+                      position: 'absolute',
+                      right: 8,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      zIndex: 1,
+                      bgcolor: 'primary.main',
+                      color: '#fff',
+                      '&:hover': {
+                        bgcolor: 'primary.dark',
+                      },
+                      width: 36,
+                      height: 36,
+                      borderRadius: '8px',
+                    }}
+                  >
+                    <AddIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </Box>
+            </Grid>
+            <Grid size={{ xs: 12, sm: 6 }}>
+              <Autocomplete
+                fullWidth
+                options={expertSuggestions}
+                getOptionLabel={(option) => option.name || ''}
+                value={selectedExpert}
+                inputValue={expertInputValue}
+                loading={isExpertSuggestLoading}
+                filterOptions={(options) => options}
+                noOptionsText={
+                  expertInputValue.trim().length === 0
+                    ? 'Начните ввод для поиска...'
+                    : isExpertSuggestLoading
+                    ? 'Поиск...'
+                    : 'Эксперты не найдены'
+                }
+                onInputChange={(_e, newInputValue, reason) => {
+                  setExpertInputValue(newInputValue);
+                  if (reason === 'clear') {
+                    clearExpertSuggestions();
+                  } else if (reason === 'input') {
+                    fetchExpertSuggestions(newInputValue);
+                  }
+                }}
+                onChange={(_e, value, reason) => {
+                  if (reason === 'clear') {
+                    setFormData((prev) => ({ ...prev, assigned_user_id: '' }));
+                    setSelectedExpert(null);
+                    setExpertInputValue('');
+                    clearExpertSuggestions();
+                  } else if (value) {
+                    setFormData((prev) => ({ ...prev, assigned_user_id: value.id }));
+                    setSelectedExpert(value);
+                  }
+                }}
+                isOptionEqualToValue={(option, value) => option.id === value?.id}
+                disableClearable
+                renderOption={(props, option) => (
+                  <li {...props} key={option.id}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column' }}>
+                      <Typography variant="body2" fontWeight={500}>
+                        {option.name}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        Эксперт
+                      </Typography>
+                    </Box>
+                  </li>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    fullWidth
+                    label="Назначить эксперта"
+                    placeholder="Введите имя эксперта..."
+                    sx={singleLineInputSx}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {isExpertSuggestLoading ? (
+                            <CircularProgress size={18} color="inherit" />
+                          ) : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                      startAdornment: (
+                        <InputAdornment position="start" sx={{ mr: 1 }}>
+                          <PersonIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                        </InputAdornment>
+                      ),
+                    }}
+                  />
+                )}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 2 }}>
+              <TextField
+                fullWidth
+                label="№ п/п"
+                required
+                value={formData.number}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, number: e.target.value }));
+                  if (e.target.value.trim()) clearError('number');
+                }}
+                error={!!errors.number}
+                helperText={errors.number}
+                autoFocus
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Номер дела"
+                required
+                value={formData.case_number}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, case_number: e.target.value }));
+                  if (e.target.value.trim()) clearError('case_number');
+                }}
+                error={!!errors.case_number}
+                helperText={errors.case_number}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+          </Grid>
+        </FormSection>
+
+        {/* Объект и орган */}
+        <FormSection>
+          <SectionHeader
+            icon={<LocationOnIcon sx={{ fontSize: 18 }} />}
+            title="Объект и орган"
+            subtitle="Сведения о предмете и рассматривающем органе"
+          />
+          <Grid container spacing={2.5} alignItems="stretch">
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Суд / Орган"
+                required
+                value={formData.authority}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, authority: e.target.value }));
+                  if (e.target.value.trim()) clearError('authority');
+                }}
+                error={!!errors.authority}
+                helperText={errors.authority}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="ФИО судьи"
+                value={formData.judge_name || ''}
+                onChange={(e) => setFormData((prev) => ({ ...prev, judge_name: e.target.value }))}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Вид экспертизы"
+                required
+                value={formData.case_type}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, case_type: e.target.value }));
+                  if (e.target.value.trim()) clearError('case_type');
+                }}
+                error={!!errors.case_type}
+                helperText={errors.case_type}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12, sm: 4 }}>
+              <TextField
+                fullWidth
+                label="Тип объекта"
+                required
+                value={formData.object_type}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, object_type: e.target.value }));
+                  if (e.target.value.trim()) clearError('object_type');
+                }}
+                error={!!errors.object_type}
+                helperText={errors.object_type}
+                sx={singleLineInputSx}
+              />
+            </Grid>
+            <Grid size={{ xs: 12 }}>
+              <TextField
+                fullWidth
+                label="Адрес объекта"
+                required
+                multiline
+                minRows={2}
+                value={formData.object_address}
+                onChange={(e) => {
+                  setFormData((prev) => ({ ...prev, object_address: e.target.value }));
+                  if (e.target.value.trim()) clearError('object_address');
+                }}
+                error={!!errors.object_address}
+                helperText={errors.object_address}
+                sx={{
+                  '& .MuiInputBase-root': {
+                    minHeight: INPUT_HEIGHT * 2,
+                    boxSizing: 'border-box',
+                    px: 1.5,
+                    width: '100%',
+                  },
+                  '& .MuiOutlinedInput-input': {
+                    py: 0.75,
+                    boxSizing: 'border-box',
+                    width: '100%',
+                  },
+                }}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start" sx={{ alignSelf: 'flex-start', mt: 0.5 }}>
+                      <LocationOnIcon sx={{ color: 'text.disabled', fontSize: 20 }} />
+                    </InputAdornment>
+                  ),
+                }}
+              />
             </Grid>
           </FormSection>
 

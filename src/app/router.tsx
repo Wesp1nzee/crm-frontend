@@ -13,6 +13,7 @@ const HomePage = lazy(() => import('../pages/HomePage').then(m => ({ default: m.
 const CaseListPage = lazy(() => import('../pages/cases/CaseListPage').then(m => ({ default: m.CaseListPage })));
 const CaseDetailPage = lazy(() => import('../pages/cases/CaseDetailPage').then(m => ({ default: m.CaseDetailPage })));
 const ClientListPage = lazy(() => import('../pages/clients/ClientListPage').then(m => ({ default: m.ClientListPage })));
+const ClientDetailPage = lazy(() => import('../pages/clients/ClientDetailPage').then(m => ({ default: m.ClientDetailPage })));
 const ExpertsPage = lazy(() => import('../pages/experts/ExpertsPage').then(m => ({ default: m.ExpertsPage })));
 const DocumentsPage = lazy(() => import('../pages/documents/DocumentsPage').then(m => ({ default: m.DocumentsPage })));
 const FinancePage = lazy(() => import('../pages/finance/FinancePage').then(m => ({ default: m.FinancePage })));
@@ -57,7 +58,9 @@ export const router = createBrowserRouter([
       { path: 'settings', element: <Suspense fallback={<PageLoader />}><SettingsPage /></Suspense> },
       { path: 'cases', element: <Suspense fallback={<PageLoader />}><CaseListPage /></Suspense> },
       { path: 'cases/:id', element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense> },
+      { path: 'case/:id', element: <Suspense fallback={<PageLoader />}><CaseDetailPage /></Suspense> },
       { path: 'clients', element: <Suspense fallback={<PageLoader />}><ClientListPage /></Suspense> },
+      { path: 'clients/:id', element: <Suspense fallback={<PageLoader />}><ClientDetailPage /></Suspense> },
       { path: 'experts', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><ExpertsPage /></RoleGuard></Suspense> },
       { path: 'documents', element: <Suspense fallback={<PageLoader />}><DocumentsPage /></Suspense> },
       { path: 'finance', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><FinancePage /></RoleGuard></Suspense> },

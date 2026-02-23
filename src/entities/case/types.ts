@@ -16,6 +16,7 @@ export interface Case {
   case_type: string;
   object_type: string;
   object_address: string;
+  judge_name?: string;
   status: CaseStatus;
   assigned_user_id?: string;
   start_date: string;
@@ -107,6 +108,7 @@ export interface CaseCreateRequest {
   case_type: string;
   object_type: string;
   object_address: string;
+  judge_name?: string;
   status?: CaseStatus;
   assigned_user_id?: string;
   start_date: string;
@@ -131,6 +133,7 @@ export interface CasePatchRequest {
   case_type?: string;
   object_type?: string;
   object_address?: string;
+  judge_name?: string;
   status?: CaseStatus;
   start_date?: string;
   deadline?: string;
@@ -141,7 +144,7 @@ export interface CasePatchRequest {
   cash_amount?: string;
   remaining_debt?: string;
   completion_date?: string;
-  assigned_user_id?: string;
+  assigned_user_id?: string | null;
   archive_status?: string;
   remarks?: string;
 }

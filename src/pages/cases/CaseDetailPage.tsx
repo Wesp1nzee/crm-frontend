@@ -28,6 +28,7 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  Autocomplete,
 } from '@mui/material';
 import { alpha } from '@mui/material/styles';
 import {
@@ -60,6 +61,7 @@ import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
 import { useState, useEffect, useRef } from 'react';
 import { notificationService } from '../../shared/services/notifications';
+import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
 
 const statusLabels: Record<CaseStatus, string> = {
   archive: 'Архив',
@@ -225,16 +227,20 @@ const EditableField = ({
           gap={1.5}
           sx={{
             p: 1.5,
-            borderRadius: 1,
-            bgcolor: 'background.default',
+            borderRadius: 2,
+            bgcolor: theme.palette.mode === 'dark'
+              ? 'rgba(148, 163, 184, 0.08)'
+              : 'rgba(148, 163, 184, 0.08)',
+            border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(148,163,184,0.28)' : 'rgba(148,163,184,0.35)'}`,
             minHeight: 48,
             cursor: 'pointer',
             transition: 'all 0.2s',
             '&:hover': {
               bgcolor: theme.palette.mode === 'dark'
-                ? 'rgba(255, 255, 255, 0.08)'
-                : 'rgba(0, 0, 0, 0.04)',
-              boxShadow: theme.shadows[1]
+                ? 'rgba(79, 144, 255, 0.16)'
+                : 'rgba(79, 144, 255, 0.1)',
+              borderColor: theme.palette.primary.main,
+              boxShadow: theme.shadows[2]
             }
           }}
           onClick={() => onEdit(field, value)}
@@ -278,10 +284,29 @@ export function CaseDetailPage() {
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
+  const [expertInputValue, setExpertInputValue] = useState('');
+  const [isEditingExpert, setIsEditingExpert] = useState(false);
+  const [draftExpert, setDraftExpert] = useState<{ id: string; name: string } | null>(null);
+  const [draftExpertInput, setDraftExpertInput] = useState('');
+  const { suggestions: expertSuggestions, isLoading: isExpertSuggestLoading, fetchSuggestions: fetchExpertSuggestions, clearSuggestions: clearExpertSuggestions } = useExpertsSuggest();
 
   useEffect(() => {
     if (caseData) {
       setStatus(caseData.case.status);
+      const currentExpert = caseData.assigned_experts?.[0];
+      if (currentExpert) {
+        const expertOption = { id: currentExpert.id, name: currentExpert.full_name };
+        setSelectedExpert(expertOption);
+        setExpertInputValue(currentExpert.full_name);
+        setDraftExpert(expertOption);
+        setDraftExpertInput(currentExpert.full_name);
+      } else {
+        setSelectedExpert(null);
+        setExpertInputValue('');
+        setDraftExpert(null);
+        setDraftExpertInput('');
+      }
     }
   }, [caseData]);
 
@@ -359,6 +384,34 @@ export function CaseDetailPage() {
     }
   };
 
+  const handleExpertEditStart = () => {
+    setIsEditingExpert(true);
+    setDraftExpert(selectedExpert);
+    setDraftExpertInput(selectedExpert?.name ?? '');
+  };
+
+  const handleExpertEditCancel = () => {
+    setIsEditingExpert(false);
+    setDraftExpert(selectedExpert);
+    setDraftExpertInput(selectedExpert?.name ?? '');
+    clearExpertSuggestions();
+  };
+
+  const handleExpertSave = () => {
+    const nextExpertId = draftExpert?.id ?? null;
+    const currentExpertId = case_.assigned_user_id ?? null;
+
+    if (nextExpertId === currentExpertId) {
+      handleExpertEditCancel();
+      return;
+    }
+
+    setSelectedExpert(draftExpert);
+    setExpertInputValue(draftExpert?.name ?? '');
+    setIsEditingExpert(false);
+    patchCase.mutate({ id: case_.id, data: { assigned_user_id: nextExpertId } });
+  };
+
   const handleFieldEdit = (field: string, value: string) => {
     setEditingField(field);
     setEditValues({ ...editValues, [field]: value });
@@ -433,8 +486,11 @@ export function CaseDetailPage() {
       maxWidth: 1400,
       mx: 'auto',
       p: { xs: 2, sm: 3 },
-      bgcolor: 'background.default',
       minHeight: 'calc(100vh - 120px)',
+      borderRadius: 4,
+      background: theme.palette.mode === 'dark'
+        ? 'linear-gradient(180deg, rgba(30,41,59,0.45) 0%, rgba(15,23,42,0.25) 100%)'
+        : 'linear-gradient(180deg, rgba(79,144,255,0.08) 0%, rgba(15,23,42,0.03) 100%)',
       '@keyframes cardIn': {
         '0%': { opacity: 0, transform: 'translateY(12px) scale(0.95)' },
         '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
@@ -453,7 +509,8 @@ export function CaseDetailPage() {
         sx={{
           p: 2,
           bgcolor: 'background.paper',
-          borderRadius: 3,
+          borderRadius: 4,
+          border: `1px solid ${alpha(theme.palette.primary.main, 0.16)}`,
           boxShadow: 1,
           animation: 'fadeSlideIn 320ms ease',
           transition: 'box-shadow 220ms ease, transform 220ms ease',
@@ -556,7 +613,7 @@ export function CaseDetailPage() {
         {/* Main Info - Обновлено */}
         <Grid size={{ xs: 12, md: 8 }}>
           {/* Case Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -585,6 +642,18 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
+                    field="case_number"
+                    value={case_.case_number}
+                    label="Номер дела"
+                    editingField={editingField}
+                    editValues={editValues}
+                    onEdit={handleFieldEdit}
+                    onSave={handleFieldSave}
+                    onCancel={handleFieldCancel}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <EditableField
                     field="authority"
                     value={case_.authority}
                     label="Суд/Орган"
@@ -600,6 +669,18 @@ export function CaseDetailPage() {
                     field="object_address"
                     value={case_.object_address}
                     label="Адрес объекта"
+                    editingField={editingField}
+                    editValues={editValues}
+                    onEdit={handleFieldEdit}
+                    onSave={handleFieldSave}
+                    onCancel={handleFieldCancel}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 6 }}>
+                  <EditableField
+                    field="judge_name"
+                    value={case_.judge_name || ''}
+                    label="ФИО судьи"
                     editingField={editingField}
                     editValues={editValues}
                     onEdit={handleFieldEdit}
@@ -655,7 +736,7 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Client Information Card */}
-          <Card sx={{ mb: 3, borderRadius: 2, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '470ms', animationFillMode: 'both' }}>
+          <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', animationDelay: '470ms', animationFillMode: 'both' }}>
             <CardHeader
               title={
                 <Box display="flex" alignItems="center" gap={1.5}>
@@ -1187,7 +1268,6 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Assigned Experts Card */}
-          {assigned_experts.length > 0 && (
             <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
               <CardHeader
                 title={
@@ -1196,42 +1276,114 @@ export function CaseDetailPage() {
                   </Typography>
                 }
               />
-              <CardContent sx={{ p: 0 }}>
-                <List dense sx={{ p: 0 }}>
-                  {assigned_experts.map((expert) => (
-                    <ListItem
-                      key={expert.id}
-                      sx={{
-                        px: 2,
-                        py: 1.5,
-                        borderBottom: '1px solid',
-                        borderColor: 'divider'
+              <CardContent sx={{ pt: 0 }}>
+                {!isEditingExpert ? (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={1.5}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'background.default',
+                      minHeight: 48,
+                      mb: 2,
+                    }}
+                  >
+                    <Typography variant="body1" sx={{ flexGrow: 1, color: selectedExpert ? 'text.primary' : 'text.disabled' }}>
+                      {selectedExpert?.name || '—'}
+                    </Typography>
+                    <Tooltip title="Редактировать">
+                      <IconButton size="small" color="primary" onClick={handleExpertEditStart}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="flex-start"
+                    gap={1.5}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.1)' : 'rgba(79, 144, 255, 0.04)',
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.3)' : 'rgba(79, 144, 255, 0.2)'}`,
+                      mb: 2,
+                    }}
+                  >
+                    <Autocomplete
+                      fullWidth
+                      options={expertSuggestions}
+                      getOptionLabel={(option) => option.name || ''}
+                      value={draftExpert}
+                      inputValue={draftExpertInput}
+                      loading={isExpertSuggestLoading}
+                      filterOptions={(options) => options}
+                      noOptionsText={
+                        draftExpertInput.trim().length === 0
+                          ? 'Начните ввод для поиска...'
+                          : isExpertSuggestLoading
+                          ? 'Поиск...'
+                          : 'Эксперты не найдены'
+                      }
+                      onInputChange={(_e, newInputValue, reason) => {
+                        setDraftExpertInput(newInputValue);
+                        if (reason === 'clear') {
+                          clearExpertSuggestions();
+                        } else if (reason === 'input') {
+                          fetchExpertSuggestions(newInputValue);
+                        }
                       }}
-                    >
-                      <ListItemAvatar>
-                        <Avatar sx={{ bgcolor: 'primary.main', width: 40, height: 40 }}>
-                          <Person fontSize="small" />
-                        </Avatar>
-                      </ListItemAvatar>
-                      <ListItemText
-                        primary={
-                          <Typography variant="body1" fontWeight="medium">
-                            {expert.full_name}
+                      onChange={(_e, value) => {
+                        setDraftExpert(value);
+                        setDraftExpertInput(value?.name ?? '');
+                      }}
+                      isOptionEqualToValue={(option, value) => option.id === value?.id}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.id}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {option.name}
                           </Typography>
-                        }
-                        secondary={
-                          <Typography variant="body2" color="text.secondary" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, mt: 0.5 }}>
-                            <Email fontSize="small" color="action" />
-                            {expert.email}
-                          </Typography>
-                        }
-                      />
-                    </ListItem>
-                  ))}
-                </List>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          label="Назначенный эксперт"
+                          placeholder="Введите имя эксперта..."
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      sx={{ flexGrow: 1 }}
+                    />
+                    <Tooltip title="Сохранить">
+                      <IconButton size="small" color="success" onClick={handleExpertSave}>
+                        <Save fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Отменить">
+                      <IconButton size="small" color="error" onClick={handleExpertEditCancel}>
+                        <Cancel fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                )}
+
+                {!selectedExpert && (
+                  <Typography variant="body2" color="text.secondary">Эксперт пока не назначен.</Typography>
+                )}
               </CardContent>
             </Card>
-          )}
         </Grid>
       </Grid>
 
