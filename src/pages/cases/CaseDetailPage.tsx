@@ -1268,122 +1268,122 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Assigned Experts Card */}
-          <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
-            <CardHeader
-              title={
-                <Typography variant="h6" fontWeight="bold">
-                  Назначенные эксперты ({assigned_experts.length})
-                </Typography>
-              }
-            />
-            <CardContent sx={{ pt: 0 }}>
-              {!isEditingExpert ? (
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  gap={1.5}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: 'background.default',
-                    minHeight: 48,
-                    mb: 2,
-                  }}
-                >
-                  <Typography variant="body1" sx={{ flexGrow: 1, color: selectedExpert ? 'text.primary' : 'text.disabled' }}>
-                    {selectedExpert?.name || '—'}
+            <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
+              <CardHeader
+                title={
+                  <Typography variant="h6" fontWeight="bold">
+                    Назначенные эксперты ({assigned_experts.length})
                   </Typography>
-                  <Tooltip title="Редактировать">
-                    <IconButton size="small" color="primary" onClick={handleExpertEditStart}>
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              ) : (
-                <Box
-                  display="flex"
-                  alignItems="flex-start"
-                  gap={1.5}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.1)' : 'rgba(79, 144, 255, 0.04)',
-                    border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.3)' : 'rgba(79, 144, 255, 0.2)'}`,
-                    mb: 2,
-                  }}
-                >
-                  <Autocomplete
-                    fullWidth
-                    options={expertSuggestions}
-                    getOptionLabel={(option) => option.name || ''}
-                    value={draftExpert}
-                    inputValue={draftExpertInput}
-                    loading={isExpertSuggestLoading}
-                    filterOptions={(options) => options}
-                    noOptionsText={
-                      draftExpertInput.trim().length === 0
-                        ? 'Начните ввод для поиска...'
-                        : isExpertSuggestLoading
-                        ? 'Поиск...'
-                        : 'Эксперты не найдены'
-                    }
-                    onInputChange={(_e, newInputValue, reason) => {
-                      setDraftExpertInput(newInputValue);
-                      if (reason === 'clear') {
-                        clearExpertSuggestions();
-                      } else if (reason === 'input') {
-                        fetchExpertSuggestions(newInputValue);
+                }
+              />
+              <CardContent sx={{ pt: 0 }}>
+                {!isEditingExpert ? (
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    gap={1.5}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: 'background.default',
+                      minHeight: 48,
+                      mb: 2,
+                    }}
+                  >
+                    <Typography variant="body1" sx={{ flexGrow: 1, color: selectedExpert ? 'text.primary' : 'text.disabled' }}>
+                      {selectedExpert?.name || '—'}
+                    </Typography>
+                    <Tooltip title="Редактировать">
+                      <IconButton size="small" color="primary" onClick={handleExpertEditStart}>
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                ) : (
+                  <Box
+                    display="flex"
+                    alignItems="flex-start"
+                    gap={1.5}
+                    sx={{
+                      p: 1.5,
+                      borderRadius: 1,
+                      bgcolor: theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.1)' : 'rgba(79, 144, 255, 0.04)',
+                      border: `1px solid ${theme.palette.mode === 'dark' ? 'rgba(79, 144, 255, 0.3)' : 'rgba(79, 144, 255, 0.2)'}`,
+                      mb: 2,
+                    }}
+                  >
+                    <Autocomplete
+                      fullWidth
+                      options={expertSuggestions}
+                      getOptionLabel={(option) => option.name || ''}
+                      value={draftExpert}
+                      inputValue={draftExpertInput}
+                      loading={isExpertSuggestLoading}
+                      filterOptions={(options) => options}
+                      noOptionsText={
+                        draftExpertInput.trim().length === 0
+                          ? 'Начните ввод для поиска...'
+                          : isExpertSuggestLoading
+                          ? 'Поиск...'
+                          : 'Эксперты не найдены'
                       }
-                    }}
-                    onChange={(_e, value) => {
-                      setDraftExpert(value);
-                      setDraftExpertInput(value?.name ?? '');
-                    }}
-                    isOptionEqualToValue={(option, value) => option.id === value?.id}
-                    renderOption={(props, option) => (
-                      <li {...props} key={option.id}>
-                        <Typography variant="body2" fontWeight={500}>
-                          {option.name}
-                        </Typography>
-                      </li>
-                    )}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        size="small"
-                        label="Назначенный эксперт"
-                        placeholder="Введите имя эксперта..."
-                        InputProps={{
-                          ...params.InputProps,
-                          endAdornment: (
-                            <>
-                              {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
-                              {params.InputProps.endAdornment}
-                            </>
-                          ),
-                        }}
-                      />
-                    )}
-                    sx={{ flexGrow: 1 }}
-                  />
-                  <Tooltip title="Сохранить">
-                    <IconButton size="small" color="success" onClick={handleExpertSave}>
-                      <Save fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Отменить">
-                    <IconButton size="small" color="error" onClick={handleExpertEditCancel}>
-                      <Cancel fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              )}
+                      onInputChange={(_e, newInputValue, reason) => {
+                        setDraftExpertInput(newInputValue);
+                        if (reason === 'clear') {
+                          clearExpertSuggestions();
+                        } else if (reason === 'input') {
+                          fetchExpertSuggestions(newInputValue);
+                        }
+                      }}
+                      onChange={(_e, value) => {
+                        setDraftExpert(value);
+                        setDraftExpertInput(value?.name ?? '');
+                      }}
+                      isOptionEqualToValue={(option, value) => option.id === value?.id}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.id}>
+                          <Typography variant="body2" fontWeight={500}>
+                            {option.name}
+                          </Typography>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField
+                          {...params}
+                          size="small"
+                          label="Назначенный эксперт"
+                          placeholder="Введите имя эксперта..."
+                          InputProps={{
+                            ...params.InputProps,
+                            endAdornment: (
+                              <>
+                                {isExpertSuggestLoading ? <CircularProgress size={18} color="inherit" /> : null}
+                                {params.InputProps.endAdornment}
+                              </>
+                            ),
+                          }}
+                        />
+                      )}
+                      sx={{ flexGrow: 1 }}
+                    />
+                    <Tooltip title="Сохранить">
+                      <IconButton size="small" color="success" onClick={handleExpertSave}>
+                        <Save fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Отменить">
+                      <IconButton size="small" color="error" onClick={handleExpertEditCancel}>
+                        <Cancel fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </Box>
+                )}
 
-              {!selectedExpert && (
-                <Typography variant="body2" color="text.secondary">Эксперт пока не назначен.</Typography>
-              )}
-            </CardContent>
-          </Card>
+                {!selectedExpert && (
+                  <Typography variant="body2" color="text.secondary">Эксперт пока не назначен.</Typography>
+                )}
+              </CardContent>
+            </Card>
         </Grid>
       </Grid>
 
