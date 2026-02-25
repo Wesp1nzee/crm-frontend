@@ -54,13 +54,9 @@ const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
 };
 
 
-// ── Component ────────────────────────────────────────────────────────────────
-
 export function CaseListPage() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-
-  // ── Filters ──────────────────────────────────────────────────────────────
   const [filters, setFilters] = useState<GetCasesQuery>({
     page: 1,
     limit: 20,
@@ -68,7 +64,6 @@ export function CaseListPage() {
     sort_order: 'desc',
   });
 
-  // Читаем параметры из URL при загрузке
   useEffect(() => {
     const clientId = searchParams.get('client');
     if (clientId) {

@@ -1,7 +1,6 @@
 import {
   Box,
   Typography,
-  Paper,
   Grid,
   CircularProgress,
   FormControl,
@@ -285,28 +284,27 @@ export function CaseDetailPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
-  const [expertInputValue, setExpertInputValue] = useState('');
   const [isEditingExpert, setIsEditingExpert] = useState(false);
   const [draftExpert, setDraftExpert] = useState<{ id: string; name: string } | null>(null);
   const [draftExpertInput, setDraftExpertInput] = useState('');
   const { suggestions: expertSuggestions, isLoading: isExpertSuggestLoading, fetchSuggestions: fetchExpertSuggestions, clearSuggestions: clearExpertSuggestions } = useExpertsSuggest();
 
   useEffect(() => {
-    if (caseData) {
-      setStatus(caseData.case.status);
-      const currentExpert = caseData.assigned_experts?.[0];
-      if (currentExpert) {
-        const expertOption = { id: currentExpert.id, name: currentExpert.full_name };
-        setSelectedExpert(expertOption);
-        setExpertInputValue(currentExpert.full_name);
-        setDraftExpert(expertOption);
-        setDraftExpertInput(currentExpert.full_name);
-      } else {
-        setSelectedExpert(null);
-        setExpertInputValue('');
-        setDraftExpert(null);
-        setDraftExpertInput('');
-      }
+  if (!caseData) return;
+
+    setStatus(prev => prev !== caseData.case.status ? caseData.case.status : prev);
+
+    const currentExpert = caseData.assigned_experts?.[0];
+    if (currentExpert) {
+      const expertOption = { id: currentExpert.id, name: currentExpert.full_name };
+      
+      setSelectedExpert(prev => prev?.id !== expertOption.id ? expertOption : prev);
+      setDraftExpert(prev => prev?.id !== expertOption.id ? expertOption : prev);
+      setDraftExpertInput(prev => prev !== currentExpert.full_name ? currentExpert.full_name : prev);
+    } else {
+      setSelectedExpert(prev => prev !== null ? null : prev);
+      setDraftExpert(prev => prev !== null ? null : prev);
+      setDraftExpertInput(prev => prev !== '' ? '' : prev);
     }
   }, [caseData]);
 
@@ -407,7 +405,7 @@ export function CaseDetailPage() {
     }
 
     setSelectedExpert(draftExpert);
-    setExpertInputValue(draftExpert?.name ?? '');
+    setDraftExpertInput(draftExpert?.name ?? '');
     setIsEditingExpert(false);
     patchCase.mutate({ id: case_.id, data: { assigned_user_id: nextExpertId } });
   };
@@ -420,7 +418,8 @@ export function CaseDetailPage() {
   const handleFieldSave = (field: string) => {
     const value = editValues[field];
     if (value !== undefined) {
-      let updateData: any = { [field]: value };
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const updateData: any = { [field]: value };
       // Auto-calculate remaining debt for financial fields
       if (['cost', 'bank_transfer_amount', 'cash_amount'].includes(field)) {
         const cost = field === 'cost' ? Number(value) : costNum;
@@ -855,21 +854,17 @@ export function CaseDetailPage() {
                           borderColor: 'divider'
                         }}
                       >
-                        <ListItemAvatar>
-                          <Avatar sx={{ width: 40, height: 40, bgcolor: 'primary.main' }}>
-                            <Person fontSize="small" />
-                          </Avatar>
-                        </ListItemAvatar>
                         <ListItemText
                           primary={
                             <Typography variant="body1" fontWeight="medium">
                               {contact.name}
                             </Typography>
                           }
+                          disableTypography 
                           secondary={
-                            <Box>
+                            <Box component="div" sx={{ mt: 0.5 }}>
                               {contact.position && (
-                                <Typography variant="body2" color="text.secondary">
+                                <Typography variant="body2" color="text.secondary" display="block">
                                   {contact.position}
                                 </Typography>
                               )}
@@ -992,8 +987,9 @@ export function CaseDetailPage() {
                               {doc.title}
                             </Typography>
                           }
+                          disableTypography 
                           secondary={
-                            <Box sx={{ mt: 0.5 }}>
+                            <Box component="div" sx={{ mt: 0.5 }}>
                               <Typography variant="caption" color="text.secondary" display="block">
                                 {doc.original_filename} • {formatFileSize(doc.file_size)}
                               </Typography>
@@ -1002,7 +998,14 @@ export function CaseDetailPage() {
                                 {doc.uploaded_by && ` • ${doc.uploaded_by.full_name}`}
                               </Typography>
                               {doc.folder && (
-                                <Typography variant="caption" color="text.secondary" display="flex" alignItems="center" gap={0.5} sx={{ mt: 0.5 }}>
+                                <Typography 
+                                  variant="caption" 
+                                  color="text.secondary" 
+                                  display="flex" 
+                                  alignItems="center" 
+                                  gap={0.5} 
+                                  sx={{ mt: 0.5 }}
+                                >
                                   <Folder fontSize="small" />
                                   Папка: {doc.folder.name}
                                 </Typography>
@@ -1120,8 +1123,6 @@ export function CaseDetailPage() {
             </Card>
           )}
         </Grid>
-
-        {/* Sidebar - Обновлено */}
         <Grid size={{ xs: 12, md: 4 }}>
           <Card
             sx={{
