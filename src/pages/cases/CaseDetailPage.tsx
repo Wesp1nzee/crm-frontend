@@ -361,7 +361,7 @@ export function CaseDetailPage() {
     );
   }
 
-  const { case: case_, client, assigned_experts, documents, events } = caseData;
+  const { case: case_, client, assigned_experts, documents, folders, events } = caseData;
   const isOverdue = dayjs(case_.deadline).isBefore(dayjs(), 'day');
   const isCompleted = case_.status === 'executed' || case_.status === 'archive';
   const hasCompletionDate = !!case_.completion_date;
@@ -907,7 +907,7 @@ export function CaseDetailPage() {
                 <Box display="flex" alignItems="center" gap={1.5}>
                   <Description sx={{ color: theme.palette.primary.main }} />
                   <Typography variant="h6" fontWeight="bold">
-                    Документы ({documents.length})
+                    Файлы дела ({folders.length + documents.length})
                   </Typography>
                 </Box>
               }
@@ -935,14 +935,14 @@ export function CaseDetailPage() {
               sx={{ pb: 0 }}
             />
               <CardContent sx={{ p: 0 }}>
-                {documents.length === 0 ? (
+                {folders.length === 0 && documents.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: 'center' }}>
                     <Description sx={{ fontSize: 48, color: 'action.disabled', mb: 2 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                      Нет документов
+                      Нет файлов
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Загрузите первые документы по этому делу
+                      Добавьте папки или загрузите первые документы по этому делу
                     </Typography>
                     <Button
                       variant="outlined"
@@ -954,6 +954,46 @@ export function CaseDetailPage() {
                   </Box>
                 ) : (
                   <List sx={{ p: 0 }}>
+                    {folders.map((folder) => (
+                      <ListItem
+                        key={`folder-${folder.id}`}
+                        divider
+                        sx={{
+                          px: 2,
+                          py: 1.5,
+                          '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.08)'
+                              : 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar
+                            sx={{
+                              bgcolor: alpha(theme.palette.warning.main, 0.18),
+                              color: theme.palette.warning.main,
+                              width: 44,
+                              height: 44
+                            }}
+                          >
+                            <Folder />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body1" fontWeight="medium">
+                              {folder.name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                              Папка • ID: {folder.id}
+                            </Typography>
+                          }
+                        />
+                      </ListItem>
+                    ))}
                     {documents.map((doc) => (
                       <ListItem
                         key={doc.id}
@@ -987,7 +1027,7 @@ export function CaseDetailPage() {
                               {doc.title}
                             </Typography>
                           }
-                          disableTypography 
+                          disableTypography
                           secondary={
                             <Box component="div" sx={{ mt: 0.5 }}>
                               <Typography variant="caption" color="text.secondary" display="block">
@@ -998,12 +1038,12 @@ export function CaseDetailPage() {
                                 {doc.uploaded_by && ` • ${doc.uploaded_by.full_name}`}
                               </Typography>
                               {doc.folder && (
-                                <Typography 
-                                  variant="caption" 
-                                  color="text.secondary" 
-                                  display="flex" 
-                                  alignItems="center" 
-                                  gap={0.5} 
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={0.5}
                                   sx={{ mt: 0.5 }}
                                 >
                                   <Folder fontSize="small" />
@@ -1015,8 +1055,8 @@ export function CaseDetailPage() {
                         />
                         <Box display="flex" gap={0.5}>
                           <Tooltip title="Просмотр">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="primary"
                               onClick={() => handlePreview(doc.id)}
                             >
@@ -1024,8 +1064,8 @@ export function CaseDetailPage() {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Скачать">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="success"
                               onClick={() => handleDownload(doc.id)}
                             >
