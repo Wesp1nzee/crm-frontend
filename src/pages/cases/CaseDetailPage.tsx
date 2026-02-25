@@ -55,10 +55,10 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useCase, usePatchCase } from '../../shared/hooks/useCases';
-import { useUploadDocument, useDownloadDocument, usePreviewDocument } from '../../shared/hooks/useDocuments';
+import { useUploadDocument, useDownloadDocument, usePreviewDocument, useCreateFolder } from '../../shared/hooks/useDocuments';
 import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../../shared/services/notifications';
 import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
 
@@ -124,6 +124,37 @@ const getFileTypeColor = (filename: string) => {
       return 'default';
   }
 };
+
+interface FileWithRelativePath extends File {
+  webkitRelativePath: string;
+}
+
+interface FileSystemEntryWebkit {
+  isFile: boolean;
+  isDirectory: boolean;
+  fullPath: string;
+  name: string;
+}
+
+interface FileSystemFileEntryWebkit extends FileSystemEntryWebkit {
+  file: (successCallback: (file: File) => void, errorCallback?: (error: DOMException) => void) => void;
+}
+
+interface FileSystemDirectoryReaderWebkit {
+  readEntries: (
+    successCallback: (entries: FileSystemEntryWebkit[]) => void,
+    errorCallback?: (error: DOMException) => void
+  ) => void;
+}
+
+interface FileSystemDirectoryEntryWebkit extends FileSystemEntryWebkit {
+  createReader: () => FileSystemDirectoryReaderWebkit;
+}
+
+interface DataTransferItemWithEntry extends DataTransferItem {
+  webkitGetAsEntry?: () => FileSystemEntryWebkit | null;
+}
+
 
 interface EditableFieldProps {
   field: string;
@@ -271,18 +302,23 @@ export function CaseDetailPage() {
   const { data: caseData, isLoading, error, refetch } = useCase(id!);
   const patchCase = usePatchCase();
   const uploadDocument = useUploadDocument();
+  const createFolder = useCreateFolder();
   const downloadDocument = useDownloadDocument();
   const previewDocument = usePreviewDocument();
   const downloadCaseDocuments = useDownloadCaseDocuments();
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
   const [status, setStatus] = useState<CaseStatus>();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [isFolderUploadInProgress, setIsFolderUploadInProgress] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
   const [isEditingExpert, setIsEditingExpert] = useState(false);
   const [draftExpert, setDraftExpert] = useState<{ id: string; name: string } | null>(null);
@@ -320,6 +356,129 @@ export function CaseDetailPage() {
     }
   }, [patchCase.isError]);
 
+  const case_ = caseData?.case;
+  const client = caseData?.client;
+  const assigned_experts = caseData?.assigned_experts ?? [];
+  const documents = caseData?.documents ?? [];
+  const folders = caseData?.folders ?? [];
+  const events = caseData?.events ?? [];
+
+  const costNum = Number(case_?.cost) || 0;
+  const bankNum = Number(case_?.bank_transfer_amount) || 0;
+  const cashNum = Number(case_?.cash_amount) || 0;
+  const remainingDebtNum = Number(case_?.remaining_debt) || 0;
+  const totalPaid = bankNum + cashNum;
+  const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
+
+  const uploadFilesAndFolders = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setIsFolderUploadInProgress(true);
+
+    try {
+      const folderPaths = new Set<string>();
+
+      files.forEach((file) => {
+        const relativePath = file.webkitRelativePath || file.name;
+        const pathParts = relativePath.split('/').slice(0, -1);
+
+        for (let i = 1; i <= pathParts.length; i += 1) {
+          folderPaths.add(pathParts.slice(0, i).join('/'));
+        }
+      });
+
+      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+      const folderIdByPath = new Map<string, string>();
+
+      for (const folderPath of sortedFolders) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : null;
+
+        const createdFolder = await createFolder.mutateAsync({
+          name: folderName,
+          parent_id: parentId,
+          case_id: parentId ? null : caseData?.case?.id,
+        });
+
+        folderIdByPath.set(folderPath, createdFolder.id);
+      }
+
+      for (const file of files) {
+        const relativePath = file.webkitRelativePath || file.name;
+        const folderPath = relativePath.split('/').slice(0, -1).join('/');
+        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+
+        await uploadDocument.mutateAsync({
+          file,
+          folder_id: folderId,
+          case_id: folderId ? null : caseData?.case?.id,
+          title: uploadTitle || file.name,
+        });
+      }
+
+      setSelectedFiles([]);
+      setUploadTitle('');
+      setUploadDialogOpen(false);
+      await refetch();
+      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
+    } catch (error) {
+      console.error('Ошибка загрузки файлов и папок:', error);
+      notificationService.error('Ошибка загрузки файлов и папок');
+    } finally {
+      setIsFolderUploadInProgress(false);
+    }
+  }, [caseData?.case?.id, createFolder, refetch, uploadDocument, uploadTitle]);
+
+  useEffect(() => {
+    const handleDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDragActive(true);
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setIsDragActive(true);
+    };
+
+    const handleDragLeave = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsDragActive(false);
+      }
+    };
+
+    const handleDrop = async (event: DragEvent) => {
+      if (!event.dataTransfer) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragActive(false);
+
+      const droppedFiles = await extractDroppedFiles(event.dataTransfer);
+      await uploadFilesAndFolders(droppedFiles);
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [uploadFilesAndFolders]);
+
+  // ─── Ранние return ПОСЛЕ всех хуков ───────────────────────────────────────
   if (isLoading) {
     return (
       <Box
@@ -339,7 +498,7 @@ export function CaseDetailPage() {
     );
   }
 
-  if (error || !caseData) {
+  if (error || !caseData || !case_ || !client) {
     return (
       <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
         <Alert
@@ -361,20 +520,11 @@ export function CaseDetailPage() {
     );
   }
 
-  const { case: case_, client, assigned_experts, documents, events } = caseData;
   const isOverdue = dayjs(case_.deadline).isBefore(dayjs(), 'day');
   const isCompleted = case_.status === 'executed' || case_.status === 'archive';
   const hasCompletionDate = !!case_.completion_date;
   const statusVariant = isOverdue && !isCompleted ? 'error' : statusSeverity[case_.status];
   const bannerAccentColor = theme.palette[statusVariant].main;
-
-  // Calculate payment progress
-  const costNum = Number(case_.cost) || 0;
-  const bankNum = Number(case_.bank_transfer_amount) || 0;
-  const cashNum = Number(case_.cash_amount) || 0;
-  const remainingDebtNum = Number(case_.remaining_debt) || 0;
-  const totalPaid = bankNum + cashNum;
-  const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
 
   const handleStatusUpdate = () => {
     if (status && status !== case_.status) {
@@ -420,7 +570,6 @@ export function CaseDetailPage() {
     if (value !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: any = { [field]: value };
-      // Auto-calculate remaining debt for financial fields
       if (['cost', 'bank_transfer_amount', 'cash_amount'].includes(field)) {
         const cost = field === 'cost' ? Number(value) : costNum;
         const bankAmount = field === 'bank_transfer_amount' ? Number(value) : bankNum;
@@ -444,32 +593,95 @@ export function CaseDetailPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles(files);
-      setUploadDialogOpen(true);
+      setSelectedFiles((prev) => [...prev, ...files]);
     }
+    e.target.value = '';
+  };
+
+  const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...files]);
+    }
+    e.target.value = '';
+  };
+
+  const readDirectoryEntries = (directoryEntry: FileSystemDirectoryEntryWebkit): Promise<FileSystemEntryWebkit[]> => {
+    const reader = directoryEntry.createReader();
+
+    return new Promise((resolve, reject) => {
+      const entries: FileSystemEntryWebkit[] = [];
+
+      const readChunk = () => {
+        reader.readEntries(
+          (chunk) => {
+            if (chunk.length === 0) {
+              resolve(entries);
+              return;
+            }
+
+            entries.push(...chunk);
+            readChunk();
+          },
+          (error) => reject(error)
+        );
+      };
+
+      readChunk();
+    });
+  };
+
+  const walkEntryRecursively = async (entry: FileSystemEntryWebkit): Promise<FileWithRelativePath[]> => {
+    if (entry.isFile) {
+      return new Promise((resolve, reject) => {
+        (entry as FileSystemFileEntryWebkit).file(
+          (file) => {
+            const relativePath = entry.fullPath.startsWith('/') ? entry.fullPath.slice(1) : entry.fullPath;
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: relativePath,
+              configurable: true,
+            });
+            resolve([file as FileWithRelativePath]);
+          },
+          (error) => reject(error)
+        );
+      });
+    }
+
+    if (entry.isDirectory) {
+      const childEntries = await readDirectoryEntries(entry as FileSystemDirectoryEntryWebkit);
+      const nestedFiles = await Promise.all(childEntries.map((child) => walkEntryRecursively(child)));
+      return nestedFiles.flat();
+    }
+
+    return [];
+  };
+
+  const extractDroppedFiles = async (dataTransfer: DataTransfer): Promise<FileWithRelativePath[]> => {
+    const items = Array.from(dataTransfer.items || []);
+
+    if (items.length > 0) {
+      const fileGroups = await Promise.all(items.map(async (item) => {
+        const itemWithEntry = item as DataTransferItemWithEntry;
+        const entry = itemWithEntry.webkitGetAsEntry?.();
+
+        if (entry) {
+          return walkEntryRecursively(entry);
+        }
+
+        const file = item.getAsFile();
+        if (!file) return [];
+        return [file as FileWithRelativePath];
+      }));
+
+      return fileGroups.flat();
+    }
+
+    return Array.from(dataTransfer.files || []) as FileWithRelativePath[];
   };
 
   const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-
-    try {
-      for (const file of selectedFiles) {
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: null,
-          case_id: case_.id,
-          title: uploadTitle || file.name,
-        });
-      }
-      setUploadDialogOpen(false);
-      setSelectedFiles([]);
-      setUploadTitle('');
-      refetch();
-      notificationService.success('Файлы успешно загружены');
-    } catch (error) {
-      console.error('Ошибка загрузки файлов:', error);
-      notificationService.error('Ошибка загрузки файлов');
-    }
+    await uploadFilesAndFolders(selectedFiles);
   };
 
   const handleDownload = (documentId: string) => {
@@ -609,7 +821,7 @@ export function CaseDetailPage() {
       </Alert>
 
       <Grid container spacing={3}>
-        {/* Main Info - Обновлено */}
+        {/* Main Info */}
         <Grid size={{ xs: 12, md: 8 }}>
           {/* Case Information Card */}
           <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
@@ -626,7 +838,6 @@ export function CaseDetailPage() {
             />
             <CardContent sx={{ p: 4 }}>
               <Grid container spacing={2.5}>
-                {/* Обновлены все Grid items в этой секции */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
                     field="number"
@@ -776,7 +987,6 @@ export function CaseDetailPage() {
                 </Box>
               </Box>
               <Grid container spacing={2.5}>
-                {/* Обновлены все Grid items в этой секции */}
                 {client.inn && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
@@ -907,17 +1117,17 @@ export function CaseDetailPage() {
                 <Box display="flex" alignItems="center" gap={1.5}>
                   <Description sx={{ color: theme.palette.primary.main }} />
                   <Typography variant="h6" fontWeight="bold">
-                    Документы ({documents.length})
+                    Файлы дела ({folders.length + documents.length})
                   </Typography>
                 </Box>
               }
               action={
                 <Box display="flex" gap={1}>
                   <Tooltip title="Загрузить файлы">
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       color="primary"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => setUploadDialogOpen(true)}
                     >
                       <Upload />
                     </IconButton>
@@ -935,25 +1145,65 @@ export function CaseDetailPage() {
               sx={{ pb: 0 }}
             />
               <CardContent sx={{ p: 0 }}>
-                {documents.length === 0 ? (
+                {folders.length === 0 && documents.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: 'center' }}>
                     <Description sx={{ fontSize: 48, color: 'action.disabled', mb: 2 }} />
                     <Typography variant="h6" color="text.secondary" gutterBottom>
-                      Нет документов
+                      Нет файлов
                     </Typography>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                      Загрузите первые документы по этому делу
+                      Добавьте папки или загрузите первые документы по этому делу
                     </Typography>
                     <Button
                       variant="outlined"
                       startIcon={<Upload />}
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => setUploadDialogOpen(true)}
                     >
                       Загрузить файлы
                     </Button>
                   </Box>
                 ) : (
                   <List sx={{ p: 0 }}>
+                    {folders.map((folder) => (
+                      <ListItem
+                        key={`folder-${folder.id}`}
+                        divider
+                        sx={{
+                          px: 2,
+                          py: 1.5,
+                          '&:hover': {
+                            bgcolor: theme.palette.mode === 'dark'
+                              ? 'rgba(255, 255, 255, 0.08)'
+                              : 'rgba(0, 0, 0, 0.04)'
+                          }
+                        }}
+                      >
+                        <ListItemAvatar>
+                          <Avatar
+                            sx={{
+                              bgcolor: alpha(theme.palette.warning.main, 0.18),
+                              color: theme.palette.warning.main,
+                              width: 44,
+                              height: 44
+                            }}
+                          >
+                            <Folder />
+                          </Avatar>
+                        </ListItemAvatar>
+                        <ListItemText
+                          primary={
+                            <Typography variant="body1" fontWeight="medium">
+                              {folder.name}
+                            </Typography>
+                          }
+                          secondary={
+                            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: 'block' }}>
+                              Папка • ID: {folder.id}
+                            </Typography>
+                          }
+                        />
+                      </ListItem>
+                    ))}
                     {documents.map((doc) => (
                       <ListItem
                         key={doc.id}
@@ -987,7 +1237,7 @@ export function CaseDetailPage() {
                               {doc.title}
                             </Typography>
                           }
-                          disableTypography 
+                          disableTypography
                           secondary={
                             <Box component="div" sx={{ mt: 0.5 }}>
                               <Typography variant="caption" color="text.secondary" display="block">
@@ -998,12 +1248,12 @@ export function CaseDetailPage() {
                                 {doc.uploaded_by && ` • ${doc.uploaded_by.full_name}`}
                               </Typography>
                               {doc.folder && (
-                                <Typography 
-                                  variant="caption" 
-                                  color="text.secondary" 
-                                  display="flex" 
-                                  alignItems="center" 
-                                  gap={0.5} 
+                                <Typography
+                                  variant="caption"
+                                  color="text.secondary"
+                                  display="flex"
+                                  alignItems="center"
+                                  gap={0.5}
                                   sx={{ mt: 0.5 }}
                                 >
                                   <Folder fontSize="small" />
@@ -1015,8 +1265,8 @@ export function CaseDetailPage() {
                         />
                         <Box display="flex" gap={0.5}>
                           <Tooltip title="Просмотр">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="primary"
                               onClick={() => handlePreview(doc.id)}
                             >
@@ -1024,8 +1274,8 @@ export function CaseDetailPage() {
                             </IconButton>
                           </Tooltip>
                           <Tooltip title="Скачать">
-                            <IconButton 
-                              size="small" 
+                            <IconButton
+                              size="small"
                               color="success"
                               onClick={() => handleDownload(doc.id)}
                             >
@@ -1389,6 +1639,26 @@ export function CaseDetailPage() {
       </Grid>
 
 
+      {isDragActive && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: theme.zIndex.modal + 1,
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            border: `2px dashed ${theme.palette.primary.main}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" color="primary">
+            Отпустите, чтобы загрузить файлы или папку
+          </Typography>
+        </Box>
+      )}
+
       {/* Hidden file input */}
       <input
         type="file"
@@ -1396,6 +1666,14 @@ export function CaseDetailPage() {
         ref={fileInputRef}
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
+      />
+      <input
+        type="file"
+        multiple
+        ref={folderInputRef}
+        onChange={handleFolderInputChange}
+        style={{ display: 'none' }}
+        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
       />
 
       {/* Upload Dialog */}
@@ -1409,13 +1687,21 @@ export function CaseDetailPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Загрузить файлы к делу</DialogTitle>
+        <DialogTitle>Загрузка файлов и папок</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
+                Выбрать файлы
+              </Button>
+              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
+                Выбрать папку
+              </Button>
+            </Box>
             {selectedFiles.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Выбранные файлы ({selectedFiles.length}):
+                  Выбранные элементы ({selectedFiles.length}):
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                   {selectedFiles.map((file, index) => (
@@ -1454,12 +1740,12 @@ export function CaseDetailPage() {
           <Button
             variant="contained"
             onClick={handleUpload}
-            disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            disabled={selectedFiles.length === 0 || isFolderUploadInProgress || uploadDocument.isPending || createFolder.isPending}
           >
-            {uploadDocument.isPending ? (
+            {isFolderUploadInProgress || uploadDocument.isPending || createFolder.isPending ? (
               <CircularProgress size={20} />
             ) : (
-              `Загрузить ${selectedFiles.length} файл(ов)`
+              `Загрузить ${selectedFiles.length} элемент(ов)`
             )}
           </Button>
         </DialogActions>

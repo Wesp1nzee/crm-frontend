@@ -90,6 +90,11 @@ export interface CaseDetailResponse {
       full_name: string;
     };
   }[];
+  folders: {
+    id: string;
+    name: string;
+    parent_id?: string;
+  }[];
   events: {
     id: string;
     subject: string;
