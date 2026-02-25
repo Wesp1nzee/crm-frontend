@@ -55,7 +55,7 @@ import {
 import { useParams, useNavigate } from 'react-router-dom';
 import dayjs from 'dayjs';
 import { useCase, usePatchCase } from '../../shared/hooks/useCases';
-import { useUploadDocument, useDownloadDocument, usePreviewDocument } from '../../shared/hooks/useDocuments';
+import { useUploadDocument, useDownloadDocument, usePreviewDocument, useCreateFolder } from '../../shared/hooks/useDocuments';
 import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
 import { useState, useEffect, useRef } from 'react';
@@ -271,18 +271,21 @@ export function CaseDetailPage() {
   const { data: caseData, isLoading, error, refetch } = useCase(id!);
   const patchCase = usePatchCase();
   const uploadDocument = useUploadDocument();
+  const createFolder = useCreateFolder();
   const downloadDocument = useDownloadDocument();
   const previewDocument = usePreviewDocument();
   const downloadCaseDocuments = useDownloadCaseDocuments();
   const theme = useTheme();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  
+  const folderInputRef = useRef<HTMLInputElement>(null);
+
   const [status, setStatus] = useState<CaseStatus>();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
+  const [isFolderUploadInProgress, setIsFolderUploadInProgress] = useState(false);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
   const [isEditingExpert, setIsEditingExpert] = useState(false);
   const [draftExpert, setDraftExpert] = useState<{ id: string; name: string } | null>(null);
@@ -319,6 +322,13 @@ export function CaseDetailPage() {
       notificationService.error('Ошибка при сохранении изменений');
     }
   }, [patchCase.isError]);
+
+  useEffect(() => {
+    if (!folderInputRef.current) return;
+
+    folderInputRef.current.setAttribute('webkitdirectory', '');
+    folderInputRef.current.setAttribute('directory', '');
+  }, []);
 
   if (isLoading) {
     return (
@@ -447,6 +457,77 @@ export function CaseDetailPage() {
       setSelectedFiles(files);
       setUploadDialogOpen(true);
     }
+
+    e.target.value = '';
+  };
+
+  const handleFolderUpload = async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setIsFolderUploadInProgress(true);
+
+    try {
+      const folderPaths = new Set<string>();
+
+      files.forEach((file) => {
+        const relativePath = file.webkitRelativePath || file.name;
+        const pathParts = relativePath.split('/').slice(0, -1);
+
+        for (let i = 1; i <= pathParts.length; i += 1) {
+          folderPaths.add(pathParts.slice(0, i).join('/'));
+        }
+      });
+
+      const sortedFolders = Array.from(folderPaths).sort(
+        (a, b) => a.split('/').length - b.split('/').length
+      );
+      const folderIdByPath = new Map<string, string>();
+
+      for (const folderPath of sortedFolders) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : null;
+
+        const createdFolder = await createFolder.mutateAsync({
+          name: folderName,
+          parent_id: parentId,
+          case_id: parentId ? null : case_.id,
+        });
+
+        folderIdByPath.set(folderPath, createdFolder.id);
+      }
+
+      for (const file of files) {
+        const relativePath = file.webkitRelativePath || file.name;
+        const folderPath = relativePath.split('/').slice(0, -1).join('/');
+        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+
+        await uploadDocument.mutateAsync({
+          file,
+          folder_id: folderId,
+          case_id: folderId ? null : case_.id,
+          title: file.name,
+        });
+      }
+
+      await refetch();
+      notificationService.success(`Папка загружена: ${sortedFolders.length} папок и ${files.length} файлов`);
+    } catch (error) {
+      console.error('Ошибка загрузки папки:', error);
+      notificationService.error('Ошибка загрузки папки');
+    } finally {
+      setIsFolderUploadInProgress(false);
+    }
+  };
+
+  const handleFolderInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      await handleFolderUpload(files);
+    }
+
+    e.target.value = '';
   };
 
   const handleUpload = async () => {
@@ -914,13 +995,25 @@ export function CaseDetailPage() {
               action={
                 <Box display="flex" gap={1}>
                   <Tooltip title="Загрузить файлы">
-                    <IconButton 
-                      size="small" 
+                    <IconButton
+                      size="small"
                       color="primary"
                       onClick={() => fileInputRef.current?.click()}
                     >
                       <Upload />
                     </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Загрузить папку">
+                    <span>
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => folderInputRef.current?.click()}
+                        disabled={isFolderUploadInProgress || createFolder.isPending || uploadDocument.isPending}
+                      >
+                        {isFolderUploadInProgress ? <CircularProgress size={18} /> : <Folder />}
+                      </IconButton>
+                    </span>
                   </Tooltip>
                   <Tooltip title="Скачать все документы">
                     <IconButton 
@@ -1435,6 +1528,13 @@ export function CaseDetailPage() {
         multiple
         ref={fileInputRef}
         onChange={handleFileInputChange}
+        style={{ display: 'none' }}
+      />
+      <input
+        type="file"
+        multiple
+        ref={folderInputRef}
+        onChange={handleFolderInputChange}
         style={{ display: 'none' }}
       />
 

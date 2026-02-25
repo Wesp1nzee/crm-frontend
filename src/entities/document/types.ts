@@ -8,12 +8,14 @@ export interface FolderBase {
 export interface FolderCreate {
   name: string;
   parent_id: string | null;
+  case_id?: string | null;
 }
 
 export interface FolderResponse {
   id: string;
   name: string;
   parent_id: string | null;
+  case_id: string | null;
   created_by_id: string | null;
   created_at: string;
 }
