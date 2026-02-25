@@ -58,7 +58,7 @@ import { useCase, usePatchCase } from '../../shared/hooks/useCases';
 import { useUploadDocument, useDownloadDocument, usePreviewDocument, useCreateFolder } from '../../shared/hooks/useDocuments';
 import { useDownloadCaseDocuments } from '../../shared/hooks/useCases';
 import type { CaseStatus } from '../../entities/case/types';
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { notificationService } from '../../shared/services/notifications';
 import { useExpertsSuggest } from '../../shared/hooks/useExpertsSuggest';
 
@@ -124,6 +124,37 @@ const getFileTypeColor = (filename: string) => {
       return 'default';
   }
 };
+
+interface FileWithRelativePath extends File {
+  webkitRelativePath: string;
+}
+
+interface FileSystemEntryWebkit {
+  isFile: boolean;
+  isDirectory: boolean;
+  fullPath: string;
+  name: string;
+}
+
+interface FileSystemFileEntryWebkit extends FileSystemEntryWebkit {
+  file: (successCallback: (file: File) => void, errorCallback?: (error: DOMException) => void) => void;
+}
+
+interface FileSystemDirectoryReaderWebkit {
+  readEntries: (
+    successCallback: (entries: FileSystemEntryWebkit[]) => void,
+    errorCallback?: (error: DOMException) => void
+  ) => void;
+}
+
+interface FileSystemDirectoryEntryWebkit extends FileSystemEntryWebkit {
+  createReader: () => FileSystemDirectoryReaderWebkit;
+}
+
+interface DataTransferItemWithEntry extends DataTransferItem {
+  webkitGetAsEntry?: () => FileSystemEntryWebkit | null;
+}
+
 
 interface EditableFieldProps {
   field: string;
@@ -286,6 +317,8 @@ export function CaseDetailPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
   const [isFolderUploadInProgress, setIsFolderUploadInProgress] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const dragDepthRef = useRef(0);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
   const [isEditingExpert, setIsEditingExpert] = useState(false);
   const [draftExpert, setDraftExpert] = useState<{ id: string; name: string } | null>(null);
@@ -323,12 +356,6 @@ export function CaseDetailPage() {
     }
   }, [patchCase.isError]);
 
-  useEffect(() => {
-    if (!folderInputRef.current) return;
-
-    folderInputRef.current.setAttribute('webkitdirectory', '');
-    folderInputRef.current.setAttribute('directory', '');
-  }, []);
 
   if (isLoading) {
     return (
@@ -454,14 +481,96 @@ export function CaseDetailPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles(files);
-      setUploadDialogOpen(true);
+      setSelectedFiles((prev) => [...prev, ...files]);
     }
 
     e.target.value = '';
   };
 
-  const handleFolderUpload = async (files: File[]) => {
+  const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles((prev) => [...prev, ...files]);
+    }
+
+    e.target.value = '';
+  };
+
+  const readDirectoryEntries = (directoryEntry: FileSystemDirectoryEntryWebkit): Promise<FileSystemEntryWebkit[]> => {
+    const reader = directoryEntry.createReader();
+
+    return new Promise((resolve, reject) => {
+      const entries: FileSystemEntryWebkit[] = [];
+
+      const readChunk = () => {
+        reader.readEntries(
+          (chunk) => {
+            if (chunk.length === 0) {
+              resolve(entries);
+              return;
+            }
+
+            entries.push(...chunk);
+            readChunk();
+          },
+          (error) => reject(error)
+        );
+      };
+
+      readChunk();
+    });
+  };
+
+  const walkEntryRecursively = async (entry: FileSystemEntryWebkit): Promise<FileWithRelativePath[]> => {
+    if (entry.isFile) {
+      return new Promise((resolve, reject) => {
+        (entry as FileSystemFileEntryWebkit).file(
+          (file) => {
+            const relativePath = entry.fullPath.startsWith('/') ? entry.fullPath.slice(1) : entry.fullPath;
+            Object.defineProperty(file, 'webkitRelativePath', {
+              value: relativePath,
+              configurable: true,
+            });
+            resolve([file as FileWithRelativePath]);
+          },
+          (error) => reject(error)
+        );
+      });
+    }
+
+    if (entry.isDirectory) {
+      const childEntries = await readDirectoryEntries(entry as FileSystemDirectoryEntryWebkit);
+      const nestedFiles = await Promise.all(childEntries.map((child) => walkEntryRecursively(child)));
+      return nestedFiles.flat();
+    }
+
+    return [];
+  };
+
+  const extractDroppedFiles = async (dataTransfer: DataTransfer): Promise<FileWithRelativePath[]> => {
+    const items = Array.from(dataTransfer.items || []);
+
+    if (items.length > 0) {
+      const fileGroups = await Promise.all(items.map(async (item) => {
+        const itemWithEntry = item as DataTransferItemWithEntry;
+        const entry = itemWithEntry.webkitGetAsEntry?.();
+
+        if (entry) {
+          return walkEntryRecursively(entry);
+        }
+
+        const file = item.getAsFile();
+        if (!file) return [];
+        return [file as FileWithRelativePath];
+      }));
+
+      return fileGroups.flat();
+    }
+
+    return Array.from(dataTransfer.files || []) as FileWithRelativePath[];
+  };
+
+  const uploadFilesAndFolders = useCallback(async (files: File[]) => {
     if (files.length === 0) return;
 
     setIsFolderUploadInProgress(true);
@@ -478,9 +587,7 @@ export function CaseDetailPage() {
         }
       });
 
-      const sortedFolders = Array.from(folderPaths).sort(
-        (a, b) => a.split('/').length - b.split('/').length
-      );
+      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
       const folderIdByPath = new Map<string, string>();
 
       for (const folderPath of sortedFolders) {
@@ -507,51 +614,73 @@ export function CaseDetailPage() {
           file,
           folder_id: folderId,
           case_id: folderId ? null : case_.id,
-          title: file.name,
-        });
-      }
-
-      await refetch();
-      notificationService.success(`Папка загружена: ${sortedFolders.length} папок и ${files.length} файлов`);
-    } catch (error) {
-      console.error('Ошибка загрузки папки:', error);
-      notificationService.error('Ошибка загрузки папки');
-    } finally {
-      setIsFolderUploadInProgress(false);
-    }
-  };
-
-  const handleFolderInputChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files.length > 0) {
-      const files = Array.from(e.target.files);
-      await handleFolderUpload(files);
-    }
-
-    e.target.value = '';
-  };
-
-  const handleUpload = async () => {
-    if (selectedFiles.length === 0) return;
-
-    try {
-      for (const file of selectedFiles) {
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: null,
-          case_id: case_.id,
           title: uploadTitle || file.name,
         });
       }
-      setUploadDialogOpen(false);
+
       setSelectedFiles([]);
       setUploadTitle('');
-      refetch();
-      notificationService.success('Файлы успешно загружены');
+      setUploadDialogOpen(false);
+      await refetch();
+      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
     } catch (error) {
-      console.error('Ошибка загрузки файлов:', error);
-      notificationService.error('Ошибка загрузки файлов');
+      console.error('Ошибка загрузки файлов и папок:', error);
+      notificationService.error('Ошибка загрузки файлов и папок');
+    } finally {
+      setIsFolderUploadInProgress(false);
     }
+  }, [case_.id, createFolder, refetch, uploadDocument, uploadTitle]);
+
+  const handleUpload = async () => {
+    await uploadFilesAndFolders(selectedFiles);
   };
+
+  useEffect(() => {
+    const handleDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDragActive(true);
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setIsDragActive(true);
+    };
+
+    const handleDragLeave = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsDragActive(false);
+      }
+    };
+
+    const handleDrop = async (event: DragEvent) => {
+      if (!event.dataTransfer) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragActive(false);
+
+      const droppedFiles = await extractDroppedFiles(event.dataTransfer);
+      await uploadFilesAndFolders(droppedFiles);
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [uploadFilesAndFolders]);
 
   const handleDownload = (documentId: string) => {
     downloadDocument.mutate(documentId);
@@ -998,22 +1127,10 @@ export function CaseDetailPage() {
                     <IconButton
                       size="small"
                       color="primary"
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => setUploadDialogOpen(true)}
                     >
                       <Upload />
                     </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Загрузить папку">
-                    <span>
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={() => folderInputRef.current?.click()}
-                        disabled={isFolderUploadInProgress || createFolder.isPending || uploadDocument.isPending}
-                      >
-                        {isFolderUploadInProgress ? <CircularProgress size={18} /> : <Folder />}
-                      </IconButton>
-                    </span>
                   </Tooltip>
                   <Tooltip title="Скачать все документы">
                     <IconButton 
@@ -1040,7 +1157,7 @@ export function CaseDetailPage() {
                     <Button
                       variant="outlined"
                       startIcon={<Upload />}
-                      onClick={() => fileInputRef.current?.click()}
+                      onClick={() => setUploadDialogOpen(true)}
                     >
                       Загрузить файлы
                     </Button>
@@ -1522,6 +1639,26 @@ export function CaseDetailPage() {
       </Grid>
 
 
+      {isDragActive && (
+        <Box
+          sx={{
+            position: 'fixed',
+            inset: 0,
+            zIndex: theme.zIndex.modal + 1,
+            bgcolor: alpha(theme.palette.primary.main, 0.1),
+            border: `2px dashed ${theme.palette.primary.main}`,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            pointerEvents: 'none',
+          }}
+        >
+          <Typography variant="h6" fontWeight="bold" color="primary">
+            Отпустите, чтобы загрузить файлы или папку
+          </Typography>
+        </Box>
+      )}
+
       {/* Hidden file input */}
       <input
         type="file"
@@ -1536,6 +1673,7 @@ export function CaseDetailPage() {
         ref={folderInputRef}
         onChange={handleFolderInputChange}
         style={{ display: 'none' }}
+        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
       />
 
       {/* Upload Dialog */}
@@ -1549,13 +1687,21 @@ export function CaseDetailPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Загрузить файлы к делу</DialogTitle>
+        <DialogTitle>Загрузка файлов и папок</DialogTitle>
         <DialogContent>
           <Box sx={{ mt: 1 }}>
+            <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+              <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
+                Выбрать файлы
+              </Button>
+              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
+                Выбрать папку
+              </Button>
+            </Box>
             {selectedFiles.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Выбранные файлы ({selectedFiles.length}):
+                  Выбранные элементы ({selectedFiles.length}):
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                   {selectedFiles.map((file, index) => (
@@ -1594,12 +1740,12 @@ export function CaseDetailPage() {
           <Button
             variant="contained"
             onClick={handleUpload}
-            disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            disabled={selectedFiles.length === 0 || isFolderUploadInProgress || uploadDocument.isPending || createFolder.isPending}
           >
-            {uploadDocument.isPending ? (
+            {isFolderUploadInProgress || uploadDocument.isPending || createFolder.isPending ? (
               <CircularProgress size={20} />
             ) : (
-              `Загрузить ${selectedFiles.length} файл(ов)`
+              `Загрузить ${selectedFiles.length} элемент(ов)`
             )}
           </Button>
         </DialogActions>
