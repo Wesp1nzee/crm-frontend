@@ -356,7 +356,129 @@ export function CaseDetailPage() {
     }
   }, [patchCase.isError]);
 
+  const case_ = caseData?.case;
+  const client = caseData?.client;
+  const assigned_experts = caseData?.assigned_experts ?? [];
+  const documents = caseData?.documents ?? [];
+  const folders = caseData?.folders ?? [];
+  const events = caseData?.events ?? [];
 
+  const costNum = Number(case_?.cost) || 0;
+  const bankNum = Number(case_?.bank_transfer_amount) || 0;
+  const cashNum = Number(case_?.cash_amount) || 0;
+  const remainingDebtNum = Number(case_?.remaining_debt) || 0;
+  const totalPaid = bankNum + cashNum;
+  const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
+
+  const uploadFilesAndFolders = useCallback(async (files: File[]) => {
+    if (files.length === 0) return;
+
+    setIsFolderUploadInProgress(true);
+
+    try {
+      const folderPaths = new Set<string>();
+
+      files.forEach((file) => {
+        const relativePath = file.webkitRelativePath || file.name;
+        const pathParts = relativePath.split('/').slice(0, -1);
+
+        for (let i = 1; i <= pathParts.length; i += 1) {
+          folderPaths.add(pathParts.slice(0, i).join('/'));
+        }
+      });
+
+      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+      const folderIdByPath = new Map<string, string>();
+
+      for (const folderPath of sortedFolders) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : null;
+
+        const createdFolder = await createFolder.mutateAsync({
+          name: folderName,
+          parent_id: parentId,
+          case_id: parentId ? null : caseData?.case?.id,
+        });
+
+        folderIdByPath.set(folderPath, createdFolder.id);
+      }
+
+      for (const file of files) {
+        const relativePath = file.webkitRelativePath || file.name;
+        const folderPath = relativePath.split('/').slice(0, -1).join('/');
+        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+
+        await uploadDocument.mutateAsync({
+          file,
+          folder_id: folderId,
+          case_id: folderId ? null : caseData?.case?.id,
+          title: uploadTitle || file.name,
+        });
+      }
+
+      setSelectedFiles([]);
+      setUploadTitle('');
+      setUploadDialogOpen(false);
+      await refetch();
+      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
+    } catch (error) {
+      console.error('Ошибка загрузки файлов и папок:', error);
+      notificationService.error('Ошибка загрузки файлов и папок');
+    } finally {
+      setIsFolderUploadInProgress(false);
+    }
+  }, [caseData?.case?.id, createFolder, refetch, uploadDocument, uploadTitle]);
+
+  useEffect(() => {
+    const handleDragEnter = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current += 1;
+      setIsDragActive(true);
+    };
+
+    const handleDragOver = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      event.dataTransfer.dropEffect = 'copy';
+      setIsDragActive(true);
+    };
+
+    const handleDragLeave = (event: DragEvent) => {
+      if (!event.dataTransfer?.types.includes('Files')) return;
+      event.preventDefault();
+      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
+      if (dragDepthRef.current === 0) {
+        setIsDragActive(false);
+      }
+    };
+
+    const handleDrop = async (event: DragEvent) => {
+      if (!event.dataTransfer) return;
+      event.preventDefault();
+      dragDepthRef.current = 0;
+      setIsDragActive(false);
+
+      const droppedFiles = await extractDroppedFiles(event.dataTransfer);
+      await uploadFilesAndFolders(droppedFiles);
+    };
+
+    window.addEventListener('dragenter', handleDragEnter);
+    window.addEventListener('dragover', handleDragOver);
+    window.addEventListener('dragleave', handleDragLeave);
+    window.addEventListener('drop', handleDrop);
+
+    return () => {
+      window.removeEventListener('dragenter', handleDragEnter);
+      window.removeEventListener('dragover', handleDragOver);
+      window.removeEventListener('dragleave', handleDragLeave);
+      window.removeEventListener('drop', handleDrop);
+    };
+  }, [uploadFilesAndFolders]);
+
+  // ─── Ранние return ПОСЛЕ всех хуков ───────────────────────────────────────
   if (isLoading) {
     return (
       <Box
@@ -376,7 +498,7 @@ export function CaseDetailPage() {
     );
   }
 
-  if (error || !caseData) {
+  if (error || !caseData || !case_ || !client) {
     return (
       <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
         <Alert
@@ -398,20 +520,11 @@ export function CaseDetailPage() {
     );
   }
 
-  const { case: case_, client, assigned_experts, documents, folders, events } = caseData;
   const isOverdue = dayjs(case_.deadline).isBefore(dayjs(), 'day');
   const isCompleted = case_.status === 'executed' || case_.status === 'archive';
   const hasCompletionDate = !!case_.completion_date;
   const statusVariant = isOverdue && !isCompleted ? 'error' : statusSeverity[case_.status];
   const bannerAccentColor = theme.palette[statusVariant].main;
-
-  // Calculate payment progress
-  const costNum = Number(case_.cost) || 0;
-  const bankNum = Number(case_.bank_transfer_amount) || 0;
-  const cashNum = Number(case_.cash_amount) || 0;
-  const remainingDebtNum = Number(case_.remaining_debt) || 0;
-  const totalPaid = bankNum + cashNum;
-  const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
 
   const handleStatusUpdate = () => {
     if (status && status !== case_.status) {
@@ -457,7 +570,6 @@ export function CaseDetailPage() {
     if (value !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const updateData: any = { [field]: value };
-      // Auto-calculate remaining debt for financial fields
       if (['cost', 'bank_transfer_amount', 'cash_amount'].includes(field)) {
         const cost = field === 'cost' ? Number(value) : costNum;
         const bankAmount = field === 'bank_transfer_amount' ? Number(value) : bankNum;
@@ -483,7 +595,6 @@ export function CaseDetailPage() {
       const files = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...files]);
     }
-
     e.target.value = '';
   };
 
@@ -492,7 +603,6 @@ export function CaseDetailPage() {
       const files = Array.from(e.target.files);
       setSelectedFiles((prev) => [...prev, ...files]);
     }
-
     e.target.value = '';
   };
 
@@ -570,117 +680,9 @@ export function CaseDetailPage() {
     return Array.from(dataTransfer.files || []) as FileWithRelativePath[];
   };
 
-  const uploadFilesAndFolders = useCallback(async (files: File[]) => {
-    if (files.length === 0) return;
-
-    setIsFolderUploadInProgress(true);
-
-    try {
-      const folderPaths = new Set<string>();
-
-      files.forEach((file) => {
-        const relativePath = file.webkitRelativePath || file.name;
-        const pathParts = relativePath.split('/').slice(0, -1);
-
-        for (let i = 1; i <= pathParts.length; i += 1) {
-          folderPaths.add(pathParts.slice(0, i).join('/'));
-        }
-      });
-
-      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
-      const folderIdByPath = new Map<string, string>();
-
-      for (const folderPath of sortedFolders) {
-        const pathParts = folderPath.split('/');
-        const folderName = pathParts[pathParts.length - 1];
-        const parentPath = pathParts.slice(0, -1).join('/');
-        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : null;
-
-        const createdFolder = await createFolder.mutateAsync({
-          name: folderName,
-          parent_id: parentId,
-          case_id: parentId ? null : case_.id,
-        });
-
-        folderIdByPath.set(folderPath, createdFolder.id);
-      }
-
-      for (const file of files) {
-        const relativePath = file.webkitRelativePath || file.name;
-        const folderPath = relativePath.split('/').slice(0, -1).join('/');
-        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
-
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: folderId,
-          case_id: folderId ? null : case_.id,
-          title: uploadTitle || file.name,
-        });
-      }
-
-      setSelectedFiles([]);
-      setUploadTitle('');
-      setUploadDialogOpen(false);
-      await refetch();
-      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
-    } catch (error) {
-      console.error('Ошибка загрузки файлов и папок:', error);
-      notificationService.error('Ошибка загрузки файлов и папок');
-    } finally {
-      setIsFolderUploadInProgress(false);
-    }
-  }, [case_.id, createFolder, refetch, uploadDocument, uploadTitle]);
-
   const handleUpload = async () => {
     await uploadFilesAndFolders(selectedFiles);
   };
-
-  useEffect(() => {
-    const handleDragEnter = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes('Files')) return;
-      event.preventDefault();
-      dragDepthRef.current += 1;
-      setIsDragActive(true);
-    };
-
-    const handleDragOver = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes('Files')) return;
-      event.preventDefault();
-      event.dataTransfer.dropEffect = 'copy';
-      setIsDragActive(true);
-    };
-
-    const handleDragLeave = (event: DragEvent) => {
-      if (!event.dataTransfer?.types.includes('Files')) return;
-      event.preventDefault();
-      dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
-      if (dragDepthRef.current === 0) {
-        setIsDragActive(false);
-      }
-    };
-
-    const handleDrop = async (event: DragEvent) => {
-      if (!event.dataTransfer) return;
-      event.preventDefault();
-      dragDepthRef.current = 0;
-      setIsDragActive(false);
-
-      const droppedFiles = await extractDroppedFiles(event.dataTransfer);
-      await uploadFilesAndFolders(droppedFiles);
-    };
-
-    window.addEventListener('dragenter', handleDragEnter);
-    window.addEventListener('dragover', handleDragOver);
-    window.addEventListener('dragleave', handleDragLeave);
-    window.addEventListener('drop', handleDrop);
-
-    return () => {
-      window.removeEventListener('dragenter', handleDragEnter);
-      window.removeEventListener('dragover', handleDragOver);
-      window.removeEventListener('dragleave', handleDragLeave);
-      window.removeEventListener('drop', handleDrop);
-    };
-  }, [uploadFilesAndFolders]);
 
   const handleDownload = (documentId: string) => {
     downloadDocument.mutate(documentId);
@@ -819,7 +821,7 @@ export function CaseDetailPage() {
       </Alert>
 
       <Grid container spacing={3}>
-        {/* Main Info - Обновлено */}
+        {/* Main Info */}
         <Grid size={{ xs: 12, md: 8 }}>
           {/* Case Information Card */}
           <Card sx={{ mb: 3, borderRadius: 3, border: `1px solid ${alpha(theme.palette.primary.main, 0.12)}`, boxShadow: 2, animation: 'cardIn 420ms ease', transformOrigin: 'center' }}>
@@ -836,7 +838,6 @@ export function CaseDetailPage() {
             />
             <CardContent sx={{ p: 4 }}>
               <Grid container spacing={2.5}>
-                {/* Обновлены все Grid items в этой секции */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
                     field="number"
@@ -986,7 +987,6 @@ export function CaseDetailPage() {
                 </Box>
               </Box>
               <Grid container spacing={2.5}>
-                {/* Обновлены все Grid items в этой секции */}
                 {client.inn && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5, fontWeight: 500 }}>
