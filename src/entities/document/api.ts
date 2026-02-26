@@ -8,6 +8,7 @@ import type {
   DocumentsListParams,
   DocumentUploadData,
   AssetUpdateRequest,
+  BulkAssetsRequest,
 } from './types';
 
 export const documentsApi = {
@@ -87,5 +88,23 @@ export const documentsApi = {
   updateAsset: async (updateData: AssetUpdateRequest): Promise<DocumentResponse | FolderResponse> => {
     const { data } = await api.patch('/documents/update', updateData);
     return data;
+  },
+
+  downloadBulk: async (payload: BulkAssetsRequest): Promise<void> => {
+    const response = await api.post('/documents/download-bulk', payload, {
+      responseType: 'blob',
+    });
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `documents_bulk_${new Date().toISOString().slice(0, 19)}.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  deleteBulk: async (payload: BulkAssetsRequest): Promise<void> => {
+    await api.delete('/documents/bulk', { data: payload });
   },
 };

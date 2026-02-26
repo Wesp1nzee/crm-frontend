@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import {
   Box,
   Typography,
@@ -27,6 +27,8 @@ import {
   Skeleton,
   Autocomplete,
   alpha,
+  Checkbox,
+  Stack,
 } from '@mui/material';
 import {
   Delete,
@@ -55,6 +57,8 @@ import {
   usePreviewDocument,
   useUpdateAsset,
   useDownloadFolder,
+  useDownloadBulkAssets,
+  useDeleteBulkAssets,
 } from '../../shared/hooks/useDocuments';
 import type { FileSystemEntry } from '../../entities/document/types';
 import type { CaseSuggestion } from '../../entities/case/types';
@@ -125,8 +129,16 @@ export function DocumentsPage() {
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [dragOverFolderPathIndex, setDragOverFolderPathIndex] = useState<number | null>(null);
   const [isDraggingInternal, setIsDraggingInternal] = useState(false);
+  const [selectedEntryIds, setSelectedEntryIds] = useState<string[]>([]);
+  const [selectionAnchorId, setSelectionAnchorId] = useState<string | null>(null);
+  const [hoveredEntryId, setHoveredEntryId] = useState<string | null>(null);
+  const [selectionBox, setSelectionBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
+  const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const tableAreaRef = useRef<HTMLDivElement>(null);
+  const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const rubberBandAdditiveRef = useRef(false);
 
   const { data: entries, isLoading, error, refetch } = useDocuments({
     folder_id: currentFolderId,
@@ -151,6 +163,77 @@ export function DocumentsPage() {
   const deleteFolder = useDeleteFolder();
   const downloadFolder = useDownloadFolder();
   const updateAsset = useUpdateAsset();
+  const downloadBulkAssets = useDownloadBulkAssets();
+  const deleteBulkAssets = useDeleteBulkAssets();
+
+  const sanitizedEntries = useMemo(
+    () => entriesArray.filter((entry) => entry.id && !entry.id.startsWith('__')),
+    [entriesArray],
+  );
+
+  const selectedEntries = useMemo(
+    () => sanitizedEntries.filter((entry) => selectedEntryIds.includes(entry.id)),
+    [sanitizedEntries, selectedEntryIds],
+  );
+
+  const selectedFoldersCount = useMemo(
+    () => selectedEntries.filter((entry) => entry.type === 'folder').length,
+    [selectedEntries],
+  );
+  const selectedFilesCount = selectedEntries.length - selectedFoldersCount;
+  const isSelectionMode = selectedEntryIds.length > 0;
+
+  const clearSelection = useCallback(() => {
+    setSelectedEntryIds([]);
+    setSelectionAnchorId(null);
+  }, []);
+
+  const buildRangeSelection = useCallback((targetId: string) => {
+    if (!selectionAnchorId) {
+      return [targetId];
+    }
+    const anchorIndex = sanitizedEntries.findIndex((entry) => entry.id === selectionAnchorId);
+    const targetIndex = sanitizedEntries.findIndex((entry) => entry.id === targetId);
+    if (anchorIndex === -1 || targetIndex === -1) {
+      return [targetId];
+    }
+    const [start, end] = anchorIndex < targetIndex ? [anchorIndex, targetIndex] : [targetIndex, anchorIndex];
+    return sanitizedEntries.slice(start, end + 1).map((entry) => entry.id);
+  }, [sanitizedEntries, selectionAnchorId]);
+
+  const toggleEntrySelection = useCallback((entryId: string) => {
+    setSelectedEntryIds((prev) => (prev.includes(entryId) ? prev.filter((id) => id !== entryId) : [...prev, entryId]));
+  }, []);
+
+  const handleBulkDownload = async () => {
+    if (!selectedEntries.length) return;
+    try {
+      await downloadBulkAssets.mutateAsync({
+        folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
+        document_ids: selectedEntries.filter((entry) => entry.type === 'file').map((entry) => entry.id),
+      });
+      notificationService.success(`Подготовлено к скачиванию: ${selectedEntries.length}`);
+    } catch (error) {
+      console.error('Ошибка массового скачивания:', error);
+      notificationService.error('Не удалось скачать выбранные элементы');
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (!selectedEntries.length) return;
+    try {
+      await deleteBulkAssets.mutateAsync({
+        folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
+        document_ids: selectedEntries.filter((entry) => entry.type === 'file').map((entry) => entry.id),
+      });
+      notificationService.success(`Удалено элементов: ${selectedEntries.length}`);
+      clearSelection();
+      refetch();
+    } catch (error) {
+      console.error('Ошибка массового удаления:', error);
+      notificationService.error('Не удалось удалить выбранные элементы');
+    }
+  };
 
   // Отладка: проверка валидности записей
   useEffect(() => {
@@ -161,6 +244,79 @@ export function DocumentsPage() {
       }
     }
   }, [entriesArray]);
+
+  useEffect(() => {
+    clearSelection();
+  }, [currentFolderId, searchQuery, page, rowsPerPage, clearSelection]);
+
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'a') {
+        event.preventDefault();
+        setSelectedEntryIds(sanitizedEntries.map((entry) => entry.id));
+        if (sanitizedEntries[0]) {
+          setSelectionAnchorId(sanitizedEntries[0].id);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [sanitizedEntries]);
+
+  useEffect(() => {
+    if (!isRubberBandSelecting) return;
+
+    const handleMouseMove = (event: MouseEvent) => {
+      const tableNode = tableAreaRef.current;
+      const start = selectionStartRef.current;
+      if (!tableNode || !start) return;
+      const rect = tableNode.getBoundingClientRect();
+
+      const currentX = Math.min(Math.max(event.clientX, rect.left), rect.right);
+      const currentY = Math.min(Math.max(event.clientY, rect.top), rect.bottom);
+      const left = Math.min(start.x, currentX) - rect.left;
+      const top = Math.min(start.y, currentY) - rect.top;
+      const width = Math.abs(currentX - start.x);
+      const height = Math.abs(currentY - start.y);
+      setSelectionBox({ left, top, width, height });
+
+      const idsInFrame = sanitizedEntries
+        .filter((entry) => {
+          const rowNode = tableNode.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`);
+          if (!rowNode) return false;
+          const rowRect = rowNode.getBoundingClientRect();
+          return !(
+            rowRect.right < Math.min(start.x, currentX) ||
+            rowRect.left > Math.max(start.x, currentX) ||
+            rowRect.bottom < Math.min(start.y, currentY) ||
+            rowRect.top > Math.max(start.y, currentY)
+          );
+        })
+        .map((entry) => entry.id);
+
+      setSelectedEntryIds((prev) => {
+        if (rubberBandAdditiveRef.current) {
+          return Array.from(new Set([...prev, ...idsInFrame]));
+        }
+        return idsInFrame;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsRubberBandSelecting(false);
+      setSelectionBox(null);
+      selectionStartRef.current = null;
+      rubberBandAdditiveRef.current = false;
+    };
+
+    window.addEventListener('mousemove', handleMouseMove);
+    window.addEventListener('mouseup', handleMouseUp, { once: true });
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mouseup', handleMouseUp);
+    };
+  }, [isRubberBandSelecting, sanitizedEntries]);
 
   // Форматирование размера файла
   const formatFileSize = (bytes: number | null) => {
@@ -278,13 +434,19 @@ export function DocumentsPage() {
   const handleFileDoubleClick = (entry: FileSystemEntry) => {
     if (entry.type === 'file') {
       handlePreview(entry.id);
+      return;
     }
+    handleFolderClick(entry);
   };
 
   // Обработчики контекстного меню
   // Открытие меню
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>, entry: FileSystemEntry) => {
     event.stopPropagation();
+    if (!selectedEntryIds.includes(entry.id)) {
+      setSelectedEntryIds([entry.id]);
+      setSelectionAnchorId(entry.id);
+    }
     setMenuAnchor(event.currentTarget);
     setMenuEntry(entry);
   };
@@ -306,7 +468,9 @@ export function DocumentsPage() {
 
   // Скачать файл
   const handleMenuDownload = () => {
-    if (menuEntry) {
+    if (selectedEntryIds.length > 1) {
+      void handleBulkDownload();
+    } else if (menuEntry) {
       handleDownload(menuEntry.id);
     }
     handleMenuClose();
@@ -331,6 +495,12 @@ export function DocumentsPage() {
 
   // Удалить — копируем entry в отдельное состояние ДО закрытия меню
   const handleMenuDelete = () => {
+    if (selectedEntryIds.length > 1) {
+      setEntryToDelete(null);
+      setDeleteConfirmOpen(true);
+      handleMenuClose();
+      return;
+    }
     if (!menuEntry) {
       handleMenuClose();
       return;
@@ -357,8 +527,42 @@ export function DocumentsPage() {
     handleMenuClose();
   };
 
+  const handleEntryClick = (event: React.MouseEvent, entry: FileSystemEntry) => {
+    event.stopPropagation();
+    if (event.shiftKey) {
+      const range = buildRangeSelection(entry.id);
+      setSelectedEntryIds((prev) => (event.ctrlKey || event.metaKey ? Array.from(new Set([...prev, ...range])) : range));
+      return;
+    }
+
+    if (event.ctrlKey || event.metaKey) {
+      toggleEntrySelection(entry.id);
+      setSelectionAnchorId(entry.id);
+      return;
+    }
+
+    setSelectedEntryIds([entry.id]);
+    setSelectionAnchorId(entry.id);
+  };
+
+  const handleEntryContextMenu = (event: React.MouseEvent<HTMLElement>, entry: FileSystemEntry) => {
+    event.preventDefault();
+    if (!selectedEntryIds.includes(entry.id)) {
+      setSelectedEntryIds([entry.id]);
+      setSelectionAnchorId(entry.id);
+    }
+    setMenuAnchor(event.currentTarget);
+    setMenuEntry(entry);
+  };
+
   // Выполнение удаления
   const handleDelete = async () => {
+    if (selectedEntryIds.length > 1 && !entryToDelete) {
+      await handleBulkDelete();
+      setDeleteConfirmOpen(false);
+      return;
+    }
+
     if (!entryToDelete?.id || !entryToDelete.type) {
       console.error('handleDelete: некорректный элемент', entryToDelete);
       notificationService.error('Не удалось определить элемент для удаления');
@@ -602,8 +806,8 @@ export function DocumentsPage() {
 
   // Пустое состояние
   const renderEmptyState = () => (
-    <TableRow>
-      <TableCell colSpan={6} align="center" sx={{ py: 8 }}>
+      <TableRow>
+      <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
           <FolderOutlined sx={{ fontSize: 60, color: 'action.disabled' }} />
           <Typography variant="h6">Папка пуста</Typography>
@@ -685,6 +889,28 @@ export function DocumentsPage() {
           </Button>
         </Box>
       </Box>
+
+      {isSelectionMode && (
+        <Paper sx={{ mb: 2, borderRadius: 3, p: 1.25, border: (theme) => `1px solid ${alpha(theme.palette.primary.main, 0.25)}` }}>
+          <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5} alignItems={{ xs: 'flex-start', sm: 'center' }} justifyContent="space-between">
+            <Typography variant="body2" fontWeight={700}>
+              Выбрано: {selectedEntryIds.length} (папок: {selectedFoldersCount}, файлов: {selectedFilesCount})
+            </Typography>
+            <Stack direction="row" spacing={1}>
+              <Button size="small" variant="outlined" startIcon={<Download />} onClick={() => void handleBulkDownload()} disabled={downloadBulkAssets.isPending}>
+                Скачать выбранное
+              </Button>
+              <Button size="small" variant="contained" color="error" startIcon={<Delete />} onClick={() => {
+                setEntryToDelete(null);
+                setDeleteConfirmOpen(true);
+              }} disabled={deleteBulkAssets.isPending}>
+                Удалить выбранное
+              </Button>
+              <Button size="small" onClick={clearSelection}>Снять выделение</Button>
+            </Stack>
+          </Stack>
+        </Paper>
+      )}
 
       {/* Навигация и поиск */}
       <Paper sx={{ p: 2, mb: 2, borderRadius: 4 }}>
@@ -775,6 +1001,27 @@ export function DocumentsPage() {
 
       {/* Область для drag-and-drop */}
       <Box
+        ref={tableAreaRef}
+        onMouseDown={(e) => {
+          const target = e.target as HTMLElement;
+          const hasEntryTarget = Boolean(target.closest('[data-entry-id]'));
+          if (e.button !== 0 || hasEntryTarget) return;
+
+          if (!e.ctrlKey && !e.metaKey) {
+            clearSelection();
+          }
+
+          selectionStartRef.current = { x: e.clientX, y: e.clientY };
+          rubberBandAdditiveRef.current = Boolean(e.ctrlKey || e.metaKey);
+          setIsRubberBandSelecting(true);
+          setSelectionBox({ left: e.nativeEvent.offsetX, top: e.nativeEvent.offsetY, width: 0, height: 0 });
+        }}
+        onClick={(e) => {
+          const target = e.target as HTMLElement;
+          if (!target.closest('[data-entry-id]')) {
+            clearSelection();
+          }
+        }}
         onDragEnter={(e) => {
           e.preventDefault();
           e.stopPropagation();
@@ -824,11 +1071,27 @@ export function DocumentsPage() {
           }
         }}
       >
+        {selectionBox && (
+          <Box
+            sx={{
+              position: 'absolute',
+              left: selectionBox.left,
+              top: selectionBox.top,
+              width: selectionBox.width,
+              height: selectionBox.height,
+              border: (theme) => `1px solid ${theme.palette.primary.main}`,
+              bgcolor: (theme) => alpha(theme.palette.primary.main, 0.15),
+              pointerEvents: 'none',
+              zIndex: 8,
+            }}
+          />
+        )}
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
           <TableContainer>
             <Table size="small">
               <TableHead sx={{ bgcolor: 'grey.50' }}>
                 <TableRow>
+                  <TableCell sx={{ width: 52, py: 1 }} />
                   <TableCell sx={{ width: 84, py: 1 }}>Превью</TableCell>
                   <TableCell>
                     <TableSortLabel
@@ -874,6 +1137,9 @@ export function DocumentsPage() {
                   ? Array.from({ length: rowsPerPage }).map((_, i) => (
                       <TableRow key={i}>
                         <TableCell>
+                          <Skeleton variant="circular" width={20} height={20} />
+                        </TableCell>
+                        <TableCell>
                           <Skeleton variant="circular" width={24} height={24} />
                         </TableCell>
                         <TableCell>
@@ -900,26 +1166,36 @@ export function DocumentsPage() {
                       if (entry.id?.startsWith('__')) return null;
                       const isDragging = draggedItemId === entry.id;
                       const isDragOver = dragOverItemId === entry.id;
+                      const isSelected = selectedEntryIds.includes(entry.id);
+                      const showCheckbox = isSelectionMode || hoveredEntryId === entry.id;
                       return (
                         <TableRow
                           key={entry.id}
                           hover
                           draggable
+                          data-entry-id={entry.id}
                           onDragStart={(e) => handleRowDragStart(e, entry)}
                           onDragEnd={handleRowDragEnd}
                           onDragEnter={(e) => handleRowDragEnter(e, entry)}
                           onDragLeave={handleRowDragLeave}
                           onDragOver={handleRowDragOver}
                           onDrop={(e) => handleRowDrop(e, entry)}
+                          onMouseEnter={() => setHoveredEntryId(entry.id)}
+                          onMouseLeave={() => setHoveredEntryId((prev) => (prev === entry.id ? null : prev))}
+                          onContextMenu={(e) => handleEntryContextMenu(e, entry)}
                           sx={{
                             cursor: entry.type === 'folder' ? 'pointer' : 'default',
                             opacity: isDragging ? 0.65 : 1,
                             backgroundColor: isDragOver
                               ? (theme) => alpha(theme.palette.primary.main, 0.08)
-                              : (theme) => (entriesArray.indexOf(entry) % 2 ? alpha(theme.palette.common.black, 0.02) : 'transparent'),
+                              : isSelected
+                                ? (theme) => alpha(theme.palette.primary.main, 0.14)
+                                : (theme) => (entriesArray.indexOf(entry) % 2 ? alpha(theme.palette.common.black, 0.02) : 'transparent'),
                             borderLeft: isDragOver
                               ? (theme) => `3px solid ${theme.palette.primary.main}`
-                              : '3px solid transparent',
+                              : isSelected
+                                ? (theme) => `3px solid ${theme.palette.primary.main}`
+                                : '3px solid transparent',
                             transition: 'background-color 0.15s ease, border-color 0.15s ease',
                             '&:hover': {
                               bgcolor: 'action.hover',
@@ -930,9 +1206,21 @@ export function DocumentsPage() {
                               lineHeight: 1.6,
                             },
                           }}
-                          onClick={() => entry.type === 'folder' && handleFolderClick(entry)}
+                          onClick={(e) => handleEntryClick(e, entry)}
                           onDoubleClick={() => handleFileDoubleClick(entry)}
                         >
+                          <TableCell>
+                            <Checkbox
+                              size="small"
+                              checked={isSelected}
+                              sx={{ opacity: showCheckbox ? 1 : 0, transition: 'opacity 0.2s ease' }}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={() => {
+                                toggleEntrySelection(entry.id);
+                                setSelectionAnchorId(entry.id);
+                              }}
+                            />
+                          </TableCell>
                           <TableCell>
                             <Tooltip title={entry.type === 'folder' ? 'Перетащите сюда файл или папку' : 'Файл'}>
                               <Box
@@ -1070,20 +1358,22 @@ export function DocumentsPage() {
           transformOrigin={{ horizontal: 'right', vertical: 'top' }}
           anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
         >
-          {menuEntry?.type === 'file' && (
+          {selectedEntryIds.length <= 1 && menuEntry?.type === 'file' && (
             <MenuItem onClick={handleMenuPreview}>
               <Visibility sx={{ mr: 1 }} />
               Предпросмотр
             </MenuItem>
           )}
-          <MenuItem onClick={handleMenuEdit}>
-            <Edit sx={{ mr: 1 }} />
-            Редактировать
-          </MenuItem>
-          {menuEntry?.type === 'file' && (
+          {selectedEntryIds.length <= 1 && (
+            <MenuItem onClick={handleMenuEdit}>
+              <Edit sx={{ mr: 1 }} />
+              Редактировать
+            </MenuItem>
+          )}
+          {(menuEntry?.type === 'file' || selectedEntryIds.length > 1) && (
             <MenuItem onClick={handleMenuDownload}>
               <Download sx={{ mr: 1 }} />
-              Скачать
+              {selectedEntryIds.length > 1 ? `Скачать выбранное (${selectedEntryIds.length})` : 'Скачать'}
             </MenuItem>
           )}
           {menuEntry?.type === 'folder' && (
@@ -1092,13 +1382,13 @@ export function DocumentsPage() {
               Скачать папку
             </MenuItem>
           )}
-          {menuEntry &&
+          {(selectedEntryIds.length > 1 || (menuEntry &&
             menuEntry.id &&
             typeof menuEntry.id === 'string' &&
-            !menuEntry.id.startsWith('__') && (
+            !menuEntry.id.startsWith('__'))) && (
               <MenuItem onClick={handleMenuDelete} sx={{ color: 'error.main' }}>
                 <Delete sx={{ mr: 1 }} />
-                Удалить
+                {selectedEntryIds.length > 1 ? `Удалить выбранное (${selectedEntryIds.length})` : 'Удалить'}
               </MenuItem>
             )}
         </Menu>
@@ -1157,14 +1447,25 @@ export function DocumentsPage() {
         fullWidth
       >
         <DialogTitle>
-          {entryToDelete?.type === 'folder'
+          {selectedEntryIds.length > 1 && !entryToDelete
+            ? 'Массовое удаление'
+            : entryToDelete?.type === 'folder'
             ? 'Удаление папки'
             : entryToDelete?.type === 'file'
               ? 'Удаление файла'
               : 'Удаление элемента'}
         </DialogTitle>
         <DialogContent>
-          {entryToDelete && entryToDelete.name ? (
+          {selectedEntryIds.length > 1 && !entryToDelete ? (
+            <>
+              <Typography variant="body1" sx={{ mt: 2 }}>
+                Вы уверены, что хотите удалить <strong>{selectedEntryIds.length}</strong> выбранных элементов?
+              </Typography>
+              <Alert severity="warning" sx={{ mt: 2 }}>
+                Это действие удалит все выбранные документы и папки вместе с вложенными файлами.
+              </Alert>
+            </>
+          ) : entryToDelete && entryToDelete.name ? (
             <>
               <Typography variant="body1" sx={{ mt: 2 }}>
                 Вы уверены, что хотите удалить{' '}
@@ -1204,12 +1505,12 @@ export function DocumentsPage() {
             disabled={
               deleteDocument.isPending ||
               deleteFolder.isPending ||
-              !entryToDelete ||
-              !entryToDelete.id
+              deleteBulkAssets.isPending ||
+              (selectedEntryIds.length <= 1 && (!entryToDelete || !entryToDelete.id))
             }
             sx={actionButtonSx}
           >
-            {deleteDocument.isPending || deleteFolder.isPending ? (
+            {deleteDocument.isPending || deleteFolder.isPending || deleteBulkAssets.isPending ? (
               <CircularProgress size={20} sx={{ mr: 1 }} />
             ) : null}
             Удалить

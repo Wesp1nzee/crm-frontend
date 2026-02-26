@@ -102,3 +102,20 @@ export const useUpdateAsset = () => {
     },
   });
 };
+
+export const useDownloadBulkAssets = () => {
+  return useMutation({
+    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) => documentsApi.downloadBulk(payload),
+  });
+};
+
+export const useDeleteBulkAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) => documentsApi.deleteBulk(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['documents'] });
+    },
+  });
+};

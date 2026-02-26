@@ -82,3 +82,8 @@ export interface AssetUpdateRequest {
     parent_id?: string | null;
   };
 }
+
+export interface BulkAssetsRequest {
+  folder_ids: string[];
+  document_ids: string[];
+}
