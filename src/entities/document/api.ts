@@ -105,6 +105,6 @@ export const documentsApi = {
   },
 
   deleteBulk: async (payload: BulkAssetsRequest): Promise<void> => {
-    await api.delete('/documents/bulk', { data: payload });
+    await api.delete('/documents/bulk/', { data: payload });
   },
 };

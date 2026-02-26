@@ -138,6 +138,8 @@ export function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const tableAreaRef = useRef<HTMLDivElement>(null);
   const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
+  const selectionFrameEntriesRef = useRef<Array<{ id: string; left: number; right: number; top: number; bottom: number }>>([]);
+  const selectionRafRef = useRef<number | null>(null);
   const rubberBandAdditiveRef = useRef(false);
 
   const { data: entries, isLoading, error, refetch } = useDocuments({
@@ -175,6 +177,8 @@ export function DocumentsPage() {
     () => sanitizedEntries.filter((entry) => selectedEntryIds.includes(entry.id)),
     [sanitizedEntries, selectedEntryIds],
   );
+
+  const selectedEntryIdsSet = useMemo(() => new Set(selectedEntryIds), [selectedEntryIds]);
 
   const selectedFoldersCount = useMemo(
     () => selectedEntries.filter((entry) => entry.type === 'folder').length,
@@ -281,11 +285,9 @@ export function DocumentsPage() {
       const height = Math.abs(currentY - start.y);
       setSelectionBox({ left, top, width, height });
 
-      const idsInFrame = sanitizedEntries
+      const idsInFrame = selectionFrameEntriesRef.current
         .filter((entry) => {
-          const rowNode = tableNode.querySelector<HTMLElement>(`[data-entry-id="${entry.id}"]`);
-          if (!rowNode) return false;
-          const rowRect = rowNode.getBoundingClientRect();
+          const rowRect = entry;
           return !(
             rowRect.right < Math.min(start.x, currentX) ||
             rowRect.left > Math.max(start.x, currentX) ||
@@ -296,10 +298,15 @@ export function DocumentsPage() {
         .map((entry) => entry.id);
 
       setSelectedEntryIds((prev) => {
-        if (rubberBandAdditiveRef.current) {
-          return Array.from(new Set([...prev, ...idsInFrame]));
+        const next = rubberBandAdditiveRef.current
+          ? Array.from(new Set([...prev, ...idsInFrame]))
+          : idsInFrame;
+
+        if (next.length === prev.length && next.every((id, index) => id === prev[index])) {
+          return prev;
         }
-        return idsInFrame;
+
+        return next;
       });
     };
 
@@ -307,16 +314,35 @@ export function DocumentsPage() {
       setIsRubberBandSelecting(false);
       setSelectionBox(null);
       selectionStartRef.current = null;
+      selectionFrameEntriesRef.current = [];
       rubberBandAdditiveRef.current = false;
+      if (selectionRafRef.current !== null) {
+        cancelAnimationFrame(selectionRafRef.current);
+        selectionRafRef.current = null;
+      }
     };
 
-    window.addEventListener('mousemove', handleMouseMove);
+    const handleMouseMoveThrottled = (event: MouseEvent) => {
+      if (selectionRafRef.current !== null) {
+        cancelAnimationFrame(selectionRafRef.current);
+      }
+      selectionRafRef.current = requestAnimationFrame(() => {
+        handleMouseMove(event);
+        selectionRafRef.current = null;
+      });
+    };
+
+    window.addEventListener('mousemove', handleMouseMoveThrottled);
     window.addEventListener('mouseup', handleMouseUp, { once: true });
     return () => {
-      window.removeEventListener('mousemove', handleMouseMove);
+      window.removeEventListener('mousemove', handleMouseMoveThrottled);
       window.removeEventListener('mouseup', handleMouseUp);
+      if (selectionRafRef.current !== null) {
+        cancelAnimationFrame(selectionRafRef.current);
+        selectionRafRef.current = null;
+      }
     };
-  }, [isRubberBandSelecting, sanitizedEntries]);
+  }, [isRubberBandSelecting]);
 
   // Форматирование размера файла
   const formatFileSize = (bytes: number | null) => {
@@ -443,10 +469,6 @@ export function DocumentsPage() {
   // Открытие меню
   const handleMenuClick = (event: React.MouseEvent<HTMLElement>, entry: FileSystemEntry) => {
     event.stopPropagation();
-    if (!selectedEntryIds.includes(entry.id)) {
-      setSelectedEntryIds([entry.id]);
-      setSelectionAnchorId(entry.id);
-    }
     setMenuAnchor(event.currentTarget);
     setMenuEntry(entry);
   };
@@ -525,24 +547,6 @@ export function DocumentsPage() {
     setEntryToDelete(menuEntry);
     setDeleteConfirmOpen(true);
     handleMenuClose();
-  };
-
-  const handleEntryClick = (event: React.MouseEvent, entry: FileSystemEntry) => {
-    event.stopPropagation();
-    if (event.shiftKey) {
-      const range = buildRangeSelection(entry.id);
-      setSelectedEntryIds((prev) => (event.ctrlKey || event.metaKey ? Array.from(new Set([...prev, ...range])) : range));
-      return;
-    }
-
-    if (event.ctrlKey || event.metaKey) {
-      toggleEntrySelection(entry.id);
-      setSelectionAnchorId(entry.id);
-      return;
-    }
-
-    setSelectedEntryIds([entry.id]);
-    setSelectionAnchorId(entry.id);
   };
 
   const handleEntryContextMenu = (event: React.MouseEvent<HTMLElement>, entry: FileSystemEntry) => {
@@ -1012,6 +1016,18 @@ export function DocumentsPage() {
           }
 
           selectionStartRef.current = { x: e.clientX, y: e.clientY };
+          selectionFrameEntriesRef.current = Array.from(
+            e.currentTarget.querySelectorAll<HTMLElement>('[data-entry-id]'),
+          ).map((node) => {
+            const rect = node.getBoundingClientRect();
+            return {
+              id: node.dataset.entryId ?? '',
+              left: rect.left,
+              right: rect.right,
+              top: rect.top,
+              bottom: rect.bottom,
+            };
+          }).filter((item) => Boolean(item.id));
           rubberBandAdditiveRef.current = Boolean(e.ctrlKey || e.metaKey);
           setIsRubberBandSelecting(true);
           setSelectionBox({ left: e.nativeEvent.offsetX, top: e.nativeEvent.offsetY, width: 0, height: 0 });
@@ -1161,12 +1177,12 @@ export function DocumentsPage() {
                     ))
                   : entries?.length === 0
                   ? renderEmptyState()
-                  : entriesArray.map((entry) => {
+                  : entriesArray.map((entry, index) => {
                       // Пропускаем искусственные записи
                       if (entry.id?.startsWith('__')) return null;
                       const isDragging = draggedItemId === entry.id;
                       const isDragOver = dragOverItemId === entry.id;
-                      const isSelected = selectedEntryIds.includes(entry.id);
+                      const isSelected = selectedEntryIdsSet.has(entry.id);
                       const showCheckbox = isSelectionMode || hoveredEntryId === entry.id;
                       return (
                         <TableRow
@@ -1190,7 +1206,7 @@ export function DocumentsPage() {
                               ? (theme) => alpha(theme.palette.primary.main, 0.08)
                               : isSelected
                                 ? (theme) => alpha(theme.palette.primary.main, 0.14)
-                                : (theme) => (entriesArray.indexOf(entry) % 2 ? alpha(theme.palette.common.black, 0.02) : 'transparent'),
+                                : (theme) => (index % 2 ? alpha(theme.palette.common.black, 0.02) : 'transparent'),
                             borderLeft: isDragOver
                               ? (theme) => `3px solid ${theme.palette.primary.main}`
                               : isSelected
@@ -1206,7 +1222,6 @@ export function DocumentsPage() {
                               lineHeight: 1.6,
                             },
                           }}
-                          onClick={(e) => handleEntryClick(e, entry)}
                           onDoubleClick={() => handleFileDoubleClick(entry)}
                         >
                           <TableCell>
@@ -1214,8 +1229,22 @@ export function DocumentsPage() {
                               size="small"
                               checked={isSelected}
                               sx={{ opacity: showCheckbox ? 1 : 0, transition: 'opacity 0.2s ease' }}
-                              onClick={(e) => e.stopPropagation()}
-                              onChange={() => {
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (e.shiftKey) {
+                                  const range = buildRangeSelection(entry.id);
+                                  setSelectedEntryIds((prev) => (e.ctrlKey || e.metaKey
+                                    ? Array.from(new Set([...prev, ...range]))
+                                    : range));
+                                  return;
+                                }
+
+                                if (e.ctrlKey || e.metaKey) {
+                                  toggleEntrySelection(entry.id);
+                                  setSelectionAnchorId(entry.id);
+                                  return;
+                                }
+
                                 toggleEntrySelection(entry.id);
                                 setSelectionAnchorId(entry.id);
                               }}
