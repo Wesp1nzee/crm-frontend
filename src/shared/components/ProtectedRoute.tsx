@@ -1,16 +1,27 @@
 import { Navigate } from 'react-router-dom';
 import { CircularProgress, Box } from '@mui/material';
 import { useAuth } from '../hooks/useAuth';
+import { useMemo } from 'react';
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
 export function ProtectedRoute({ children }: ProtectedRouteProps) {
-  const { data: user, isLoading, error, isError } = useAuth();
+  const { data: user, isLoading, error } = useAuth();
 
-  // Проверяем, является ли ошибка ошибкой аутентификации
-  const isAuthError = isError && (error as any)?.response?.status === 401;
+  const isUnauthenticated = useMemo(() => {
+    if (isLoading) return false;
+    if (!user) return true;
+    if (!user?.can_authenticate) return true;
+    
+    const errorStatus = (error as any)?.message?.includes('401');
+    return errorStatus;
+  }, [user, isLoading, error]);
+
+  if (user?.id && user?.can_authenticate) {
+    return <>{children}</>;
+  }
 
   if (isLoading) {
     return (
@@ -20,13 +31,7 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     );
   }
 
-  // Если есть ошибка аутентификации или нет пользователя
-  if (isAuthError || !user) {
-    return <Navigate to="/login" replace />;
-  }
-
-  // Проверка дополнительного условия
-  if (!user?.can_authenticate) {
+  if (isUnauthenticated) {
     return <Navigate to="/login" replace />;
   }
 

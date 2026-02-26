@@ -37,7 +37,7 @@ export interface UpdateExpertInput {
   phone?: string;
   specialization?: string;
   role?: UserRole;
-  status: 'active' | 'inactive'; // Изменено: теперь строка 'active' | 'inactive'
+  status: 'active' | 'inactive';
 }
 
 type UserCreateWithStatus = UserCreateType & {
@@ -74,7 +74,6 @@ export const useExperts = (filters: ExpertFilters = {}) => {
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '', 
-        count_case: user.count_case || 0,
       }));
     },
   });
@@ -94,7 +93,6 @@ export const useExpert = (id: string) => {
         status: user.is_active ? 'active' : 'inactive',
         workload: 0,
         phone: user.settings?.phone || '',
-        count_case: user.count_case || 0,
       };
     }),
     enabled: !!id,
@@ -104,8 +102,8 @@ export const useExpert = (id: string) => {
 export const useCreateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ( CreateExpertInput) => {
-      const isActive = data.status === 'active'; // Преобразуем строку в boolean
+    mutationFn: async (data: CreateExpertInput) => {
+      const isActive = data.status === 'active';
       
       const userData: UserCreateWithStatus = {
         email: data.email,
@@ -130,17 +128,16 @@ export const useCreateExpert = () => {
 export const useUpdateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string;  UpdateExpertInput }) => {
+    mutationFn: async ({ id, data }: { id: string; data: UpdateExpertInput }) => {
       console.log('UPDATE id:', id, typeof id);
-      // Преобразуем строку статуса в boolean для бэкенда
       const isActive = data.status === 'active';
       
       const userData: UserUpdateType = {
         full_name: data.name,
         specialization: data.specialization,
         role: data.role?.toLowerCase() as UserRole,
-        is_active: isActive, // Передаем boolean вместо строки
-        can_authenticate: isActive, // Также обновляем can_authenticate
+        is_active: isActive,
+        can_authenticate: isActive,
         ...(data.email && { email: data.email }),
       };
       
