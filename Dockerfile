@@ -1,4 +1,3 @@
-# STAGE 1: Сборка
 FROM node:20-alpine AS builder
 WORKDIR /app
 
@@ -19,7 +18,6 @@ RUN npx vite build
 FROM node:20-alpine
 WORKDIR /app
 RUN npm install -g serve
-# Теперь папка dist точно должна появиться
 COPY --from=builder /app/dist ./dist
 EXPOSE 3000
 CMD ["serve", "-s", "dist", "-l", "3000"]

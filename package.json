@@ -6,11 +6,13 @@
   "scripts": {
     "dev": "vite",
     "dev:mock": "VITE_MOCK=true vite",
-    "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest",
-    "format": "prettier --write ."
+    "format": "prettier --write .",
+    "build": "vite build",                    
+    "type-check": "tsc --noEmit",     
+    "build:prod": "vite build && npm run type-check"
   },
   "dependencies": {
     "@emotion/react": "^11.14.0",
