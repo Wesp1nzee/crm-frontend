@@ -405,6 +405,21 @@ export function CaseDetailPage() {
   const assigned_experts = caseData?.assigned_experts ?? [];
   const documents = caseData?.documents ?? [];
   const folders = caseData?.folders ?? [];
+
+  const buildFolderPathQuery = useCallback((targetFolderId: string) => {
+    const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+    const chain: Array<{ id: string; name: string }> = [];
+
+    let currentId: string | undefined = targetFolderId;
+    while (currentId) {
+      const currentFolder = folderById.get(currentId);
+      if (!currentFolder) break;
+      chain.unshift({ id: currentFolder.id, name: currentFolder.name });
+      currentId = currentFolder.parent_id;
+    }
+
+    return encodeURIComponent(JSON.stringify(chain));
+  }, [folders]);
   const events = caseData?.events ?? [];
 
   const costNum = Number(case_?.cost) || 0;
@@ -688,13 +703,13 @@ export function CaseDetailPage() {
     e.target.value = '';
   };
 
-  const handleMultipleFoldersSelect = async () => {
+  const handleSelectFolders = async () => {
     const pickerWindow = window as Window & {
       showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
     };
 
     if (!pickerWindow.showDirectoryPicker) {
-      notificationService.warning('Ваш браузер не поддерживает выбор нескольких папок. Используйте drag & drop.');
+      folderInputRef.current?.click();
       return;
     }
 
@@ -1187,7 +1202,6 @@ export function CaseDetailPage() {
                           borderBottom: '1px solid',
                           borderColor: 'divider'
                         }}
-                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}`)}
                       >
                         <ListItemText
                           primary={
@@ -1326,7 +1340,7 @@ export function CaseDetailPage() {
                               : 'rgba(0, 0, 0, 0.04)'
                           }
                         }}
-                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}`)}
+                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}&folderPath=${buildFolderPathQuery(folder.id)}`)}
                       >
                         <ListItemAvatar>
                           <Avatar
@@ -1853,11 +1867,8 @@ export function CaseDetailPage() {
               <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
                 Выбрать файлы
               </Button>
-              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
-                Выбрать папку
-              </Button>
-              <Button variant="outlined" onClick={() => void handleMultipleFoldersSelect()}>
-                Выбрать папки
+              <Button variant="outlined" onClick={() => void handleSelectFolders()}>
+                Выбрать папку(и)
               </Button>
             </Box>
             {selectedFiles.length > 0 && (

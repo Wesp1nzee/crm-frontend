@@ -208,11 +208,26 @@ export function DocumentsPage() {
     if (!folderIdFromQuery) return;
 
     const folderNameFromQuery = searchParams.get('folderName') || 'Папка';
-    setCurrentFolderId(folderIdFromQuery);
-    setFolderPath([
+    const folderPathFromQuery = searchParams.get('folderPath');
+
+    let resolvedPath: Array<{ id: string | null; name: string }> = [
       { id: null, name: 'Корень' },
       { id: folderIdFromQuery, name: folderNameFromQuery },
-    ]);
+    ];
+
+    if (folderPathFromQuery) {
+      try {
+        const parsedPath = JSON.parse(decodeURIComponent(folderPathFromQuery)) as Array<{ id: string; name: string }>;
+        if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+          resolvedPath = [{ id: null, name: 'Корень' }, ...parsedPath];
+        }
+      } catch {
+        // ignore invalid folderPath query
+      }
+    }
+
+    setCurrentFolderId(folderIdFromQuery);
+    setFolderPath(resolvedPath);
     setPage(0);
   }, [searchParams]);
 
@@ -506,13 +521,13 @@ export function DocumentsPage() {
     }
   };
 
-  const handleMultipleFoldersSelect = async () => {
+  const handleSelectFolders = async () => {
     const pickerWindow = window as Window & {
       showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
     };
 
     if (!pickerWindow.showDirectoryPicker) {
-      notificationService.warning('Ваш браузер не поддерживает выбор нескольких папок. Используйте drag & drop.');
+      folderInputRef.current?.click();
       return;
     }
 
@@ -1873,11 +1888,8 @@ export function DocumentsPage() {
               <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
                 Выбрать файлы
               </Button>
-              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
-                Выбрать папку
-              </Button>
-              <Button variant="outlined" onClick={() => void handleMultipleFoldersSelect()}>
-                Выбрать папки
+              <Button variant="outlined" onClick={() => void handleSelectFolders()}>
+                Выбрать папку(и)
               </Button>
             </Stack>
             <Box
