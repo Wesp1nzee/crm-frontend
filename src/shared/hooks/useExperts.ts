@@ -1,12 +1,14 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { usersApi } from '../../entities/user/api';
-import type { UserCreate as UserCreateType, UserUpdate as UserUpdateType, UserFilterParams } from '../../entities/user/types';
+import type { UserCreate as UserCreateType, UserUpdate as UserUpdateType, UserFilterParams, UserRead } from '../../entities/user/types';
 import { UserRole } from '../../shared/types/user'; 
 
 export interface ExpertFilters {
   role?: UserRole | null;
   search?: string;
   is_active?: boolean | null;
+  page?: number;
+  limit?: number;
 }
 
 export interface Expert {
@@ -45,37 +47,75 @@ type UserCreateWithStatus = UserCreateType & {
   can_authenticate?: boolean;
 };
 
+type UsersMeta = {
+  total_items: number;
+  total_pages: number;
+  current_page: number;
+  per_page: number;
+  has_next: boolean;
+  has_prev: boolean;
+  next_page_url: string | null;
+  prev_page_url: string | null;
+};
+
+type ExpertsQueryResult = {
+  items: Expert[];
+  meta: UsersMeta | null;
+};
+
+const normalizeRole = (role: string): UserRole => {
+  switch (role.toUpperCase()) {
+    case UserRole.ADMIN:
+      return UserRole.ADMIN;
+    case UserRole.CEO:
+      return UserRole.CEO;
+    case UserRole.ACCOUNTANT:
+      return UserRole.ACCOUNTANT;
+    default:
+      return UserRole.EXPERT;
+  }
+};
+
+const mapUserToExpert = (user: UserRead): Expert => ({
+  ...user,
+  id: user.id,
+  name: user.full_name,
+  specialization: user.specialization ? [user.specialization] : [],
+  role: normalizeRole(user.role),
+  status: user.is_active ? 'active' : 'inactive',
+  workload: user.active_cases_count ?? 0,
+  count_case: user.active_cases_count ?? 0,
+  phone: user.settings?.phone || '',
+});
+
 export const useExperts = (filters: ExpertFilters = {}) => {
-  const { role = undefined, search, is_active } = filters;
-  
-  return useQuery({
-    queryKey: ['users', { role, search, is_active }],
+  const { role = undefined, search, is_active, page, limit } = filters;
+
+  return useQuery<ExpertsQueryResult>({
+    queryKey: ['users', { role, search, is_active, page, limit }],
     queryFn: async () => {
       const params: Partial<UserFilterParams> = {};
-      
+
       if (role !== undefined && role !== null) {
         params.role = role;
       }
-      
+
       if (search) params.search = search;
       if (is_active !== undefined && is_active !== null) params.is_active = is_active;
-      
+      if (page) params.page = page;
+      if (limit) params.limit = limit;
+
       const response = await usersApi.getUsers(params);
-      const users = response.data;
+      const rawData = response.data;
+      const users = Array.isArray(rawData) ? rawData : rawData.items;
+      const meta = Array.isArray(rawData) ? null : rawData.meta;
 
-      console.log(users)
-
-      return users.map(user => ({
-        ...user,
-        id: user.id,
-        name: user.full_name,
-        specialization: user.specialization ? [user.specialization] : [],
-        role: user.role.toLowerCase() === 'accountant' ? UserRole.ACCOUNTANT : UserRole.EXPERT,
-        status: user.is_active ? 'active' : 'inactive',
-        workload: 0,
-        phone: user.settings?.phone || '', 
-      }));
+      return {
+        items: users.map(mapUserToExpert),
+        meta,
+      };
     },
+    placeholderData: (prevData) => prevData,
   });
 };
 
@@ -89,9 +129,9 @@ export const useExpert = (id: string) => {
         id: user.id,
         name: user.full_name,
         specialization: user.specialization ? [user.specialization] : [],
-        role: user.role as UserRole,
+        role: normalizeRole(user.role),
         status: user.is_active ? 'active' : 'inactive',
-        workload: 0,
+        workload: user.active_cases_count ?? 0,
         phone: user.settings?.phone || '',
       };
     }),
@@ -104,7 +144,7 @@ export const useCreateExpert = () => {
   return useMutation({
     mutationFn: async (data: CreateExpertInput) => {
       const isActive = data.status === 'active';
-      
+
       const userData: UserCreateWithStatus = {
         email: data.email,
         full_name: data.name.trim(),
@@ -131,7 +171,7 @@ export const useUpdateExpert = () => {
     mutationFn: async ({ id, data }: { id: string; data: UpdateExpertInput }) => {
       console.log('UPDATE id:', id, typeof id);
       const isActive = data.status === 'active';
-      
+
       const userData: UserUpdateType = {
         full_name: data.name,
         specialization: data.specialization,
@@ -140,7 +180,7 @@ export const useUpdateExpert = () => {
         can_authenticate: isActive,
         ...(data.email && { email: data.email }),
       };
-      
+
       const response = await usersApi.updateUser(id, userData);
       return response.data;
     },

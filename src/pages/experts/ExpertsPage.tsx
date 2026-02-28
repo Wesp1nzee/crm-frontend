@@ -59,6 +59,8 @@ export function ExpertsPage() {
     search: '',
     status: 'all' as 'all' | 'active' | 'inactive',
     role: 'all' as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT,
+    page: 1,
+    limit: 20,
   });
   
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -85,31 +87,35 @@ export function ExpertsPage() {
     is_active: filters.status === 'all' 
       ? undefined 
       : (filters.status === 'active'),
+    page: filters.page,
+    limit: filters.limit,
   };
 
   // FIX: useQuery возвращает `data`, а не `experts` — переименовываем через `data: experts`
-  const { data: experts, isLoading, error, refetch, isRefetching } = useExperts(queryFilters);
+  const { data: expertsData, isLoading, error, refetch, isRefetching } = useExperts(queryFilters);
+  const experts = expertsData?.items ?? [];
+  const expertsMeta = expertsData?.meta;
   const createExpert = useCreateExpert();
   const updateExpert = useUpdateExpert();
   const deleteExpert = useDeleteExpert();
 
   // Обработчики фильтров
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFilters({ ...filters, search: e.target.value });
+    setFilters({ ...filters, search: e.target.value, page: 1 });
   };
 
   const handleStatusChange = (_event: React.MouseEvent<HTMLElement>, newStatus: string | null) => {
     if (newStatus) {
-      setFilters({ ...filters, status: newStatus as typeof filters.status });
+      setFilters({ ...filters, status: newStatus as typeof filters.status, page: 1 });
     }
   };
 
   const handleRoleChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    setFilters({ ...filters, role: e.target.value as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT });
+    setFilters({ ...filters, role: e.target.value as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT, page: 1 });
   };
 
   const handleClearFilters = () => {
-    setFilters({ search: '', status: 'all', role: 'all' });
+    setFilters((prev) => ({ ...prev, search: '', status: 'all', role: 'all', page: 1 }));
   };
 
   const handleOpenDialog = (expert?: Expert) => {
@@ -306,6 +312,22 @@ export function ExpertsPage() {
             </FormControl>
           </Grid>
           
+
+          <Grid size={{ xs: 12, md: 2 }}>
+            <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}>
+              <InputLabel>На странице</InputLabel>
+              <Select
+                value={filters.limit}
+                label="На странице"
+                onChange={(e) => setFilters({ ...filters, limit: Number(e.target.value), page: 1 })}
+              >
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={20}>20</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
             <ToggleButtonGroup
               value={filters.status}
@@ -356,7 +378,7 @@ export function ExpertsPage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {experts?.map((expert, index) => (
+            {experts.map((expert, index) => (
               <TableRow key={expert.id} hover sx={{ backgroundColor: (theme) => index % 2 ? alpha(theme.palette.common.black, 0.02) : "transparent" }}>
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
@@ -420,7 +442,7 @@ export function ExpertsPage() {
               </TableRow>
             ))}
             
-            {experts && experts.length === 0 && (
+            {experts.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
@@ -434,6 +456,29 @@ export function ExpertsPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+
+      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+        <Typography variant="body2" color="text.secondary">
+          Страница {expertsMeta?.current_page ?? filters.page} из {expertsMeta?.total_pages ?? 1}. Всего: {expertsMeta?.total_items ?? experts.length}
+        </Typography>
+        <Box display="flex" gap={1}>
+          <Button
+            variant="outlined"
+            disabled={!(expertsMeta?.has_prev ?? filters.page > 1)}
+            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(prev.page - 1, 1) }))}
+          >
+            Назад
+          </Button>
+          <Button
+            variant="outlined"
+            disabled={!(expertsMeta?.has_next ?? false)}
+            onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+          >
+            Вперёд
+          </Button>
+        </Box>
+      </Box>
 
       {/* Модальное окно */}
       <Dialog 
