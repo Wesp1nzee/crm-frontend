@@ -1,11 +1,11 @@
 import {
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
   Typography,
   Box,
   CircularProgress,
@@ -27,9 +27,15 @@ const TYPE_ICONS = {
   court: <Gavel sx={{ fontSize: 18 }} />,
 };
 
+const PAGE_SIZE = 20;
+
 export function ClientListPage() {
   const navigate = useNavigate();
-  const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients();
+  const [page, setPage] = useState(1);
+  const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients({
+    page,
+    limit: PAGE_SIZE,
+  });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const createClient = useCreateClient();
@@ -62,13 +68,19 @@ export function ClientListPage() {
     );
   }
 
+  const currentPage = clients?.meta.current_page ?? 1;
+  const totalPages = clients?.meta.total_pages ?? 1;
+  const totalItems = clients?.meta.total_items ?? 0;
+  const hasNext = clients?.meta.has_next ?? false;
+  const hasPrev = clients?.meta.has_prev ?? false;
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4">Клиенты</Typography>
           <Typography variant="body2" color="text.secondary">
-            Всего: {clients?.items?.length || 0} клиентов
+            Всего: {totalItems} клиентов
           </Typography>
         </Box>
         <Button variant="contained" color="primary" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)}>
@@ -77,7 +89,7 @@ export function ClientListPage() {
       </Box>
 
       <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table sx={{ "& th:first-of-type, & td:first-of-type": { pl: 4 }, "& th:last-of-type, & td:last-of-type": { pr: 4 } }}>
+        <Table sx={{ '& th:first-of-type, & td:first-of-type': { pl: 4 }, '& th:last-of-type, & td:last-of-type': { pr: 4 } }}>
           <TableHead>
             <TableRow>
               <TableCell>Название</TableCell>
@@ -155,6 +167,20 @@ export function ClientListPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
+        <Typography variant="body2" color="text.secondary">
+          Страница {currentPage} из {totalPages}
+        </Typography>
+        <Box display="flex" gap={1}>
+          <Button variant="outlined" disabled={!hasPrev} onClick={() => setPage((prev) => Math.max(prev - 1, 1))}>
+            Назад
+          </Button>
+          <Button variant="outlined" disabled={!hasNext} onClick={() => setPage((prev) => prev + 1)}>
+            Вперед
+          </Button>
+        </Box>
+      </Box>
 
       <ClientCreateDialog
         open={createDialogOpen}
