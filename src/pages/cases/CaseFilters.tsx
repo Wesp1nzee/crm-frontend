@@ -67,7 +67,8 @@ interface CaseFiltersProps {
 
 export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
   const [expanded, setExpanded] = useState(false);
-  const { data: experts = [] } = useExperts();
+  const { data: expertsData } = useExperts();
+  const experts = expertsData?.items ?? [];
   const { data: clients } = useClients();
 
   const updateFilter = (key: keyof GetCasesQuery, value: any) => {

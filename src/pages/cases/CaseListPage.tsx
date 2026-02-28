@@ -18,7 +18,6 @@ import {
   DialogActions,
   CircularProgress,
   Alert,
-  TablePagination,
   IconButton,
   Tooltip,
   Divider,
@@ -41,6 +40,7 @@ import type { CaseStatus, GetCasesQuery } from '../../entities/case/types';
 import { CreateCaseDialog } from './CreateCaseDialog';
 import { CaseFilters } from './CaseFilters';
 import { notificationService } from '../../shared/services/notifications';
+import { PaginationControls } from '../../shared/ui/PaginationControls';
 
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -84,8 +84,11 @@ export function CaseListPage() {
 
   const cases = casesResponse?.data || [];
   const totalCases = casesResponse?.pagination?.total || 0;
-  const currentPage = (casesResponse?.pagination?.page || 1) - 1;
-  const pageSize = casesResponse?.pagination?.limit || 20;
+  const currentPage = casesResponse?.pagination?.page || 1;
+  const totalPages = casesResponse?.pagination?.total_pages || 1;
+  const pageSize = casesResponse?.pagination?.limit || filters.limit || 20;
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
 
   const handleCreateSubmit = async (formData: Parameters<typeof createCase.mutateAsync>[0]) => {
     try {
@@ -128,13 +131,16 @@ export function CaseListPage() {
   };
 
   // ── Pagination handlers ──────────────────────────────────────────────────
-  const handleChangePage = (_: unknown, newPage: number) => {
-    setFilters(prev => ({ ...prev, page: newPage + 1 }));
+  const handlePrevPage = () => {
+    setFilters((prev) => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }));
   };
 
-  const handleChangeRowsPerPage = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newLimit = parseInt(e.target.value, 10);
-    setFilters(prev => ({ ...prev, limit: newLimit, page: 1 }));
+  const handleNextPage = () => {
+    setFilters((prev) => ({ ...prev, page: (prev.page || 1) + 1 }));
+  };
+
+  const handleChangeLimit = (newLimit: number) => {
+    setFilters((prev) => ({ ...prev, limit: newLimit, page: 1 }));
   };
 
   // ── Loading / Error states ───────────────────────────────────────────────
@@ -373,18 +379,19 @@ export function CaseListPage() {
           </Table>
         </TableContainer>
         <Divider />
-        <TablePagination
-          component="div"
-          count={totalCases}
-          page={currentPage}
-          onPageChange={handleChangePage}
-          rowsPerPage={pageSize}
-          onRowsPerPageChange={handleChangeRowsPerPage}
-          labelRowsPerPage="Строк на странице:"
-          labelDisplayedRows={({ from, to, count }) => `${from}–${to} из ${count}`}
-          rowsPerPageOptions={[10, 20, 50, 100]}
-          sx={{ '.MuiTablePagination-actions .Mui-disabled': { opacity: 0.3 } }}
-        />
+        <Box sx={{ px: 3, py: 2 }}>
+          <PaginationControls
+            currentPage={currentPage}
+            totalPages={totalPages}
+            totalItems={totalCases}
+            hasPrev={hasPrev}
+            hasNext={hasNext}
+            limit={pageSize}
+            onLimitChange={handleChangeLimit}
+            onPrev={handlePrevPage}
+            onNext={handleNextPage}
+          />
+        </Box>
       </Card>
 
       {/* ── Create dialog ── */}

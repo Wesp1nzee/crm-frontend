@@ -52,10 +52,16 @@ export interface ClientFilters {
 
 export interface ClientListResponse {
   items: ClientShort[];
-  total: number;
-  page: number;
-  size: number;
-  pages: number;
+  meta: {
+    total_items: number;
+    total_pages: number;
+    current_page: number;
+    per_page: number;
+    has_next: boolean;
+    has_prev: boolean;
+    next_page_url: string | null;
+    prev_page_url: string | null;
+  };
 }
 
 // ===== DTO ДЛЯ СОЗДАНИЯ/ОБНОВЛЕНИЯ =====
@@ -73,4 +79,3 @@ export interface ClientUpdateRequest {
   legal_address?: string;
   actual_address?: string;
 }
-

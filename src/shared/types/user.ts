@@ -48,6 +48,10 @@ export const UserReadSchema = UserBaseSchema.extend({
   can_authenticate: z.boolean(),
   company_id: z.string().uuid(),
   settings: z.record(z.any()),
+  last_login: z.string().datetime().nullable().optional(),
+  active_cases_count: z.number().int().optional(),
+  total_documents_count: z.number().int().optional(),
+  created_at: z.string().datetime().optional(),
 });
 
 export const UserUpdateSchema = z.object({

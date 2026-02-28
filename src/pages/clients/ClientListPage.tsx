@@ -1,11 +1,11 @@
 import {
-  Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
   TableRow,
+  Paper,
   Typography,
   Box,
   CircularProgress,
@@ -20,6 +20,7 @@ import { useClients, useCreateClient } from '../../shared/hooks/useClients';
 import { useState } from 'react';
 import { ClientCreateDialog } from './ClientCreateDialog';
 import { notificationService } from '../../shared/services/notifications';
+import { PaginationControls } from '../../shared/ui/PaginationControls';
 
 const TYPE_ICONS = {
   legal: <AccountBalance sx={{ fontSize: 18 }} />,
@@ -29,7 +30,12 @@ const TYPE_ICONS = {
 
 export function ClientListPage() {
   const navigate = useNavigate();
-  const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients();
+  const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
+  const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients({
+    page,
+    limit,
+  });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const createClient = useCreateClient();
@@ -62,13 +68,19 @@ export function ClientListPage() {
     );
   }
 
+  const currentPage = clients?.meta.current_page ?? 1;
+  const totalPages = clients?.meta.total_pages ?? 1;
+  const totalItems = clients?.meta.total_items ?? 0;
+  const hasNext = clients?.meta.has_next ?? false;
+  const hasPrev = clients?.meta.has_prev ?? false;
+
   return (
     <Box>
       <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
         <Box>
           <Typography variant="h4">Клиенты</Typography>
           <Typography variant="body2" color="text.secondary">
-            Всего: {clients?.items?.length || 0} клиентов
+            Всего: {totalItems} клиентов
           </Typography>
         </Box>
         <Button variant="contained" color="primary" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)}>
@@ -77,7 +89,7 @@ export function ClientListPage() {
       </Box>
 
       <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table sx={{ "& th:first-of-type, & td:first-of-type": { pl: 4 }, "& th:last-of-type, & td:last-of-type": { pr: 4 } }}>
+        <Table sx={{ '& th:first-of-type, & td:first-of-type': { pl: 4 }, '& th:last-of-type, & td:last-of-type': { pr: 4 } }}>
           <TableHead>
             <TableRow>
               <TableCell>Название</TableCell>
@@ -155,6 +167,21 @@ export function ClientListPage() {
           </TableBody>
         </Table>
       </TableContainer>
+
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        limit={limit}
+        onLimitChange={(nextLimit) => {
+          setLimit(nextLimit);
+          setPage(1);
+        }}
+        onPrev={() => setPage((prev) => Math.max(prev - 1, 1))}
+        onNext={() => setPage((prev) => prev + 1)}
+      />
 
       <ClientCreateDialog
         open={createDialogOpen}

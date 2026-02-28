@@ -24,9 +24,12 @@ export const clientApi = {
     return api.get<ClientListResponse>(API_PREFIX, { params })
       .then(res => {
         console.log('[CLIENT_API] Успешно получено клиентов:', {
-          total: res.data.total,
-          page: res.data.page,
-          size: res.data.size,
+          total: res.data.meta.total_items,
+          page: res.data.meta.current_page,
+          size: res.data.meta.per_page,
+          pages: res.data.meta.total_pages,
+          hasNext: res.data.meta.has_next,
+          hasPrev: res.data.meta.has_prev,
           items: res.data.items.length
         });
         return res;

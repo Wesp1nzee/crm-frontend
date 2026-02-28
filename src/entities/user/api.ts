@@ -1,10 +1,24 @@
 import { api } from '../../shared/api/axios';
 import type { UserRead, UserCreate, UserUpdate, UserFilterParams } from './types';
 
+export interface PaginatedResponse<T> {
+  items: T[];
+  meta: {
+    total_items: number;
+    total_pages: number;
+    current_page: number;
+    per_page: number;
+    has_next: boolean;
+    has_prev: boolean;
+    next_page_url: string | null;
+    prev_page_url: string | null;
+  };
+}
+
 export const usersApi = {
   getUsers: (params?: Partial<UserFilterParams>) => {
     const queryParams = new URLSearchParams();
-    
+
     if (params?.role) {
       queryParams.append('role', params.role.toString().toLowerCase());
     }
@@ -15,10 +29,10 @@ export const usersApi = {
     if (params?.order) queryParams.append('order', params.order);
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.limit) queryParams.append('limit', params.limit.toString());
-    
+
     const queryString = queryParams.toString();
 
-    return api.get<UserRead[]>(`/users${queryString ? '?' + queryString : ''}`);
+    return api.get<PaginatedResponse<UserRead> | UserRead[]>(`/users${queryString ? '?' + queryString : ''}`);
   },
 
   getUser: (id: string) => api.get<UserRead>(`/users/${id}`),
@@ -26,14 +40,14 @@ export const usersApi = {
   createUser: (data: UserCreate) => api.post<UserRead>('/users', data),
 
   deleteUser: (id: string) => {
-  console.log('DELETE URL:', `/users/${id}`);
-  return api.delete(`/users/${id}`);
-},
+    console.log('DELETE URL:', `/users/${id}`);
+    return api.delete(`/users/${id}`);
+  },
 
-updateUser: (id: string, data: UserUpdate) => {
-  console.log('UPDATE URL:', `/users/${id}`, 'baseURL:', api.defaults.baseURL);
-  return api.patch<UserRead>(`/users/${id}`, data);
-},
+  updateUser: (id: string, data: UserUpdate) => {
+    console.log('UPDATE URL:', `/users/${id}`, 'baseURL:', api.defaults.baseURL);
+    return api.patch<UserRead>(`/users/${id}`, data);
+  },
 
   getCurrentUser: () => api.get<UserRead>('/users/me'),
 };
