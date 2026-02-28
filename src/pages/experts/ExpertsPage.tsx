@@ -52,6 +52,7 @@ import { UserRole } from '../../shared/types/user';
 import { useDebounce } from '../../shared/hooks/useDebounce';
 import { notificationService } from '../../shared/services/notifications';
 import { confirmService } from '../../shared/services/confirm';
+import { PaginationControls } from '../../shared/ui/PaginationControls';
 
 export function ExpertsPage() {  
   // Состояние фильтров
@@ -312,22 +313,6 @@ export function ExpertsPage() {
             </FormControl>
           </Grid>
           
-
-          <Grid size={{ xs: 12, md: 2 }}>
-            <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}>
-              <InputLabel>На странице</InputLabel>
-              <Select
-                value={filters.limit}
-                label="На странице"
-                onChange={(e) => setFilters({ ...filters, limit: Number(e.target.value), page: 1 })}
-              >
-                <MenuItem value={10}>10</MenuItem>
-                <MenuItem value={20}>20</MenuItem>
-                <MenuItem value={50}>50</MenuItem>
-                <MenuItem value={100}>100</MenuItem>
-              </Select>
-            </FormControl>
-          </Grid>
           <Grid size={{ xs: 12, md: 3 }}>
             <ToggleButtonGroup
               value={filters.status}
@@ -458,27 +443,17 @@ export function ExpertsPage() {
       </TableContainer>
 
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
-        <Typography variant="body2" color="text.secondary">
-          Страница {expertsMeta?.current_page ?? filters.page} из {expertsMeta?.total_pages ?? 1}. Всего: {expertsMeta?.total_items ?? experts.length}
-        </Typography>
-        <Box display="flex" gap={1}>
-          <Button
-            variant="outlined"
-            disabled={!(expertsMeta?.has_prev ?? filters.page > 1)}
-            onClick={() => setFilters((prev) => ({ ...prev, page: Math.max(prev.page - 1, 1) }))}
-          >
-            Назад
-          </Button>
-          <Button
-            variant="outlined"
-            disabled={!(expertsMeta?.has_next ?? false)}
-            onClick={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
-          >
-            Вперёд
-          </Button>
-        </Box>
-      </Box>
+      <PaginationControls
+        currentPage={expertsMeta?.current_page ?? filters.page}
+        totalPages={expertsMeta?.total_pages ?? 1}
+        totalItems={expertsMeta?.total_items ?? experts.length}
+        hasPrev={expertsMeta?.has_prev ?? filters.page > 1}
+        hasNext={expertsMeta?.has_next ?? false}
+        limit={filters.limit}
+        onLimitChange={(nextLimit) => setFilters((prev) => ({ ...prev, limit: nextLimit, page: 1 }))}
+        onPrev={() => setFilters((prev) => ({ ...prev, page: Math.max(prev.page - 1, 1) }))}
+        onNext={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
+      />
 
       {/* Модальное окно */}
       <Dialog 

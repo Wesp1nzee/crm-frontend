@@ -20,6 +20,7 @@ import { useClients, useCreateClient } from '../../shared/hooks/useClients';
 import { useState } from 'react';
 import { ClientCreateDialog } from './ClientCreateDialog';
 import { notificationService } from '../../shared/services/notifications';
+import { PaginationControls } from '../../shared/ui/PaginationControls';
 
 const TYPE_ICONS = {
   legal: <AccountBalance sx={{ fontSize: 18 }} />,
@@ -27,14 +28,13 @@ const TYPE_ICONS = {
   court: <Gavel sx={{ fontSize: 18 }} />,
 };
 
-const PAGE_SIZE = 20;
-
 export function ClientListPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
+  const [limit, setLimit] = useState(20);
   const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients({
     page,
-    limit: PAGE_SIZE,
+    limit,
   });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -168,19 +168,20 @@ export function ClientListPage() {
         </Table>
       </TableContainer>
 
-      <Box display="flex" justifyContent="space-between" alignItems="center" mt={2}>
-        <Typography variant="body2" color="text.secondary">
-          Страница {currentPage} из {totalPages}
-        </Typography>
-        <Box display="flex" gap={1}>
-          <Button variant="outlined" disabled={!hasPrev} onClick={() => setPage((prev) => Math.max(prev - 1, 1))}>
-            Назад
-          </Button>
-          <Button variant="outlined" disabled={!hasNext} onClick={() => setPage((prev) => prev + 1)}>
-            Вперед
-          </Button>
-        </Box>
-      </Box>
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalItems={totalItems}
+        hasPrev={hasPrev}
+        hasNext={hasNext}
+        limit={limit}
+        onLimitChange={(nextLimit) => {
+          setLimit(nextLimit);
+          setPage(1);
+        }}
+        onPrev={() => setPage((prev) => Math.max(prev - 1, 1))}
+        onNext={() => setPage((prev) => prev + 1)}
+      />
 
       <ClientCreateDialog
         open={createDialogOpen}

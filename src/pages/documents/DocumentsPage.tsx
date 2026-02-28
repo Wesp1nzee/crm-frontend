@@ -9,7 +9,6 @@ import {
   TableRow,
   TableCell,
   TableContainer,
-  TablePagination,
   Button,
   Dialog,
   DialogTitle,
@@ -64,6 +63,7 @@ import type { FileSystemEntry } from '../../entities/document/types';
 import type { CaseSuggestion } from '../../entities/case/types';
 import { EditAssetDialog } from '../../shared/ui/EditAssetDialog';
 import { notificationService } from '../../shared/services/notifications';
+import { PaginationControls } from '../../shared/ui/PaginationControls';
 
 type SortField = 'name' | 'size' | 'created_at' | 'created_by';
 type SortOrder = 'asc' | 'desc';
@@ -377,12 +377,16 @@ export function DocumentsPage() {
   };
 
   // Обработчики пагинации
-  const handleChangePage = (event: unknown, newPage: number) => {
-    setPage(newPage);
+  const handlePrevPage = () => {
+    setPage((prev) => Math.max(prev - 1, 0));
   };
 
-  const handleChangeRowsPerPage = (event: React.ChangeEvent<HTMLInputElement>) => {
-    setRowsPerPage(parseInt(event.target.value, 10));
+  const handleNextPage = () => {
+    setPage((prev) => prev + 1);
+  };
+
+  const handleChangeRowsPerPage = (nextLimit: number) => {
+    setRowsPerPage(nextLimit);
     setPage(0);
   };
 
@@ -1339,44 +1343,20 @@ export function DocumentsPage() {
           </TableContainer>
 
           {/* Пагинация */}
-          <TablePagination
-            rowsPerPageOptions={[10, 25, 50, 100]}
-            component="div"
-            count={total}
-            rowsPerPage={rowsPerPage}
-            page={page}
-            onPageChange={handleChangePage}
-            onRowsPerPageChange={handleChangeRowsPerPage}
-            labelRowsPerPage="Строк на странице:"
-            labelDisplayedRows={({ from, to, count }) => `${from}-${to} из ${count}`}
-            sx={{
-              borderTop: '1px solid',
-              borderColor: 'divider',
-              '& .MuiTablePagination-toolbar': {
-                minHeight: 56,
-                alignItems: 'center',
-                display: 'flex',
-                gap: 1,
-              },
-              '& .MuiTablePagination-selectLabel, & .MuiTablePagination-displayedRows, & .MuiTablePagination-select': {
-                fontSize: '0.95rem',
-                color: 'text.primary',
-                lineHeight: 1.4,
-                m: 0,
-              },
-              '& .MuiTablePagination-select': {
-                display: 'inline-flex',
-                alignItems: 'center',
-              },
-              '& .MuiTablePagination-actions': {
-                alignSelf: 'center',
-                ml: 1,
-              },
-              '& .MuiTablePagination-actions .MuiIconButton-root': {
-                p: 1,
-              },
-            }}
-          />
+          <Box sx={{ borderTop: '1px solid', borderColor: 'divider', px: 2, py: 1.5 }}>
+            <PaginationControls
+              currentPage={page + 1}
+              totalPages={entriesArray.length === rowsPerPage ? page + 2 : page + 1}
+              totalItems={total}
+              hasPrev={page > 0}
+              hasNext={entriesArray.length === rowsPerPage}
+              limit={rowsPerPage}
+              limitOptions={[10, 25, 50, 100]}
+              onLimitChange={handleChangeRowsPerPage}
+              onPrev={handlePrevPage}
+              onNext={handleNextPage}
+            />
+          </Box>
         </Paper>
 
         {/* Контекстное меню */}
