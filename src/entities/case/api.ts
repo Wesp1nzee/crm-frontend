@@ -39,9 +39,14 @@ export const casesApi = {
     api.get<CaseSuggestion[]>('/cases/suggest', { params: { q: query } }).then(res => res.data),
 
   // Скачать все документы дела как ZIP
-  downloadCaseDocuments: async (caseId: string): Promise<void> => {
+  downloadCaseDocuments: async (caseId: string, onDownloadProgress?: (progress: number) => void): Promise<void> => {
     const response = await api.get(`/cases/${caseId}/download-documents`, {
       responseType: 'blob',
+      onDownloadProgress: (progressEvent) => {
+        if (!onDownloadProgress || !progressEvent.total) return;
+        const progress = Math.min(100, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+        onDownloadProgress(progress);
+      },
     });
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');

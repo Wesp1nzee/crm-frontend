@@ -66,7 +66,22 @@ export interface DocumentUploadData {
   case_id?: string | null;
   folder_id?: string | null;
   title?: string | null;
+  onUploadProgress?: (progress: number) => void;
 }
+
+export interface DownloadProgressOptions {
+  onDownloadProgress?: (progress: number) => void;
+}
+
+export interface DocumentDownloadRequest extends DownloadProgressOptions {
+  documentId: string;
+}
+
+export interface FolderDownloadRequest extends DownloadProgressOptions {
+  folderId: string;
+}
+
+export interface BulkAssetsDownloadRequest extends BulkAssetsRequest, DownloadProgressOptions {}
 
 export interface AssetUpdateRequest {
   asset_id: string;

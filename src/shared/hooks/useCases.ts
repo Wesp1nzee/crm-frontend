@@ -76,7 +76,8 @@ export const useDeleteCase = () => {
 
 export const useDownloadCaseDocuments = () => {
   return useMutation({
-    mutationFn: (caseId: string) => casesApi.downloadCaseDocuments(caseId),
+    mutationFn: ({ caseId, onDownloadProgress }: { caseId: string; onDownloadProgress?: (progress: number) => void }) =>
+      casesApi.downloadCaseDocuments(caseId, onDownloadProgress),
   });
 };
 

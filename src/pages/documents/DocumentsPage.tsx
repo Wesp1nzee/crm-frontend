@@ -18,6 +18,7 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  LinearProgress,
   Chip,
   Menu,
   IconButton,
@@ -125,6 +126,10 @@ export function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [dragOverTable, setDragOverTable] = useState(false);
   const [dragOverUploadDialog, setDragOverUploadDialog] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadingLabel, setDownloadingLabel] = useState('');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [dragOverFolderPathIndex, setDragOverFolderPathIndex] = useState<number | null>(null);
@@ -212,14 +217,23 @@ export function DocumentsPage() {
   const handleBulkDownload = async () => {
     if (!selectedEntries.length) return;
     try {
+      setDownloadingLabel('Массовое скачивание (ZIP)');
+      setDownloadProgress(0);
+
       await downloadBulkAssets.mutateAsync({
         folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
         document_ids: selectedEntries.filter((entry) => entry.type === 'file').map((entry) => entry.id),
+        onDownloadProgress: (progress) => setDownloadProgress(progress),
       });
       notificationService.success(`Подготовлено к скачиванию: ${selectedEntries.length}`);
     } catch (error) {
       console.error('Ошибка массового скачивания:', error);
       notificationService.error('Не удалось скачать выбранные элементы');
+    } finally {
+      setTimeout(() => {
+        setDownloadProgress(0);
+        setDownloadingLabel('');
+      }, 500);
     }
   };
 
@@ -426,15 +440,28 @@ export function DocumentsPage() {
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
+
     try {
-      for (const file of selectedFiles) {
+      const totalFiles = selectedFiles.length;
+
+      for (const [index, file] of selectedFiles.entries()) {
+        setUploadingFileName(file.name);
+        setUploadProgress(Math.round((index / totalFiles) * 100));
+
         await uploadDocument.mutateAsync({
           file,
           folder_id: currentFolderId,
           case_id: selectedCase?.id || null,
           title: uploadTitle || file.name,
+          onUploadProgress: (fileProgress) => {
+            const completedFilesProgress = (index / totalFiles) * 100;
+            const currentFileProgress = (fileProgress / totalFiles);
+            setUploadProgress(Math.min(100, Math.round(completedFilesProgress + currentFileProgress)));
+          },
         });
       }
+
+      setUploadProgress(100);
       setUploadDialogOpen(false);
       setSelectedFiles([]);
       setUploadCaseId('');
@@ -446,15 +473,44 @@ export function DocumentsPage() {
     } catch (error) {
       console.error('Ошибка загрузки файлов:', error);
       notificationService.error('Ошибка загрузки файлов. Проверьте логи для подробностей.');
+    } finally {
+      setUploadingFileName('');
+      setTimeout(() => setUploadProgress(0), 500);
     }
   };
 
   const handleDownload = (documentId: string) => {
-    downloadDocument.mutate(documentId);
+    setDownloadingLabel('Скачивание файла');
+    setDownloadProgress(0);
+
+    downloadDocument.mutate({
+      documentId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadingLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handleDownloadFolder = (folderId: string) => {
-    downloadFolder.mutate(folderId);
+    setDownloadingLabel('Скачивание папки (ZIP)');
+    setDownloadProgress(0);
+
+    downloadFolder.mutate({
+      folderId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadingLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handlePreview = (documentId: string) => {
@@ -1107,6 +1163,20 @@ export function DocumentsPage() {
           />
         )}
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+          {(downloadFolder.isPending || downloadDocument.isPending || downloadBulkAssets.isPending) && (
+            <Box sx={{ px: 2, pt: 1 }}>
+              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {downloadingLabel || 'Скачивание'}
+                </Typography>
+                <Typography variant="caption" fontWeight={700}>
+                  {downloadProgress}%
+                </Typography>
+              </Stack>
+              <LinearProgress variant="determinate" value={downloadProgress} />
+            </Box>
+          )}
+
           <TableContainer>
             <Table size="small">
               <TableHead sx={{ bgcolor: 'grey.50' }}>
@@ -1574,6 +1644,19 @@ export function DocumentsPage() {
       >
         <DialogTitle>Загрузить файлы</DialogTitle>
         <DialogContent>
+          {uploadDocument.isPending && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Загружается: {uploadingFileName || 'файл'}
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {uploadProgress}%
+                </Typography>
+              </Stack>
+              <LinearProgress variant="determinate" value={uploadProgress} />
+            </Box>
+          )}
           <Box sx={{ mb: 3, mt: 1 }}>
             {selectedFiles.length > 0 && (
               <Box sx={{ mb: 3 }}>

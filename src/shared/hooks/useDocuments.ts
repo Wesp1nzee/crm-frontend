@@ -6,6 +6,9 @@ import type {
   FolderCreate,
   DocumentUploadData,
   AssetUpdateRequest,
+  DocumentDownloadRequest,
+  FolderDownloadRequest,
+  BulkAssetsDownloadRequest,
 } from '../../entities/document/types';
 
 export const useDocuments = (params?: DocumentsListParams) => {
@@ -39,10 +42,7 @@ export const useUploadDocument = () => {
 
 export const useDownloadDocument = () => {
   return useMutation({
-    mutationFn: (documentId: string) => documentsApi.getDownloadUrl(documentId),
-    onSuccess: (data) => {
-      window.open(data.download_url, '_blank');
-    },
+    mutationFn: (payload: DocumentDownloadRequest) => documentsApi.downloadDocument(payload),
   });
 };
 
@@ -57,7 +57,7 @@ export const usePreviewDocument = () => {
 
 export const useDownloadFolder = () => {
   return useMutation({
-    mutationFn: (folderId: string) => documentsApi.downloadFolder(folderId),
+    mutationFn: (payload: FolderDownloadRequest) => documentsApi.downloadFolder(payload),
   });
 };
 
@@ -105,7 +105,7 @@ export const useUpdateAsset = () => {
 
 export const useDownloadBulkAssets = () => {
   return useMutation({
-    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) => documentsApi.downloadBulk(payload),
+    mutationFn: (payload: BulkAssetsDownloadRequest) => documentsApi.downloadBulk(payload),
   });
 };
 

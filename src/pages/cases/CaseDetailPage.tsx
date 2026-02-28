@@ -317,6 +317,10 @@ export function CaseDetailPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
   const [isFolderUploadInProgress, setIsFolderUploadInProgress] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadLabel, setDownloadLabel] = useState('');
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
@@ -405,19 +409,29 @@ export function CaseDetailPage() {
         folderIdByPath.set(folderPath, createdFolder.id);
       }
 
-      for (const file of files) {
+      for (const [index, file] of files.entries()) {
         const relativePath = file.webkitRelativePath || file.name;
         const folderPath = relativePath.split('/').slice(0, -1).join('/');
         const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+        const totalFiles = files.length;
+
+        setUploadingFileName(file.name);
+        setUploadProgress(Math.round((index / totalFiles) * 100));
 
         await uploadDocument.mutateAsync({
           file,
           folder_id: folderId,
           case_id: folderId ? null : caseData?.case?.id,
           title: uploadTitle || file.name,
+          onUploadProgress: (fileProgress) => {
+            const completedFilesProgress = (index / totalFiles) * 100;
+            const currentFileProgress = fileProgress / totalFiles;
+            setUploadProgress(Math.min(100, Math.round(completedFilesProgress + currentFileProgress)));
+          },
         });
       }
 
+      setUploadProgress(100);
       setSelectedFiles([]);
       setUploadTitle('');
       setUploadDialogOpen(false);
@@ -428,6 +442,8 @@ export function CaseDetailPage() {
       notificationService.error('Ошибка загрузки файлов и папок');
     } finally {
       setIsFolderUploadInProgress(false);
+      setUploadingFileName('');
+      setTimeout(() => setUploadProgress(0), 500);
     }
   }, [caseData?.case?.id, createFolder, refetch, uploadDocument, uploadTitle]);
 
@@ -685,7 +701,20 @@ export function CaseDetailPage() {
   };
 
   const handleDownload = (documentId: string) => {
-    downloadDocument.mutate(documentId);
+    setDownloadLabel('Скачивание файла');
+    setDownloadProgress(0);
+
+    downloadDocument.mutate({
+      documentId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handlePreview = (documentId: string) => {
@@ -1135,7 +1164,21 @@ export function CaseDetailPage() {
                   <Tooltip title="Скачать все документы">
                     <IconButton 
                       size="small"
-                      onClick={() => downloadCaseDocuments.mutate(case_.id)}
+                      onClick={() => {
+                        setDownloadLabel('Скачивание документов дела (ZIP)');
+                        setDownloadProgress(0);
+                        downloadCaseDocuments.mutate({
+                          caseId: case_.id,
+                          onDownloadProgress: (progress) => setDownloadProgress(progress),
+                        }, {
+                          onSettled: () => {
+                            setTimeout(() => {
+                              setDownloadProgress(0);
+                              setDownloadLabel('');
+                            }, 500);
+                          },
+                        });
+                      }}
                     >
                       <FileDownload />
                     </IconButton>
@@ -1145,6 +1188,15 @@ export function CaseDetailPage() {
               sx={{ pb: 0 }}
             />
               <CardContent sx={{ p: 0 }}>
+                {(downloadDocument.isPending || downloadCaseDocuments.isPending) && (
+                  <Box sx={{ px: 2, pt: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">{downloadLabel || 'Скачивание'}</Typography>
+                      <Typography variant="caption" fontWeight={700}>{downloadProgress}%</Typography>
+                    </Box>
+                    <LinearProgress variant="determinate" value={downloadProgress} />
+                  </Box>
+                )}
                 {folders.length === 0 && documents.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: 'center' }}>
                     <Description sx={{ fontSize: 48, color: 'action.disabled', mb: 2 }} />
@@ -1689,6 +1741,15 @@ export function CaseDetailPage() {
       >
         <DialogTitle>Загрузка файлов и папок</DialogTitle>
         <DialogContent>
+          {isFolderUploadInProgress && (
+            <Box sx={{ mt: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="body2" color="text.secondary">Загружается: {uploadingFileName || 'файл'}</Typography>
+                <Typography variant="body2" fontWeight={700}>{uploadProgress}%</Typography>
+              </Box>
+              <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 2 }} />
+            </Box>
+          )}
           <Box sx={{ mt: 1 }}>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
