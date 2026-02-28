@@ -128,6 +128,7 @@ export function DocumentsPage() {
   const [dragOverUploadDialog, setDragOverUploadDialog] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [uploadingFileName, setUploadingFileName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
   const [downloadProgress, setDownloadProgress] = useState(0);
   const [downloadingLabel, setDownloadingLabel] = useState('');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
@@ -141,6 +142,7 @@ export function DocumentsPage() {
   const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const tableAreaRef = useRef<HTMLDivElement>(null);
   const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
   const selectionFrameEntriesRef = useRef<Array<{ id: string; left: number; right: number; top: number; bottom: number }>>([]);
@@ -438,28 +440,89 @@ export function DocumentsPage() {
     }
   };
 
+  const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      setSelectedFiles(files);
+      setUploadDialogOpen(true);
+    }
+  };
+
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
+    const files = selectedFiles;
+    const totalFiles = files.length;
+    const maxConcurrency = Math.min(4, totalFiles);
+    const progressByFile = new Map<number, number>();
+    files.forEach((_, index) => progressByFile.set(index, 0));
+
+    const updateOverallProgress = () => {
+      const total = Array.from(progressByFile.values()).reduce((sum, value) => sum + value, 0);
+      setUploadProgress(Math.round(total / totalFiles));
+    };
+
     try {
-      const totalFiles = selectedFiles.length;
+      setIsUploading(true);
+      setUploadProgress(0);
 
-      for (const [index, file] of selectedFiles.entries()) {
-        setUploadingFileName(file.name);
-        setUploadProgress(Math.round((index / totalFiles) * 100));
+      const folderPaths = new Set<string>();
+      files.forEach((file) => {
+        if (!file.webkitRelativePath) return;
+        const pathParts = file.webkitRelativePath.split('/').slice(0, -1);
+        for (let i = 1; i <= pathParts.length; i += 1) {
+          folderPaths.add(pathParts.slice(0, i).join('/'));
+        }
+      });
 
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: currentFolderId,
-          case_id: selectedCase?.id || null,
-          title: uploadTitle || file.name,
-          onUploadProgress: (fileProgress) => {
-            const completedFilesProgress = (index / totalFiles) * 100;
-            const currentFileProgress = (fileProgress / totalFiles);
-            setUploadProgress(Math.min(100, Math.round(completedFilesProgress + currentFileProgress)));
-          },
+      const folderIdByPath = new Map<string, string>();
+      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+
+      for (const folderPath of sortedFolders) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : currentFolderId;
+
+        const createdFolder = await createFolder.mutateAsync({
+          name: folderName,
+          parent_id: parentId,
+          case_id: parentId ? null : (selectedCase?.id || null),
         });
+
+        folderIdByPath.set(folderPath, createdFolder.id);
       }
+
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < totalFiles) {
+          const fileIndex = nextIndex;
+          nextIndex += 1;
+          const file = files[fileIndex];
+
+          setUploadingFileName(file.name);
+
+          const relativePath = file.webkitRelativePath || file.name;
+          const folderPath = relativePath.split('/').slice(0, -1).join('/');
+          const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : currentFolderId;
+
+          await uploadDocument.mutateAsync({
+            file,
+            folder_id: folderId,
+            case_id: folderId ? null : (selectedCase?.id || null),
+            title: uploadTitle || file.name,
+            onUploadProgress: (fileProgress) => {
+              progressByFile.set(fileIndex, fileProgress);
+              updateOverallProgress();
+            },
+          });
+
+          progressByFile.set(fileIndex, 100);
+          updateOverallProgress();
+        }
+      };
+
+      await Promise.all(Array.from({ length: maxConcurrency }, () => worker()));
 
       setUploadProgress(100);
       setUploadDialogOpen(false);
@@ -468,12 +531,13 @@ export function DocumentsPage() {
       setUploadTitle('');
       setSelectedCase(null);
       setCaseSearchQuery('');
-      notificationService.success(`Успешно загружено файлов: ${selectedFiles.length}`);
+      notificationService.success(`Успешно загружено файлов: ${files.length}`);
       refetch();
     } catch (error) {
       console.error('Ошибка загрузки файлов:', error);
       notificationService.error('Ошибка загрузки файлов. Проверьте логи для подробностей.');
     } finally {
+      setIsUploading(false);
       setUploadingFileName('');
       setTimeout(() => setUploadProgress(0), 500);
     }
@@ -1514,6 +1578,14 @@ export function DocumentsPage() {
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
       />
+      <input
+        type="file"
+        multiple
+        ref={folderInputRef}
+        onChange={handleFolderInputChange}
+        style={{ display: 'none' }}
+        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
+      />
 
       {/* Диалог подтверждения удаления */}
       <Dialog
@@ -1642,9 +1714,9 @@ export function DocumentsPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Загрузить файлы</DialogTitle>
+        <DialogTitle>Загрузить файлы и папки</DialogTitle>
         <DialogContent>
-          {uploadDocument.isPending && (
+          {isUploading && (
             <Box sx={{ mt: 1, mb: 2 }}>
               <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
                 <Typography variant="body2" color="text.secondary">
@@ -1661,7 +1733,7 @@ export function DocumentsPage() {
             {selectedFiles.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Выбранные файлы ({selectedFiles.length}):
+                  Выбранные элементы ({selectedFiles.length}):
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                   {selectedFiles.map((file, index) => (
@@ -1704,6 +1776,14 @@ export function DocumentsPage() {
               noOptionsText={caseSearchQuery.length === 0 ? "Введите номер дела" : "Дела не найдены"}
               sx={{ mb: 3 }}
             />
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
+                Выбрать файлы
+              </Button>
+              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
+                Выбрать папку
+              </Button>
+            </Stack>
             <Box
               sx={{
                 border: '2px dashed',
@@ -1743,8 +1823,8 @@ export function DocumentsPage() {
               <Upload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
               <Typography variant="body1" fontWeight="medium" mb={1}>
                 {selectedFiles.length > 0
-                  ? `Добавить ещё файлов (${selectedFiles.length} выбрано)`
-                  : 'Перетащите файлы сюда или нажмите для выбора'}
+                  ? `Добавить ещё файлов или папок (${selectedFiles.length} выбрано)`
+                  : 'Перетащите файлы/папки сюда или нажмите для выбора'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Поддерживаются все типы файлов
@@ -1770,10 +1850,10 @@ export function DocumentsPage() {
           <Button
             variant="contained"
             onClick={handleUpload}
-            disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            disabled={selectedFiles.length === 0 || isUploading || createFolder.isPending}
             sx={actionButtonSx}
           >
-            {uploadDocument.isPending ? (
+            {isUploading ? (
               <CircularProgress size={20} />
             ) : (
               `Загрузить ${selectedFiles.length} файл(ов)`

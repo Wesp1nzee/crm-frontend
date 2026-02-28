@@ -409,27 +409,46 @@ export function CaseDetailPage() {
         folderIdByPath.set(folderPath, createdFolder.id);
       }
 
-      for (const [index, file] of files.entries()) {
-        const relativePath = file.webkitRelativePath || file.name;
-        const folderPath = relativePath.split('/').slice(0, -1).join('/');
-        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
-        const totalFiles = files.length;
+      const totalFiles = files.length;
+      const maxConcurrency = Math.min(4, totalFiles);
+      const progressByFile = new Map<number, number>();
+      files.forEach((_, index) => progressByFile.set(index, 0));
 
-        setUploadingFileName(file.name);
-        setUploadProgress(Math.round((index / totalFiles) * 100));
+      const updateOverallProgress = () => {
+        const total = Array.from(progressByFile.values()).reduce((sum, value) => sum + value, 0);
+        setUploadProgress(Math.round(total / totalFiles));
+      };
 
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: folderId,
-          case_id: folderId ? null : caseData?.case?.id,
-          title: uploadTitle || file.name,
-          onUploadProgress: (fileProgress) => {
-            const completedFilesProgress = (index / totalFiles) * 100;
-            const currentFileProgress = fileProgress / totalFiles;
-            setUploadProgress(Math.min(100, Math.round(completedFilesProgress + currentFileProgress)));
-          },
-        });
-      }
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < totalFiles) {
+          const fileIndex = nextIndex;
+          nextIndex += 1;
+
+          const file = files[fileIndex];
+          const relativePath = file.webkitRelativePath || file.name;
+          const folderPath = relativePath.split('/').slice(0, -1).join('/');
+          const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+
+          setUploadingFileName(file.name);
+
+          await uploadDocument.mutateAsync({
+            file,
+            folder_id: folderId,
+            case_id: folderId ? null : caseData?.case?.id,
+            title: uploadTitle || file.name,
+            onUploadProgress: (fileProgress) => {
+              progressByFile.set(fileIndex, fileProgress);
+              updateOverallProgress();
+            },
+          });
+
+          progressByFile.set(fileIndex, 100);
+          updateOverallProgress();
+        }
+      };
+
+      await Promise.all(Array.from({ length: maxConcurrency }, () => worker()));
 
       setUploadProgress(100);
       setSelectedFiles([]);
