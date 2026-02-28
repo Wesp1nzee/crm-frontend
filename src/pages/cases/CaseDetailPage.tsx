@@ -109,6 +109,28 @@ const isSystemOrTempFile = (file: File) => {
   );
 };
 
+const walkDirectoryHandle = async (directoryHandle: FileSystemDirectoryHandle, parentPath = ''): Promise<File[]> => {
+  const basePath = parentPath ? `${parentPath}/${directoryHandle.name}` : directoryHandle.name;
+  const files: File[] = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${basePath}/${file.name}`,
+        writable: false,
+      });
+      files.push(file);
+      continue;
+    }
+
+    files.push(...await walkDirectoryHandle(entry, basePath));
+  }
+
+  return files;
+};
+
+
 const getFileIcon = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
@@ -661,14 +683,38 @@ export function CaseDetailPage() {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
-      const skippedCount = files.length - filteredFiles.length;
       setSelectedFiles((prev) => [...prev, ...filteredFiles]);
-
-      if (skippedCount > 0) {
-        notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
-      }
     }
     e.target.value = '';
+  };
+
+  const handleMultipleFoldersSelect = async () => {
+    const pickerWindow = window as Window & {
+      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
+    };
+
+    if (!pickerWindow.showDirectoryPicker) {
+      notificationService.warning('Ваш браузер не поддерживает выбор нескольких папок. Используйте drag & drop.');
+      return;
+    }
+
+    try {
+      const selected = await pickerWindow.showDirectoryPicker({ mode: 'read', multiple: true });
+      const handles = Array.isArray(selected) ? selected : [selected];
+      const fileGroups = await Promise.all(handles.map((handle) => walkDirectoryHandle(handle)));
+      const files = fileGroups.flat().filter((file) => !isSystemOrTempFile(file));
+
+      if (files.length === 0) {
+        notificationService.warning('Нет подходящих файлов для загрузки');
+        return;
+      }
+
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setUploadDialogOpen(true);
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') return;
+      notificationService.error('Не удалось выбрать папки');
+    }
   };
 
   const readDirectoryEntries = (directoryEntry: FileSystemDirectoryEntryWebkit): Promise<FileSystemEntryWebkit[]> => {
@@ -1141,6 +1187,7 @@ export function CaseDetailPage() {
                           borderBottom: '1px solid',
                           borderColor: 'divider'
                         }}
+                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}`)}
                       >
                         <ListItemText
                           primary={
@@ -1272,12 +1319,14 @@ export function CaseDetailPage() {
                         sx={{
                           px: 2,
                           py: 1.5,
+                          cursor: 'pointer',
                           '&:hover': {
                             bgcolor: theme.palette.mode === 'dark'
                               ? 'rgba(255, 255, 255, 0.08)'
                               : 'rgba(0, 0, 0, 0.04)'
                           }
                         }}
+                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}`)}
                       >
                         <ListItemAvatar>
                           <Avatar
@@ -1806,6 +1855,9 @@ export function CaseDetailPage() {
               </Button>
               <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
                 Выбрать папку
+              </Button>
+              <Button variant="outlined" onClick={() => void handleMultipleFoldersSelect()}>
+                Выбрать папки
               </Button>
             </Box>
             {selectedFiles.length > 0 && (

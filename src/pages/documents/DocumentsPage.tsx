@@ -46,6 +46,7 @@ import {
 } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import dayjs from 'dayjs';
+import { useSearchParams } from 'react-router-dom';
 import {
   useCreateFolder,
   useUploadDocument,
@@ -101,6 +102,28 @@ const isSystemOrTempFile = (file: File) => {
     pathParts.includes('__macosx')
   );
 };
+
+const walkDirectoryHandle = async (directoryHandle: FileSystemDirectoryHandle, parentPath = ''): Promise<File[]> => {
+  const basePath = parentPath ? `${parentPath}/${directoryHandle.name}` : directoryHandle.name;
+  const files: File[] = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${basePath}/${file.name}`,
+        writable: false,
+      });
+      files.push(file);
+      continue;
+    }
+
+    files.push(...await walkDirectoryHandle(entry, basePath));
+  }
+
+  return files;
+};
+
 
 const actionButtonSx = {
   textTransform: 'none',
@@ -159,6 +182,8 @@ export function DocumentsPage() {
   const [selectionBox, setSelectionBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
+  const [searchParams] = useSearchParams();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
   const tableAreaRef = useRef<HTMLDivElement>(null);
@@ -177,6 +202,19 @@ export function DocumentsPage() {
   });
 
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
+
+  useEffect(() => {
+    const folderIdFromQuery = searchParams.get('folderId');
+    if (!folderIdFromQuery) return;
+
+    const folderNameFromQuery = searchParams.get('folderName') || 'Папка';
+    setCurrentFolderId(folderIdFromQuery);
+    setFolderPath([
+      { id: null, name: 'Корень' },
+      { id: folderIdFromQuery, name: folderNameFromQuery },
+    ]);
+    setPage(0);
+  }, [searchParams]);
 
   const entriesArray = Array.isArray(entries) ? entries : [];
   const total = entriesArray.length === rowsPerPage ? (page + 1) * rowsPerPage + 1 : page * rowsPerPage + entriesArray.length;
@@ -463,14 +501,38 @@ export function DocumentsPage() {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
       const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
-      const skippedCount = files.length - filteredFiles.length;
-
       setSelectedFiles(filteredFiles);
       setUploadDialogOpen(true);
+    }
+  };
 
-      if (skippedCount > 0) {
-        notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
+  const handleMultipleFoldersSelect = async () => {
+    const pickerWindow = window as Window & {
+      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
+    };
+
+    if (!pickerWindow.showDirectoryPicker) {
+      notificationService.warning('Ваш браузер не поддерживает выбор нескольких папок. Используйте drag & drop.');
+      return;
+    }
+
+    try {
+      const selected = await pickerWindow.showDirectoryPicker({ mode: 'read', multiple: true });
+      const handles = Array.isArray(selected) ? selected : [selected];
+      const fileGroups = await Promise.all(handles.map((handle) => walkDirectoryHandle(handle)));
+      const files = fileGroups.flat();
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+
+      if (filteredFiles.length === 0) {
+        notificationService.warning('Нет подходящих файлов для загрузки');
+        return;
       }
+
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
+      setUploadDialogOpen(true);
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') return;
+      notificationService.error('Не удалось выбрать папки');
     }
   };
 
@@ -1814,6 +1876,9 @@ export function DocumentsPage() {
               <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
                 Выбрать папку
               </Button>
+              <Button variant="outlined" onClick={() => void handleMultipleFoldersSelect()}>
+                Выбрать папки
+              </Button>
             </Stack>
             <Box
               sx={{
@@ -1847,11 +1912,7 @@ export function DocumentsPage() {
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const files = Array.from(e.dataTransfer.files);
                   const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
-                  const skippedCount = files.length - filteredFiles.length;
                   setSelectedFiles(prev => [...prev, ...filteredFiles]);
-                  if (skippedCount > 0) {
-                    notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
-                  }
                 }
               }}
               onClick={() => fileInputRef.current?.click()}
