@@ -6,6 +6,7 @@ import type {
   DocumentResponse,
   DocumentDownloadUrl,
   DocumentsListParams,
+  PaginatedResponse,
   DocumentUploadData,
   AssetUpdateRequest,
   DocumentDownloadRequest,
@@ -16,7 +17,7 @@ import type {
 
 export const documentsApi = {
   // Получить список файлов и папок
-  getDocuments: async (params?: DocumentsListParams): Promise<FileSystemEntry[]> => {
+  getDocuments: async (params?: DocumentsListParams): Promise<PaginatedResponse<FileSystemEntry>> => {
     const { data } = await api.get('/documents', { params });
     return data;
   },

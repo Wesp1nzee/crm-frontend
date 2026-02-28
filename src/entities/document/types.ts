@@ -45,10 +45,28 @@ export interface FileSystemEntry {
     email?: string;
   } | null;
   parent_id: string | null;
+  case_id: string | null;
+  case_number?: string | null;
 }
 
 export interface DocumentDownloadUrl {
   download_url: string;
+}
+
+export interface PaginationMeta {
+  total_items: number;
+  total_pages: number;
+  current_page: number;
+  per_page: number;
+  has_next: boolean;
+  has_prev: boolean;
+  next_page_url: string | null;
+  prev_page_url: string | null;
+}
+
+export interface PaginatedResponse<T> {
+  items: T[];
+  meta: PaginationMeta;
 }
 
 export interface DocumentsListParams {
@@ -57,8 +75,8 @@ export interface DocumentsListParams {
   search?: string;
   sort_by?: string;
   order?: 'asc' | 'desc';
+  page?: number;
   limit?: number;
-  offset?: number;
 }
 
 export interface DocumentUploadData {

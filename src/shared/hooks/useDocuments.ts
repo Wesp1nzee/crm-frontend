@@ -3,6 +3,8 @@ import { documentsApi } from '../../entities/document/api';
 import { casesApi } from '../../entities/case/api';
 import type {
   DocumentsListParams,
+  PaginatedResponse,
+  FileSystemEntry,
   FolderCreate,
   DocumentUploadData,
   AssetUpdateRequest,
@@ -10,9 +12,10 @@ import type {
   FolderDownloadRequest,
   BulkAssetsDownloadRequest,
 } from '../../entities/document/types';
+import type { CaseSuggestion } from '../../entities/case/types';
 
 export const useDocuments = (params?: DocumentsListParams) => {
-  return useQuery({
+  return useQuery<PaginatedResponse<FileSystemEntry>>({
     queryKey: ['documents', params],
     queryFn: () => documentsApi.getDocuments(params),
   });
@@ -84,7 +87,7 @@ export const useDeleteFolder = () => {
 };
 
 export const useCaseSuggestions = (query: string) => {
-  return useQuery({
+  return useQuery<CaseSuggestion[]>({
     queryKey: ['cases', 'suggest', query],
     queryFn: () => casesApi.getSuggestions(query),
     enabled: query.length > 0,

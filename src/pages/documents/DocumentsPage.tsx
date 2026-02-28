@@ -43,10 +43,11 @@ import {
   Person,
   Visibility,
   Edit,
+  OpenInNew,
 } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import dayjs from 'dayjs';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useCreateFolder,
   useUploadDocument,
@@ -183,6 +184,7 @@ export function DocumentsPage() {
   const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
   const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -192,11 +194,11 @@ export function DocumentsPage() {
   const selectionRafRef = useRef<number | null>(null);
   const rubberBandAdditiveRef = useRef(false);
 
-  const { data: entries, isLoading, error, refetch } = useDocuments({
+  const { data: documentsResponse, isLoading, error, refetch } = useDocuments({
     folder_id: currentFolderId,
     search: searchQuery || undefined,
+    page: page + 1,
     limit: rowsPerPage,
-    offset: page * rowsPerPage,
     sort_by: sortField,
     order: sortOrder,
   });
@@ -231,8 +233,9 @@ export function DocumentsPage() {
     setPage(0);
   }, [searchParams]);
 
-  const entriesArray = Array.isArray(entries) ? entries : [];
-  const total = entriesArray.length === rowsPerPage ? (page + 1) * rowsPerPage + 1 : page * rowsPerPage + entriesArray.length;
+  const entriesArray = documentsResponse?.items ?? [];
+  const paginationMeta = documentsResponse?.meta;
+  const total = paginationMeta?.total_items ?? entriesArray.length;
 
   // Мутации
   const createFolder = useCreateFolder();
@@ -264,6 +267,8 @@ export function DocumentsPage() {
   );
   const selectedFilesCount = selectedEntries.length - selectedFoldersCount;
   const isSelectionMode = selectedEntryIds.length > 0;
+
+  const isCaseBoundFolder = (entry: FileSystemEntry) => entry.type === 'folder' && Boolean(entry.case_id);
 
   const clearSelection = useCallback(() => {
     setSelectedEntryIds([]);
@@ -312,6 +317,13 @@ export function DocumentsPage() {
 
   const handleBulkDelete = async () => {
     if (!selectedEntries.length) return;
+
+    const hasCaseBoundFolders = selectedEntries.some(isCaseBoundFolder);
+    if (hasCaseBoundFolders) {
+      notificationService.warning('Папки, привязанные к делу, нельзя удалять');
+      return;
+    }
+
     try {
       await deleteBulkAssets.mutateAsync({
         folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
@@ -815,6 +827,12 @@ export function DocumentsPage() {
       });
 
       if (entryToDelete.type === 'folder') {
+        if (isCaseBoundFolder(entryToDelete)) {
+          notificationService.warning('Папка привязана к делу и не может быть удалена');
+          setDeleteConfirmOpen(false);
+          setEntryToDelete(null);
+          return;
+        }
         await deleteFolder.mutateAsync(entryToDelete.id);
       } else if (entryToDelete.type === 'file') {
         await deleteDocument.mutateAsync(entryToDelete.id);
@@ -841,6 +859,16 @@ export function DocumentsPage() {
   const handleSaveEdit = async (data: any) => {
     if (!entryToEdit) return;
     try {
+      if (
+        isCaseBoundFolder(entryToEdit) &&
+        entryToEdit.type === 'folder' &&
+        data.parent_id !== undefined &&
+        data.parent_id !== entryToEdit.parent_id
+      ) {
+        notificationService.warning('Папка привязана к делу и не может быть перемещена');
+        return;
+      }
+
       const updateData = {
         asset_id: entryToEdit.id,
         asset_type: entryToEdit.type,
@@ -869,6 +897,11 @@ export function DocumentsPage() {
   ) => {
     try {
       const draggedEntry = entriesArray.find((entry) => entry.id === assetId);
+      if (assetType === 'folder' && draggedEntry && isCaseBoundFolder(draggedEntry)) {
+        notificationService.warning('Папка привязана к делу и не может быть перемещена');
+        return;
+      }
+
       const fallbackName = assetName || draggedEntry?.name;
       const updateData = {
         asset_id: assetId,
@@ -1421,7 +1454,7 @@ export function DocumentsPage() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : entries?.length === 0
+                  : entriesArray.length === 0
                   ? renderEmptyState()
                   : entriesArray.map((entry, index) => {
                       // Пропускаем искусственные записи
@@ -1517,7 +1550,7 @@ export function DocumentsPage() {
                             </Tooltip>
                           </TableCell>
                           <TableCell>
-                            <Box display="flex" alignItems="center" gap={1}>
+                            <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                               <Typography
                                 variant="body2"
                                 fontWeight={entry.type === 'folder' ? 600 : 500}
@@ -1539,6 +1572,29 @@ export function DocumentsPage() {
                                   color="default"
                                   sx={{ fontSize: '0.68rem', height: 18, bgcolor: 'rgba(79,144,255,0.1)', border: 'none' }}
                                 />
+                              )}
+                              {isCaseBoundFolder(entry) && (
+                                <>
+                                  <Chip
+                                    label={`Привязано к делу${entry.case_number ? `: ${entry.case_number}` : ''}`}
+                                    size="small"
+                                    color="warning"
+                                    variant="outlined"
+                                  />
+                                  {entry.case_id && (
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      endIcon={<OpenInNew fontSize="small" />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/crm/cases/${entry.case_id}`);
+                                      }}
+                                    >
+                                      К делу
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </Box>
                           </TableCell>
@@ -1588,10 +1644,10 @@ export function DocumentsPage() {
           <Box sx={{ borderTop: '1px solid', borderColor: 'divider', px: 2, py: 1.5 }}>
             <PaginationControls
               currentPage={page + 1}
-              totalPages={entriesArray.length === rowsPerPage ? page + 2 : page + 1}
+              totalPages={paginationMeta?.total_pages || 1}
               totalItems={total}
-              hasPrev={page > 0}
-              hasNext={entriesArray.length === rowsPerPage}
+              hasPrev={paginationMeta?.has_prev ?? page > 0}
+              hasNext={paginationMeta?.has_next ?? false}
               limit={rowsPerPage}
               limitOptions={[10, 25, 50, 100]}
               onLimitChange={handleChangeRowsPerPage}
