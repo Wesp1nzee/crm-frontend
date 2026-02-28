@@ -91,6 +91,24 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+
+const isSystemOrTempFile = (file: File) => {
+  const relativePath = file.webkitRelativePath || file.name;
+  const fileName = relativePath.split('/').pop() || file.name;
+  const lowerName = fileName.toLowerCase();
+  const pathParts = relativePath.split('/').map((part) => part.toLowerCase());
+
+  return (
+    fileName.startsWith('~$') ||
+    fileName.startsWith('._') ||
+    fileName.startsWith('~') ||
+    lowerName === '.ds_store' ||
+    lowerName === 'thumbs.db' ||
+    lowerName === 'desktop.ini' ||
+    pathParts.includes('__macosx')
+  );
+};
+
 const getFileIcon = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
@@ -375,14 +393,18 @@ export function CaseDetailPage() {
   const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
 
   const uploadFilesAndFolders = useCallback(async (files: File[]) => {
-    if (files.length === 0) return;
+    const validFiles = files.filter((file) => !isSystemOrTempFile(file));
+    if (validFiles.length === 0) {
+      notificationService.warning('Нет подходящих файлов для загрузки');
+      return;
+    }
 
     setIsFolderUploadInProgress(true);
 
     try {
       const folderPaths = new Set<string>();
 
-      files.forEach((file) => {
+      validFiles.forEach((file) => {
         const relativePath = file.webkitRelativePath || file.name;
         const pathParts = relativePath.split('/').slice(0, -1);
 
@@ -409,10 +431,10 @@ export function CaseDetailPage() {
         folderIdByPath.set(folderPath, createdFolder.id);
       }
 
-      const totalFiles = files.length;
+      const totalFiles = validFiles.length;
       const maxConcurrency = Math.min(4, totalFiles);
       const progressByFile = new Map<number, number>();
-      files.forEach((_, index) => progressByFile.set(index, 0));
+      validFiles.forEach((_, index) => progressByFile.set(index, 0));
 
       const updateOverallProgress = () => {
         const total = Array.from(progressByFile.values()).reduce((sum, value) => sum + value, 0);
@@ -425,7 +447,7 @@ export function CaseDetailPage() {
           const fileIndex = nextIndex;
           nextIndex += 1;
 
-          const file = files[fileIndex];
+          const file = validFiles[fileIndex];
           const relativePath = file.webkitRelativePath || file.name;
           const folderPath = relativePath.split('/').slice(0, -1).join('/');
           const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
@@ -455,7 +477,7 @@ export function CaseDetailPage() {
       setUploadTitle('');
       setUploadDialogOpen(false);
       await refetch();
-      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
+      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${validFiles.length} файлов`);
     } catch (error) {
       console.error('Ошибка загрузки файлов и папок:', error);
       notificationService.error('Ошибка загрузки файлов и папок');
@@ -497,7 +519,8 @@ export function CaseDetailPage() {
       setIsDragActive(false);
 
       const droppedFiles = await extractDroppedFiles(event.dataTransfer);
-      await uploadFilesAndFolders(droppedFiles);
+      const filteredDroppedFiles = droppedFiles.filter((file) => !isSystemOrTempFile(file));
+      await uploadFilesAndFolders(filteredDroppedFiles);
     };
 
     window.addEventListener('dragenter', handleDragEnter);
@@ -628,7 +651,8 @@ export function CaseDetailPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
     }
     e.target.value = '';
   };
@@ -636,7 +660,13 @@ export function CaseDetailPage() {
   const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      const skippedCount = files.length - filteredFiles.length;
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
+
+      if (skippedCount > 0) {
+        notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
+      }
     }
     e.target.value = '';
   };

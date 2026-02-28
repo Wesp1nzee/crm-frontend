@@ -84,6 +84,24 @@ const fileIcons: Record<string, JSX.Element> = {
 
 const sanitizeAndRender = (str: string) => DOMPurify.sanitize(str);
 
+
+const isSystemOrTempFile = (file: File) => {
+  const relativePath = file.webkitRelativePath || file.name;
+  const fileName = relativePath.split('/').pop() || file.name;
+  const lowerName = fileName.toLowerCase();
+  const pathParts = relativePath.split('/').map((part) => part.toLowerCase());
+
+  return (
+    fileName.startsWith('~$') ||
+    fileName.startsWith('._') ||
+    fileName.startsWith('~') ||
+    lowerName === '.ds_store' ||
+    lowerName === 'thumbs.db' ||
+    lowerName === 'desktop.ini' ||
+    pathParts.includes('__macosx')
+  );
+};
+
 const actionButtonSx = {
   textTransform: 'none',
   minHeight: 40,
@@ -435,7 +453,8 @@ export function DocumentsPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles(files);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles(filteredFiles);
       setUploadDialogOpen(true);
     }
   };
@@ -443,15 +462,27 @@ export function DocumentsPage() {
   const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles(files);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      const skippedCount = files.length - filteredFiles.length;
+
+      setSelectedFiles(filteredFiles);
       setUploadDialogOpen(true);
+
+      if (skippedCount > 0) {
+        notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
+      }
     }
   };
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
 
-    const files = selectedFiles;
+    const files = selectedFiles.filter((file) => !isSystemOrTempFile(file));
+    if (files.length === 0) {
+      notificationService.warning('Нет подходящих файлов для загрузки');
+      return;
+    }
+
     const totalFiles = files.length;
     const maxConcurrency = Math.min(4, totalFiles);
     const progressByFile = new Map<number, number>();
@@ -1815,7 +1846,12 @@ export function DocumentsPage() {
                 setDragOverUploadDialog(false);
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const files = Array.from(e.dataTransfer.files);
-                  setSelectedFiles(prev => [...prev, ...files]);
+                  const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+                  const skippedCount = files.length - filteredFiles.length;
+                  setSelectedFiles(prev => [...prev, ...filteredFiles]);
+                  if (skippedCount > 0) {
+                    notificationService.warning(`Пропущено служебных/временных файлов: ${skippedCount}`);
+                  }
                 }
               }}
               onClick={() => fileInputRef.current?.click()}
