@@ -65,6 +65,7 @@ import { useDownloadCaseDocuments } from "../../shared/hooks/useCases";
 import type { CaseStatus } from "../../entities/case/types";
 import { useState, useEffect, useRef, useCallback } from "react";
 import { notificationService } from "../../shared/services/notifications";
+import { usePermissions } from "../../shared/hooks/usePermissions";
 import { useExpertsSuggest } from "../../shared/hooks/useExpertsSuggest";
 
 const statusLabels: Record<CaseStatus, string> = {
@@ -256,6 +257,7 @@ interface EditableFieldProps {
   fullWidth?: boolean;
   type?: string;
   required?: boolean;
+  canEdit?: boolean;
 }
 
 const EditableField = ({
@@ -271,8 +273,9 @@ const EditableField = ({
   fullWidth = true,
   type = "text",
   required = false,
+  canEdit = true,
 }: EditableFieldProps) => {
-  const isEditing = editingField === field;
+  const isEditing = canEdit && editingField === field;
   const currentValue = isEditing ? (editValues[field] ?? value) : value;
   const theme = useTheme();
 
@@ -356,18 +359,22 @@ const EditableField = ({
                 : "rgba(148, 163, 184, 0.08)",
             border: `1px solid ${theme.palette.mode === "dark" ? "rgba(148,163,184,0.28)" : "rgba(148,163,184,0.35)"}`,
             minHeight: 48,
-            cursor: "pointer",
+            cursor: canEdit ? "pointer" : "default",
             transition: "all 0.2s",
-            "&:hover": {
-              bgcolor:
-                theme.palette.mode === "dark"
-                  ? "rgba(79, 144, 255, 0.16)"
-                  : "rgba(79, 144, 255, 0.1)",
-              borderColor: theme.palette.primary.main,
-              boxShadow: theme.shadows[2],
-            },
+            ...(canEdit
+              ? {
+                  "&:hover": {
+                    bgcolor:
+                      theme.palette.mode === "dark"
+                        ? "rgba(79, 144, 255, 0.16)"
+                        : "rgba(79, 144, 255, 0.1)",
+                    borderColor: theme.palette.primary.main,
+                    boxShadow: theme.shadows[2],
+                  },
+                }
+              : {}),
           }}
-          onClick={() => onEdit(field, value)}
+          onClick={canEdit ? () => onEdit(field, value) : undefined}
         >
           <Typography
             variant="body1"
@@ -379,11 +386,13 @@ const EditableField = ({
           >
             {value || "—"}
           </Typography>
-          <Tooltip title="Редактировать">
-            <IconButton size="small" color="primary">
-              <Edit fontSize="small" />
-            </IconButton>
-          </Tooltip>
+          {canEdit && (
+            <Tooltip title="Редактировать">
+              <IconButton size="small" color="primary">
+                <Edit fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
         </Box>
       )}
     </Box>
@@ -401,6 +410,8 @@ export function CaseDetailPage() {
   const previewDocument = usePreviewDocument();
   const downloadCaseDocuments = useDownloadCaseDocuments();
   const theme = useTheme();
+  const { isExpert } = usePermissions();
+  const canEditCase = !isExpert;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -722,12 +733,14 @@ export function CaseDetailPage() {
   const bannerAccentColor = theme.palette[statusVariant].main;
 
   const handleStatusUpdate = () => {
+    if (!canEditCase) return;
     if (status && status !== case_.status) {
       patchCase.mutate({ id: case_.id, data: { status } });
     }
   };
 
   const handleExpertEditStart = () => {
+    if (!canEditCase) return;
     setIsEditingExpert(true);
     setDraftExpert(selectedExpert);
     setDraftExpertInput(selectedExpert?.name ?? "");
@@ -741,6 +754,7 @@ export function CaseDetailPage() {
   };
 
   const handleExpertSave = () => {
+    if (!canEditCase) return;
     const nextExpertId = draftExpert?.id ?? null;
     const currentExpertId = case_.assigned_user_id ?? null;
 
@@ -759,11 +773,13 @@ export function CaseDetailPage() {
   };
 
   const handleFieldEdit = (field: string, value: string) => {
+    if (!canEditCase) return;
     setEditingField(field);
     setEditValues({ ...editValues, [field]: value });
   };
 
   const handleFieldSave = (field: string) => {
+    if (!canEditCase) return;
     const value = editValues[field];
     if (value !== undefined) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1123,6 +1139,7 @@ export function CaseDetailPage() {
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
+                  canEdit={canEditCase}
                     field="number"
                     value={case_.number}
                     label="№ п/п"
@@ -1135,6 +1152,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
+                  canEdit={canEditCase}
                     field="case_number"
                     value={case_.case_number}
                     label="Номер дела"
@@ -1147,6 +1165,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
+                  canEdit={canEditCase}
                     field="authority"
                     value={case_.authority}
                     label="Суд/Орган"
@@ -1159,6 +1178,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <EditableField
+                  canEdit={canEditCase}
                     field="object_address"
                     value={case_.object_address}
                     label="Адрес объекта"
@@ -1171,6 +1191,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
+                  canEdit={canEditCase}
                     field="judge_name"
                     value={case_.judge_name || ""}
                     label="ФИО судьи"
@@ -1184,6 +1205,7 @@ export function CaseDetailPage() {
                 {case_.plaintiff && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <EditableField
+                  canEdit={canEditCase}
                       field="plaintiff"
                       value={case_.plaintiff}
                       label="Истец"
@@ -1198,6 +1220,7 @@ export function CaseDetailPage() {
                 {case_.defendant && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <EditableField
+                  canEdit={canEditCase}
                       field="defendant"
                       value={case_.defendant}
                       label="Ответчик"
@@ -1212,6 +1235,7 @@ export function CaseDetailPage() {
                 {case_.remarks && (
                   <Grid size={{ xs: 12 }}>
                     <EditableField
+                  canEdit={canEditCase}
                       field="remarks"
                       value={case_.remarks}
                       label="Примечания"
@@ -1495,15 +1519,17 @@ export function CaseDetailPage() {
               }
               action={
                 <Box display="flex" gap={1}>
-                  <Tooltip title="Загрузить файлы">
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={() => setUploadDialogOpen(true)}
-                    >
-                      <Upload />
-                    </IconButton>
-                  </Tooltip>
+                  {canEditCase && (
+                    <Tooltip title="Загрузить файлы">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={() => setUploadDialogOpen(true)}
+                      >
+                        <Upload />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                   <Tooltip title="Скачать все документы">
                     <IconButton
                       size="small"
@@ -1573,13 +1599,15 @@ export function CaseDetailPage() {
                   >
                     Добавьте папки или загрузите первые документы по этому делу
                   </Typography>
-                  <Button
-                    variant="outlined"
-                    startIcon={<Upload />}
-                    onClick={() => setUploadDialogOpen(true)}
-                  >
-                    Загрузить файлы
-                  </Button>
+                  {canEditCase && (
+                    <Button
+                      variant="outlined"
+                      startIcon={<Upload />}
+                      onClick={() => setUploadDialogOpen(true)}
+                    >
+                      Загрузить файлы
+                    </Button>
+                  )}
                 </Box>
               ) : (
                 <List sx={{ p: 0 }}>
@@ -1858,6 +1886,7 @@ export function CaseDetailPage() {
                     value={status || case_.status}
                     label="Статус дела"
                     onChange={(e) => setStatus(e.target.value as CaseStatus)}
+                    disabled={!canEditCase}
                   >
                     {Object.entries(statusLabels).map(([value, label]) => (
                       <MenuItem key={value} value={value}>
@@ -1866,7 +1895,7 @@ export function CaseDetailPage() {
                     ))}
                   </Select>
                 </FormControl>
-                {status && status !== case_.status && (
+                {canEditCase && status && status !== case_.status && (
                   <Box mt={1.5}>
                     <Button
                       variant="contained"
@@ -1978,6 +2007,7 @@ export function CaseDetailPage() {
 
               <Box sx={{ mb: 2.5 }}>
                 <EditableField
+                  canEdit={canEditCase}
                   field="cost"
                   value={case_.cost}
                   label="Стоимость дела"
@@ -1991,6 +2021,7 @@ export function CaseDetailPage() {
               </Box>
               <Box sx={{ mb: 2.5 }}>
                 <EditableField
+                  canEdit={canEditCase}
                   field="bank_transfer_amount"
                   value={case_.bank_transfer_amount}
                   label="Безналичная оплата"
@@ -2004,6 +2035,7 @@ export function CaseDetailPage() {
               </Box>
               <Box sx={{ mb: 2.5 }}>
                 <EditableField
+                  canEdit={canEditCase}
                   field="cash_amount"
                   value={case_.cash_amount}
                   label="Наличная оплата"
@@ -2057,7 +2089,7 @@ export function CaseDetailPage() {
               }
             />
             <CardContent sx={{ pt: 0 }}>
-              {!isEditingExpert ? (
+              {!isEditingExpert || !canEditCase ? (
                 <Box
                   display="flex"
                   alignItems="center"
@@ -2079,15 +2111,17 @@ export function CaseDetailPage() {
                   >
                     {selectedExpert?.name || "—"}
                   </Typography>
-                  <Tooltip title="Редактировать">
-                    <IconButton
-                      size="small"
-                      color="primary"
-                      onClick={handleExpertEditStart}
-                    >
-                      <Edit fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
+                  {canEditCase && (
+                    <Tooltip title="Редактировать">
+                      <IconButton
+                        size="small"
+                        color="primary"
+                        onClick={handleExpertEditStart}
+                      >
+                        <Edit fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  )}
                 </Box>
               ) : (
                 <Box
@@ -2233,7 +2267,7 @@ export function CaseDetailPage() {
 
       {/* Upload Dialog */}
       <Dialog
-        open={uploadDialogOpen}
+        open={canEditCase && uploadDialogOpen}
         onClose={() => {
           setUploadDialogOpen(false);
           setSelectedFiles([]);

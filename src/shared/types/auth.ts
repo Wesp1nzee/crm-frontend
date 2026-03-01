@@ -28,7 +28,10 @@ export const ROLE_PERMISSIONS = {
 } as const;
 
 export const RESTRICTED_ROUTES_FOR_EXPERT = [
+  "/crm/experts",
+  "/crm/clients",
   "/experts",
+  "/clients",
   "/finance",
   "/reports",
   "/mail",
