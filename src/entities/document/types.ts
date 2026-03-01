@@ -47,6 +47,10 @@ export interface FileSystemEntry {
   parent_id: string | null;
   case_id: string | null;
   case_number?: string | null;
+  share_info: {
+    recipient_count: number;
+    public_link_count: number;
+  } | null;
 }
 
 export interface DocumentDownloadUrl {

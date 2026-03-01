@@ -191,23 +191,23 @@ export interface GetCasesQuery {
   sort_order?: "asc" | "desc";
 }
 
-export interface PaginationInfo {
-  total: number;
-  page: number;
-  limit: number;
+export interface CasesMeta {
+  total_items: number;
   total_pages: number;
-}
-
-export interface CasesSummary {
+  current_page: number;
+  per_page: number;
+  has_next: boolean;
+  has_prev: boolean;
+  next_page_url: string | null;
+  prev_page_url: string | null;
   active: number;
   overdue: number;
   completed: number;
 }
 
 export interface GetCasesResponse {
-  data: Case[];
-  pagination: PaginationInfo;
-  summary: CasesSummary;
+  items: Case[];
+  meta: CasesMeta;
 }
 
 export interface CaseSuggestion {

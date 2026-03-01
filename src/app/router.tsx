@@ -8,6 +8,7 @@ import { RoleGuard } from "../shared/components/RoleGuard";
 
 // Публичная страница
 import { PublicHomePage } from "../client/pages/PublicHomePage";
+import { PublicSharePage } from "../client/pages/share/PublicSharePage";
 
 const HomePage = lazy(() =>
   import("../pages/HomePage").then((m) => ({ default: m.HomePage })),
@@ -85,6 +86,11 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+
+  {
+    path: "/share/:token",
+    element: <PublicSharePage />,
   },
 
   // ВСЕ CRM-маршруты теперь под /crm
