@@ -58,9 +58,17 @@ export const UserReadSchema = UserBaseSchema.extend({
 });
 
 export const UserUpdateSchema = z.object({
+  email: z.string().regex(emailRegex, "Некорректный email").optional().nullable(),
   full_name: z.string().min(2).optional().nullable(),
+  role: z.nativeEnum(UserRole).optional().nullable(),
   specialization: z.string().optional().nullable(),
+  password: z
+    .string()
+    .min(12, "Пароль должен быть не менее 12 символов")
+    .optional()
+    .nullable(),
   is_active: z.boolean().optional().nullable(),
+  can_authenticate: z.boolean().optional().nullable(),
   settings: z.record(z.any()).optional().nullable(),
 });
 

@@ -45,6 +45,7 @@ export interface UpdateExpertInput {
   specialization?: string;
   role?: UserRole;
   status: "active" | "inactive";
+  password?: string;
 }
 
 type UserCreateWithStatus = UserCreateType & {
@@ -194,6 +195,7 @@ export const useUpdateExpert = () => {
         is_active: isActive,
         can_authenticate: isActive,
         ...(data.email && { email: data.email }),
+        ...(data.password && { password: data.password }),
       };
 
       const response = await usersApi.updateUser(id, userData);

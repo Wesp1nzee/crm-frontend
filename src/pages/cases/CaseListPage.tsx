@@ -45,6 +45,7 @@ import { CreateCaseDialog } from "./CreateCaseDialog";
 import { CaseFilters } from "./CaseFilters";
 import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
+import { usePermissions } from "../../shared/hooks/usePermissions";
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   archive: "Архив",
@@ -58,6 +59,7 @@ const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
 
 export function CaseListPage() {
   const navigate = useNavigate();
+  const { isExpert } = usePermissions();
   const [searchParams] = useSearchParams();
   const [filters, setFilters] = useState<GetCasesQuery>({
     page: 1,
@@ -198,15 +200,17 @@ export function CaseListPage() {
             Всего: {totalCases} дел
           </Typography>
         </Box>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateDialogOpen(true)}
-          size="large"
-          sx={{ borderRadius: 1.5, px: 2.25 }}
-        >
-          Создать дело
-        </Button>
+        {!isExpert && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateDialogOpen(true)}
+            size="large"
+            sx={{ borderRadius: 1.5, px: 2.25 }}
+          >
+            Создать дело
+          </Button>
+        )}
       </Box>
 
       {/* Filters */}
@@ -381,24 +385,26 @@ export function CaseListPage() {
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Удалить" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDelete(case_.id);
-                          }}
-                          sx={{
-                            color: "text.secondary",
-                            "&:hover": {
-                              backgroundColor: "action.hover",
-                              color: "text.primary",
-                            },
-                          }}
-                        >
-                          <DeleteIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
+                      {!isExpert && (
+                        <Tooltip title="Удалить" arrow>
+                          <IconButton
+                            size="small"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenDelete(case_.id);
+                            }}
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": {
+                                backgroundColor: "action.hover",
+                                color: "text.primary",
+                              },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
                     </Stack>
                   </TableCell>
                 </TableRow>
@@ -455,14 +461,17 @@ export function CaseListPage() {
       </Card>
 
       {/* ── Create dialog ── */}
-      <CreateCaseDialog
-        open={createDialogOpen}
-        isPending={createCase.isPending}
-        onClose={() => setCreateDialogOpen(false)}
-        onSubmit={handleCreateSubmit}
-      />
+      {!isExpert && (
+        <CreateCaseDialog
+          open={createDialogOpen}
+          isPending={createCase.isPending}
+          onClose={() => setCreateDialogOpen(false)}
+          onSubmit={handleCreateSubmit}
+        />
+      )}
 
       {/* ── Delete confirmation dialog ── */}
+      {!isExpert && (
       <Dialog
         open={deleteDialogOpen}
         onClose={handleCloseDeleteDialog}
@@ -541,6 +550,7 @@ export function CaseListPage() {
           </Button>
         </DialogActions>
       </Dialog>
+      )}
     </Box>
   );
 }

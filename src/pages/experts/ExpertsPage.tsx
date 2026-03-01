@@ -207,11 +207,9 @@ export function ExpertsPage() {
       };
 
       if (editingExpert) {
-        const { password: _, ...updateData } = submitData;
-
         await updateExpert.mutateAsync({
           id: editingExpert.id,
-          data: updateData,
+          data: submitData,
         });
         notificationService.success("Пользователь успешно обновлён");
       } else {
@@ -623,47 +621,47 @@ export function ExpertsPage() {
               autoComplete="off"
               name="specialization"
             />
-            {!editingExpert && (
-              <TextField
-                label="Пароль"
-                type={showPassword ? "text" : "password"}
-                fullWidth
-                required
-                value={formData.password}
-                onChange={(e) =>
-                  setFormData({ ...formData, password: e.target.value })
-                }
-                error={
-                  formData.password.length > 0 && formData.password.length < 12
-                }
-                helperText={
-                  formData.password.length > 0 && formData.password.length < 12
-                    ? "Пароль должен быть не менее 12 символов"
+            <TextField
+              label={editingExpert ? "Новый пароль (опционально)" : "Пароль"}
+              type={showPassword ? "text" : "password"}
+              fullWidth
+              required={!editingExpert}
+              value={formData.password}
+              onChange={(e) =>
+                setFormData({ ...formData, password: e.target.value })
+              }
+              error={
+                formData.password.length > 0 && formData.password.length < 12
+              }
+              helperText={
+                formData.password.length > 0 && formData.password.length < 12
+                  ? "Пароль должен быть не менее 12 символов"
+                  : editingExpert
+                    ? "Оставьте пустым, чтобы не менять текущий пароль"
                     : "Минимум 12 символов"
-                }
-                autoComplete="new-password"
-                name="new-password"
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment position="end">
-                      <IconButton
-                        onClick={() => setShowPassword(!showPassword)}
-                        edge="end"
-                      >
-                        {showPassword ? <VisibilityOff /> : <Visibility />}
-                      </IconButton>
-                      <IconButton
-                        onClick={generatePassword}
-                        edge="end"
-                        title="Сгенерировать пароль"
-                      >
-                        <Autorenew />
-                      </IconButton>
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            )}
+              }
+              autoComplete="new-password"
+              name="new-password"
+              InputProps={{
+                endAdornment: (
+                  <InputAdornment position="end">
+                    <IconButton
+                      onClick={() => setShowPassword(!showPassword)}
+                      edge="end"
+                    >
+                      {showPassword ? <VisibilityOff /> : <Visibility />}
+                    </IconButton>
+                    <IconButton
+                      onClick={generatePassword}
+                      edge="end"
+                      title="Сгенерировать пароль"
+                    >
+                      <Autorenew />
+                    </IconButton>
+                  </InputAdornment>
+                ),
+              }}
+            />
             <FormControl fullWidth>
               <InputLabel>Статус</InputLabel>
               <Select
@@ -692,9 +690,8 @@ export function ExpertsPage() {
               updateExpert.isPending ||
               !formData.name.trim() ||
               !formData.email.trim() ||
-              (!editingExpert &&
-                formData.password.length > 0 &&
-                formData.password.length < 12)
+              (!editingExpert && !formData.password.trim()) ||
+              (formData.password.length > 0 && formData.password.length < 12)
             }
           >
             {createExpert.isPending || updateExpert.isPending
