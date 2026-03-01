@@ -59,11 +59,6 @@ const SettingsPage = lazy(() =>
     default: m.SettingsPage,
   })),
 );
-const ShareInboxPage = lazy(() =>
-  import("../pages/share/ShareInboxPage").then((m) => ({
-    default: m.ShareInboxPage,
-  })),
-);
 // const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
 // const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
 // const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
@@ -186,14 +181,6 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <DocumentsPage />
-          </Suspense>
-        ),
-      },
-      {
-        path: "share/inbox",
-        element: (
-          <Suspense fallback={<PageLoader />}>
-            <ShareInboxPage />
           </Suspense>
         ),
       },

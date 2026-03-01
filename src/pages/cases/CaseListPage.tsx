@@ -83,13 +83,14 @@ export function CaseListPage() {
   const createCase = useCreateCase();
   const deleteCase = useDeleteCase();
 
-  const cases = casesResponse?.data || [];
-  const totalCases = casesResponse?.pagination?.total || 0;
-  const currentPage = casesResponse?.pagination?.page || 1;
-  const totalPages = casesResponse?.pagination?.total_pages || 1;
-  const pageSize = casesResponse?.pagination?.limit || filters.limit || 20;
-  const hasPrev = currentPage > 1;
-  const hasNext = currentPage < totalPages;
+  const cases = casesResponse?.items || [];
+  const meta = casesResponse?.meta;
+  const totalCases = meta?.total_items || 0;
+  const currentPage = meta?.current_page || 1;
+  const totalPages = meta?.total_pages || 1;
+  const pageSize = meta?.per_page || filters.limit || 20;
+  const hasPrev = meta?.has_prev ?? currentPage > 1;
+  const hasNext = meta?.has_next ?? currentPage < totalPages;
 
   const handleCreateSubmit = async (
     formData: Parameters<typeof createCase.mutateAsync>[0],
