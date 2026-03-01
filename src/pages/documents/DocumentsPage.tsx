@@ -376,7 +376,7 @@ export function DocumentsPage() {
     (entry.share_info?.public_link_count ?? 0) > 0;
 
   const isSharedWithCurrentUser = (entry: FileSystemEntry) =>
-    !isOwnedResource(entry);
+    user?.role === "expert" && !isOwnedResource(entry);
 
   const clearSelection = useCallback(() => {
     setSelectedEntryIds([]);
