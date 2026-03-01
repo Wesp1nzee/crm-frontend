@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -28,7 +28,7 @@ import {
   ToggleButton,
   ToggleButtonGroup,
   alpha,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Add,
   Edit,
@@ -40,60 +40,65 @@ import {
   Visibility,
   VisibilityOff,
   Autorenew,
-} from '@mui/icons-material';
+} from "@mui/icons-material";
 import {
   useExperts,
   useCreateExpert,
   useUpdateExpert,
   useDeleteExpert,
   type Expert,
-} from '../../shared/hooks/useExperts';
-import { UserRole } from '../../shared/types/user';
-import { useDebounce } from '../../shared/hooks/useDebounce';
-import { notificationService } from '../../shared/services/notifications';
-import { confirmService } from '../../shared/services/confirm';
-import { PaginationControls } from '../../shared/ui/PaginationControls';
+} from "../../shared/hooks/useExperts";
+import { UserRole } from "../../shared/types/user";
+import { useDebounce } from "../../shared/hooks/useDebounce";
+import { notificationService } from "../../shared/services/notifications";
+import { confirmService } from "../../shared/services/confirm";
+import { PaginationControls } from "../../shared/ui/PaginationControls";
 
-export function ExpertsPage() {  
+export function ExpertsPage() {
   // Состояние фильтров
   const [filters, setFilters] = useState({
-    search: '',
-    status: 'all' as 'all' | 'active' | 'inactive',
-    role: 'all' as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT,
+    search: "",
+    status: "all" as "all" | "active" | "inactive",
+    role: "all" as "all" | UserRole.EXPERT | UserRole.ACCOUNTANT,
     page: 1,
     limit: 20,
   });
-  
+
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingExpert, setEditingExpert] = useState<Expert | null>(null);
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    specialization: '',
+    name: "",
+    email: "",
+    phone: "",
+    specialization: "",
     role: UserRole.EXPERT,
-    status: 'active' as Expert['status'],
-    password: '',
+    status: "active" as Expert["status"],
+    password: "",
   });
 
   const [showPassword, setShowPassword] = useState(false);
 
   // Дебаунс для поиска
   const debouncedSearch = useDebounce(filters.search, 300);
-  
+
   // Вычисляем параметры для запроса
   const queryFilters = {
-    role: filters.role === 'all' ? undefined : (filters.role as UserRole),
+    role: filters.role === "all" ? undefined : (filters.role as UserRole),
     search: debouncedSearch || undefined,
-    is_active: filters.status === 'all' 
-      ? undefined 
-      : (filters.status === 'active'),
+    is_active:
+      filters.status === "all" ? undefined : filters.status === "active",
     page: filters.page,
     limit: filters.limit,
   };
 
   // FIX: useQuery возвращает `data`, а не `experts` — переименовываем через `data: experts`
-  const { data: expertsData, isLoading, error, refetch, isRefetching } = useExperts(queryFilters);
+  const {
+    data: expertsData,
+    isLoading,
+    error,
+    refetch,
+    isRefetching,
+  } = useExperts(queryFilters);
   const experts = expertsData?.items ?? [];
   const expertsMeta = expertsData?.meta;
   const createExpert = useCreateExpert();
@@ -105,18 +110,35 @@ export function ExpertsPage() {
     setFilters({ ...filters, search: e.target.value, page: 1 });
   };
 
-  const handleStatusChange = (_event: React.MouseEvent<HTMLElement>, newStatus: string | null) => {
+  const handleStatusChange = (
+    _event: React.MouseEvent<HTMLElement>,
+    newStatus: string | null,
+  ) => {
     if (newStatus) {
-      setFilters({ ...filters, status: newStatus as typeof filters.status, page: 1 });
+      setFilters({
+        ...filters,
+        status: newStatus as typeof filters.status,
+        page: 1,
+      });
     }
   };
 
   const handleRoleChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    setFilters({ ...filters, role: e.target.value as 'all' | UserRole.EXPERT | UserRole.ACCOUNTANT, page: 1 });
+    setFilters({
+      ...filters,
+      role: e.target.value as "all" | UserRole.EXPERT | UserRole.ACCOUNTANT,
+      page: 1,
+    });
   };
 
   const handleClearFilters = () => {
-    setFilters((prev) => ({ ...prev, search: '', status: 'all', role: 'all', page: 1 }));
+    setFilters((prev) => ({
+      ...prev,
+      search: "",
+      status: "all",
+      role: "all",
+      page: 1,
+    }));
   };
 
   const handleOpenDialog = (expert?: Expert) => {
@@ -125,22 +147,22 @@ export function ExpertsPage() {
       setFormData({
         name: expert.name,
         email: expert.email,
-        phone: expert.phone || '',
-        specialization: expert.specialization?.[0] || '',
+        phone: expert.phone || "",
+        specialization: expert.specialization?.[0] || "",
         role: expert.role,
         status: expert.status,
-        password: '',
+        password: "",
       });
     } else {
       setEditingExpert(null);
       setFormData({
-        name: '',
-        email: '',
-        phone: '',
-        specialization: '',
+        name: "",
+        email: "",
+        phone: "",
+        specialization: "",
         role: UserRole.EXPERT,
-        status: 'active',
-        password: '',
+        status: "active",
+        password: "",
       });
     }
     setShowPassword(false);
@@ -151,20 +173,21 @@ export function ExpertsPage() {
     setDialogOpen(false);
     setEditingExpert(null);
     setFormData({
-      name: '',
-      email: '',
-      phone: '',
-      specialization: '',
+      name: "",
+      email: "",
+      phone: "",
+      specialization: "",
       role: UserRole.EXPERT,
-      status: 'active',
-      password: '',
+      status: "active",
+      password: "",
     });
     setShowPassword(false);
   };
 
   const generatePassword = () => {
-    const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    let password = '';
+    const chars =
+      "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+    let password = "";
     for (let i = 0; i < 12; i++) {
       password += chars.charAt(Math.floor(Math.random() * chars.length));
     }
@@ -185,33 +208,34 @@ export function ExpertsPage() {
 
       if (editingExpert) {
         const { password: _, ...updateData } = submitData;
-        
+
         await updateExpert.mutateAsync({
           id: editingExpert.id,
           data: updateData,
         });
-        notificationService.success('Пользователь успешно обновлён');
-
-
+        notificationService.success("Пользователь успешно обновлён");
       } else {
         await createExpert.mutateAsync(submitData);
-        notificationService.success('Пользователь успешно создан');
+        notificationService.success("Пользователь успешно создан");
       }
       handleCloseDialog();
       refetch();
     } catch (error) {
-      console.error('Error saving user:', error);
-      notificationService.error('Ошибка сохранения пользователя: ' + (error as Error).message);
+      console.error("Error saving user:", error);
+      notificationService.error(
+        "Ошибка сохранения пользователя: " + (error as Error).message,
+      );
     }
   };
 
   const handleDelete = async (id: string) => {
     const confirmed = await confirmService.ask({
-      title: 'Удаление пользователя',
-      description: 'Вы действительно хотите удалить пользователя? Это действие нельзя отменить.',
-      confirmText: 'Удалить',
-      cancelText: 'Отмена',
-      confirmColor: 'error',
+      title: "Удаление пользователя",
+      description:
+        "Вы действительно хотите удалить пользователя? Это действие нельзя отменить.",
+      confirmText: "Удалить",
+      cancelText: "Отмена",
+      confirmColor: "error",
     });
 
     if (!confirmed) {
@@ -220,11 +244,13 @@ export function ExpertsPage() {
 
     try {
       await deleteExpert.mutateAsync(id);
-      notificationService.success('Пользователь успешно удалён');
+      notificationService.success("Пользователь успешно удалён");
       refetch();
     } catch (error) {
-      console.error('Error deleting user:', error);
-      notificationService.error('Ошибка удаления пользователя: ' + (error as Error).message);
+      console.error("Error deleting user:", error);
+      notificationService.error(
+        "Ошибка удаления пользователя: " + (error as Error).message,
+      );
     }
   };
 
@@ -245,16 +271,26 @@ export function ExpertsPage() {
   }
 
   return (
-    <Box sx={{
-      '@keyframes pulseDot': {
-        '0%': { opacity: 0.6, transform: 'scale(0.9)' },
-        '50%': { opacity: 1, transform: 'scale(1)' },
-        '100%': { opacity: 0.6, transform: 'scale(0.9)' },
-      },
-    }}>
+    <Box
+      sx={{
+        "@keyframes pulseDot": {
+          "0%": { opacity: 0.6, transform: "scale(0.9)" },
+          "50%": { opacity: 1, transform: "scale(1)" },
+          "100%": { opacity: 0.6, transform: "scale(0.9)" },
+        },
+      }}
+    >
       {/* Заголовок и кнопки */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
-        <Typography variant="h4" sx={{ fontSize: { xs: 32, md: 36 }, fontWeight: 800 }}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={2}
+      >
+        <Typography
+          variant="h4"
+          sx={{ fontSize: { xs: 32, md: 36 }, fontWeight: 800 }}
+        >
           Эксперты
         </Typography>
         <Box display="flex" gap={1}>
@@ -264,7 +300,7 @@ export function ExpertsPage() {
             onClick={() => refetch()}
             disabled={isRefetching}
           >
-            {isRefetching ? 'Обновление...' : 'Обновить'}
+            {isRefetching ? "Обновление..." : "Обновить"}
           </Button>
           <Button
             variant="contained"
@@ -276,13 +312,13 @@ export function ExpertsPage() {
         </Box>
       </Box>
 
-      <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+      <Paper sx={{ p: 2, mb: 2, bgcolor: "grey.50" }}>
         <Grid container spacing={2} alignItems="center">
           <Grid size={{ xs: 12, md: 4 }}>
             <TextField
               fullWidth
               size="small"
-              sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}
+              sx={{ "& .MuiOutlinedInput-root": { minHeight: 48 } }}
               placeholder="Поиск по имени или email..."
               value={filters.search}
               onChange={handleSearchChange}
@@ -297,9 +333,13 @@ export function ExpertsPage() {
               }}
             />
           </Grid>
-          
+
           <Grid size={{ xs: 12, md: 3 }}>
-            <FormControl fullWidth size="small" sx={{ '& .MuiOutlinedInput-root': { minHeight: 48 } }}>
+            <FormControl
+              fullWidth
+              size="small"
+              sx={{ "& .MuiOutlinedInput-root": { minHeight: 48 } }}
+            >
               <InputLabel>Роль</InputLabel>
               <Select
                 value={filters.role}
@@ -312,11 +352,13 @@ export function ExpertsPage() {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid size={{ xs: 12, md: 3 }}>
             <ToggleButtonGroup
               value={filters.status}
-              sx={{ '& .MuiToggleButton-root': { minHeight: 48, borderRadius: 2 } }}
+              sx={{
+                "& .MuiToggleButton-root": { minHeight: 48, borderRadius: 2 },
+              }}
               exclusive
               onChange={handleStatusChange}
               fullWidth
@@ -333,8 +375,10 @@ export function ExpertsPage() {
               </ToggleButton>
             </ToggleButtonGroup>
           </Grid>
-          
-          {(filters.search || filters.status !== 'all' || filters.role !== 'all') && (
+
+          {(filters.search ||
+            filters.status !== "all" ||
+            filters.role !== "all") && (
             <Grid size={{ xs: 12, md: 2 }}>
               <Button
                 fullWidth
@@ -350,8 +394,16 @@ export function ExpertsPage() {
       </Paper>
 
       {/* Таблица */}
-      <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table sx={{ "& th:first-of-type, & td:first-of-type": { pl: 4 }, "& th:last-of-type, & td:last-of-type": { pr: 4 } }}>
+      <TableContainer
+        component={Paper}
+        sx={{ borderRadius: 4, overflow: "hidden" }}
+      >
+        <Table
+          sx={{
+            "& th:first-of-type, & td:first-of-type": { pl: 4 },
+            "& th:last-of-type, & td:last-of-type": { pr: 4 },
+          }}
+        >
           <TableHead>
             <TableRow>
               <TableCell>Имя</TableCell>
@@ -364,18 +416,34 @@ export function ExpertsPage() {
           </TableHead>
           <TableBody>
             {experts.map((expert, index) => (
-              <TableRow key={expert.id} hover sx={{ backgroundColor: (theme) => index % 2 ? alpha(theme.palette.common.black, 0.02) : "transparent" }}>
+              <TableRow
+                key={expert.id}
+                hover
+                sx={{
+                  backgroundColor: (theme) =>
+                    index % 2
+                      ? alpha(theme.palette.common.black, 0.02)
+                      : "transparent",
+                }}
+              >
                 <TableCell>
                   <Box display="flex" alignItems="center" gap={1}>
-                    <Person fontSize="small" sx={{ color: 'text.secondary' }} />
+                    <Person fontSize="small" sx={{ color: "text.secondary" }} />
                     <Box
                       sx={{
                         width: 8,
                         height: 8,
-                        borderRadius: '50%',
-                        bgcolor: expert.status === 'active' ? '#55D37A' : '#9AA5B5',
-                        boxShadow: expert.status === 'active' ? '0 0 10px rgba(85,211,122,0.65)' : 'none',
-                        animation: expert.status === 'active' ? 'pulseDot 1.8s ease-in-out infinite' : 'none',
+                        borderRadius: "50%",
+                        bgcolor:
+                          expert.status === "active" ? "#55D37A" : "#9AA5B5",
+                        boxShadow:
+                          expert.status === "active"
+                            ? "0 0 10px rgba(85,211,122,0.65)"
+                            : "none",
+                        animation:
+                          expert.status === "active"
+                            ? "pulseDot 1.8s ease-in-out infinite"
+                            : "none",
                       }}
                     />
                     <Typography fontWeight="medium">{expert.name}</Typography>
@@ -388,15 +456,21 @@ export function ExpertsPage() {
                       sx={{
                         width: 8,
                         height: 8,
-                        borderRadius: '50%',
-                        bgcolor: expert.role === UserRole.EXPERT ? 'primary.main' : 'secondary.main',
-                        boxShadow: expert.role === UserRole.EXPERT
-                          ? '0 0 8px rgba(79,144,255,0.55)'
-                          : '0 0 8px rgba(227,138,181,0.45)',
+                        borderRadius: "50%",
+                        bgcolor:
+                          expert.role === UserRole.EXPERT
+                            ? "primary.main"
+                            : "secondary.main",
+                        boxShadow:
+                          expert.role === UserRole.EXPERT
+                            ? "0 0 8px rgba(79,144,255,0.55)"
+                            : "0 0 8px rgba(227,138,181,0.45)",
                       }}
                     />
                     <Typography variant="body2" color="text.secondary">
-                      {expert.role === UserRole.EXPERT ? 'Эксперт' : 'Бухгалтер'}
+                      {expert.role === UserRole.EXPERT
+                        ? "Эксперт"
+                        : "Бухгалтер"}
                     </Typography>
                   </Box>
                 </TableCell>
@@ -404,36 +478,58 @@ export function ExpertsPage() {
                   {expert.specialization?.length > 0 ? (
                     <Box display="flex" flexWrap="wrap" gap={0.5}>
                       {expert.specialization.map((spec, index) => (
-                        <Chip key={index} label={spec} size="small" variant="outlined" />
+                        <Chip
+                          key={index}
+                          label={spec}
+                          size="small"
+                          variant="outlined"
+                        />
                       ))}
                     </Box>
-                  ) : '-'}
+                  ) : (
+                    "-"
+                  )}
                 </TableCell>
                 <TableCell>
                   <Typography variant="body2" color="text.secondary">
-                    {expert.status === 'active' ? 'Активен' : 'Неактивен'}
+                    {expert.status === "active" ? "Активен" : "Неактивен"}
                   </Typography>
                 </TableCell>
                 <TableCell>
                   <Box display="flex" gap={1}>
-                    <IconButton size="small" onClick={() => handleOpenDialog(expert)}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleOpenDialog(expert)}
+                    >
                       <Edit fontSize="small" />
                     </IconButton>
-                    <IconButton size="small" onClick={() => handleDelete(expert.id)} sx={{ color: 'text.secondary', "&:hover": { color: 'text.primary', bgcolor: 'action.hover' } }}>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDelete(expert.id)}
+                      sx={{
+                        color: "text.secondary",
+                        "&:hover": {
+                          color: "text.primary",
+                          bgcolor: "action.hover",
+                        },
+                      }}
+                    >
                       <Delete fontSize="small" />
                     </IconButton>
                   </Box>
                 </TableCell>
               </TableRow>
             ))}
-            
+
             {experts.length === 0 && (
               <TableRow>
                 <TableCell colSpan={6} align="center" sx={{ py: 4 }}>
                   <Typography color="text.secondary">
-                    {filters.search || filters.status !== 'all' || filters.role !== 'all'
-                      ? 'Не найдено пользователей по заданным фильтрам' 
-                      : 'Нет пользователей'}
+                    {filters.search ||
+                    filters.status !== "all" ||
+                    filters.role !== "all"
+                      ? "Не найдено пользователей по заданным фильтрам"
+                      : "Нет пользователей"}
                   </Typography>
                 </TableCell>
               </TableRow>
@@ -442,7 +538,6 @@ export function ExpertsPage() {
         </Table>
       </TableContainer>
 
-
       <PaginationControls
         currentPage={expertsMeta?.current_page ?? filters.page}
         totalPages={expertsMeta?.total_pages ?? 1}
@@ -450,36 +545,44 @@ export function ExpertsPage() {
         hasPrev={expertsMeta?.has_prev ?? filters.page > 1}
         hasNext={expertsMeta?.has_next ?? false}
         limit={filters.limit}
-        onLimitChange={(nextLimit) => setFilters((prev) => ({ ...prev, limit: nextLimit, page: 1 }))}
-        onPrev={() => setFilters((prev) => ({ ...prev, page: Math.max(prev.page - 1, 1) }))}
+        onLimitChange={(nextLimit) =>
+          setFilters((prev) => ({ ...prev, limit: nextLimit, page: 1 }))
+        }
+        onPrev={() =>
+          setFilters((prev) => ({ ...prev, page: Math.max(prev.page - 1, 1) }))
+        }
         onNext={() => setFilters((prev) => ({ ...prev, page: prev.page + 1 }))}
       />
 
       {/* Модальное окно */}
-      <Dialog 
-        open={dialogOpen} 
-        onClose={handleCloseDialog} 
-        maxWidth="md" 
+      <Dialog
+        open={dialogOpen}
+        onClose={handleCloseDialog}
+        maxWidth="md"
         fullWidth
         // Отключаем автозаполнение для всего диалога
         PaperProps={{
-          component: 'form',
-          autoComplete: 'off',
+          component: "form",
+          autoComplete: "off",
         }}
       >
         <DialogTitle>
-          {editingExpert ? 'Редактировать пользователя' : 'Добавить пользователя'}
+          {editingExpert
+            ? "Редактировать пользователя"
+            : "Добавить пользователя"}
         </DialogTitle>
         <DialogContent>
-          <Box sx={{ pt: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+          <Box sx={{ pt: 1, display: "flex", flexDirection: "column", gap: 2 }}>
             <TextField
               label="Имя"
               fullWidth
               required
               value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
               error={!formData.name.trim()}
-              helperText={!formData.name.trim() ? 'Имя обязательно' : ''}
+              helperText={!formData.name.trim() ? "Имя обязательно" : ""}
               autoComplete="name"
               name="full-name"
             />
@@ -489,9 +592,11 @@ export function ExpertsPage() {
               fullWidth
               required
               value={formData.email}
-              onChange={(e) => setFormData({ ...formData, email: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
               error={!formData.email.trim()}
-              helperText={!formData.email.trim() ? 'Email обязателен' : ''}
+              helperText={!formData.email.trim() ? "Email обязателен" : ""}
               autoComplete="email"
               name="user-email"
             />
@@ -500,7 +605,9 @@ export function ExpertsPage() {
               <Select
                 value={formData.role}
                 label="Роль"
-                onChange={(e) => setFormData({ ...formData, role: e.target.value as UserRole })}
+                onChange={(e) =>
+                  setFormData({ ...formData, role: e.target.value as UserRole })
+                }
               >
                 <MenuItem value={UserRole.EXPERT}>Эксперт</MenuItem>
                 <MenuItem value={UserRole.ACCOUNTANT}>Бухгалтер</MenuItem>
@@ -510,23 +617,29 @@ export function ExpertsPage() {
               label="Специализация"
               fullWidth
               value={formData.specialization}
-              onChange={(e) => setFormData({ ...formData, specialization: e.target.value })}
+              onChange={(e) =>
+                setFormData({ ...formData, specialization: e.target.value })
+              }
               autoComplete="off"
               name="specialization"
             />
             {!editingExpert && (
               <TextField
                 label="Пароль"
-                type={showPassword ? 'text' : 'password'}
+                type={showPassword ? "text" : "password"}
                 fullWidth
                 required
                 value={formData.password}
-                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                error={formData.password.length > 0 && formData.password.length < 12}
+                onChange={(e) =>
+                  setFormData({ ...formData, password: e.target.value })
+                }
+                error={
+                  formData.password.length > 0 && formData.password.length < 12
+                }
                 helperText={
                   formData.password.length > 0 && formData.password.length < 12
-                    ? 'Пароль должен быть не менее 12 символов'
-                    : 'Минимум 12 символов'
+                    ? "Пароль должен быть не менее 12 символов"
+                    : "Минимум 12 символов"
                 }
                 autoComplete="new-password"
                 name="new-password"
@@ -556,7 +669,12 @@ export function ExpertsPage() {
               <Select
                 value={formData.status}
                 label="Статус"
-                onChange={(e) => setFormData({ ...formData, status: e.target.value as Expert['status'] })}
+                onChange={(e) =>
+                  setFormData({
+                    ...formData,
+                    status: e.target.value as Expert["status"],
+                  })
+                }
               >
                 <MenuItem value="active">Активен</MenuItem>
                 <MenuItem value="inactive">Неактивен</MenuItem>
@@ -570,14 +688,20 @@ export function ExpertsPage() {
             onClick={handleSubmit}
             variant="contained"
             disabled={
-              createExpert.isPending || 
+              createExpert.isPending ||
               updateExpert.isPending ||
               !formData.name.trim() ||
               !formData.email.trim() ||
-              (!editingExpert && formData.password.length > 0 && formData.password.length < 12)
+              (!editingExpert &&
+                formData.password.length > 0 &&
+                formData.password.length < 12)
             }
           >
-            {(createExpert.isPending || updateExpert.isPending) ? 'Сохранение...' : (editingExpert ? 'Сохранить' : 'Создать')}
+            {createExpert.isPending || updateExpert.isPending
+              ? "Сохранение..."
+              : editingExpert
+                ? "Сохранить"
+                : "Создать"}
           </Button>
         </DialogActions>
       </Dialog>

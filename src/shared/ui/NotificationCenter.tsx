@@ -1,7 +1,10 @@
-import { useEffect, useMemo, useState, type SyntheticEvent } from 'react';
-import { Alert, Box, LinearProgress, Slide, Snackbar } from '@mui/material';
-import type { SlideProps } from '@mui/material/Slide';
-import { notificationService, type NotificationEvent } from '../services/notifications';
+import { useEffect, useMemo, useState, type SyntheticEvent } from "react";
+import { Alert, Box, LinearProgress, Slide, Snackbar } from "@mui/material";
+import type { SlideProps } from "@mui/material/Slide";
+import {
+  notificationService,
+  type NotificationEvent,
+} from "../services/notifications";
 
 const DEFAULT_DURATION = 5000;
 const EXIT_ANIMATION_MS = 240;
@@ -13,7 +16,10 @@ export function NotificationCenter() {
   const [queue, setQueue] = useState<NotificationEvent[]>([]);
   const [isOpen, setIsOpen] = useState(false);
 
-  const duration = useMemo(() => current?.autoHideDuration ?? DEFAULT_DURATION, [current?.autoHideDuration]);
+  const duration = useMemo(
+    () => current?.autoHideDuration ?? DEFAULT_DURATION,
+    [current?.autoHideDuration],
+  );
 
   useEffect(() => {
     return notificationService.subscribe((event) => {
@@ -54,7 +60,7 @@ export function NotificationCenter() {
   }, [isOpen, current]);
 
   const handleClose = (_event?: SyntheticEvent | Event, reason?: string) => {
-    if (reason === 'clickaway') {
+    if (reason === "clickaway") {
       return;
     }
 
@@ -66,20 +72,20 @@ export function NotificationCenter() {
       key={current?.id}
       open={isOpen}
       onClose={handleClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+      anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
       slots={{ transition: TransitionUp }}
     >
       <Alert
-        severity={current?.severity ?? 'info'}
+        severity={current?.severity ?? "info"}
         onClose={handleClose}
         variant="filled"
         sx={{
-          width: '100%',
+          width: "100%",
           minWidth: 320,
-          overflow: 'hidden',
+          overflow: "hidden",
           boxShadow: 6,
-          '& .MuiAlert-message': {
-            width: '100%',
+          "& .MuiAlert-message": {
+            width: "100%",
           },
         }}
       >
@@ -91,18 +97,18 @@ export function NotificationCenter() {
             mt: 1,
             height: 3,
             borderRadius: 2,
-            bgcolor: 'rgba(255,255,255,0.25)',
-            '& .MuiLinearProgress-bar': {
-              bgcolor: 'rgba(255,255,255,0.95)',
-              transformOrigin: 'left',
+            bgcolor: "rgba(255,255,255,0.25)",
+            "& .MuiLinearProgress-bar": {
+              bgcolor: "rgba(255,255,255,0.95)",
+              transformOrigin: "left",
               animation: `notification-timer ${duration}ms linear forwards`,
             },
-            '@keyframes notification-timer': {
+            "@keyframes notification-timer": {
               from: {
-                transform: 'scaleX(1)',
+                transform: "scaleX(1)",
               },
               to: {
-                transform: 'scaleX(0)',
+                transform: "scaleX(0)",
               },
             },
           }}

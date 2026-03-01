@@ -1,5 +1,5 @@
-import { Navigate } from 'react-router-dom';
-import { usePermissions } from '../hooks/usePermissions';
+import { Navigate } from "react-router-dom";
+import { usePermissions } from "../hooks/usePermissions";
 
 interface RoleGuardProps {
   children: React.ReactNode;
@@ -7,7 +7,11 @@ interface RoleGuardProps {
   redirectTo?: string;
 }
 
-export function RoleGuard({ children, allowedRoles, redirectTo = '/' }: RoleGuardProps) {
+export function RoleGuard({
+  children,
+  allowedRoles,
+  redirectTo = "/",
+}: RoleGuardProps) {
   const { user } = usePermissions();
 
   if (!user) {

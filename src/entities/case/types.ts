@@ -1,11 +1,11 @@
-export type CaseStatus = 
-  | 'archive' 
-  | 'in_work' 
-  | 'debt' 
-  | 'executed' 
-  | 'withdrawn' 
-  | 'cancelled' 
-  | 'fssp';
+export type CaseStatus =
+  | "archive"
+  | "in_work"
+  | "debt"
+  | "executed"
+  | "withdrawn"
+  | "cancelled"
+  | "fssp";
 
 export interface Case {
   id: string;
@@ -46,7 +46,7 @@ export interface CaseDetailResponse {
     id: string;
     name: string;
     short_name?: string;
-    type: 'legal' | 'individual' | 'court';
+    type: "legal" | "individual" | "court";
     inn?: string;
     email?: string;
     phone?: string;
@@ -59,7 +59,7 @@ export interface CaseDetailResponse {
       email?: string;
       phone?: string;
       is_main: boolean;
-      contact_type: 'legal_representative' | 'court_officer' | 'individual';
+      contact_type: "legal_representative" | "court_officer" | "individual";
     }[];
   };
   assigned_experts: {
@@ -158,7 +158,7 @@ export interface GetCasesQuery {
   // Pagination
   page?: number;
   limit?: number;
-  
+
   // Filters
   status?: CaseStatus[];
   expert_id?: string;
@@ -172,23 +172,23 @@ export interface GetCasesQuery {
   number?: string;
   case_number?: string;
   has_assigned_expert?: boolean;
-  
+
   // Cost filters
   min_cost?: number;
   max_cost?: number;
   min_remaining_debt?: number;
   max_remaining_debt?: number;
-  
+
   // Date filters
   completion_start_date?: string;
   completion_end_date?: string;
   deadline_start_date?: string;
   deadline_end_date?: string;
-  
+
   // Search and sorting
   search?: string;
   sort_field?: string;
-  sort_order?: 'asc' | 'desc';
+  sort_order?: "asc" | "desc";
 }
 
 export interface PaginationInfo {
@@ -227,7 +227,7 @@ export interface Client {
 export interface Document {
   id: string;
   name: string;
-  type: 'contract' | 'report' | 'photo' | 'certificate' | 'other';
+  type: "contract" | "report" | "photo" | "certificate" | "other";
   size: number;
   uploadedAt: string;
   caseId?: string;
@@ -240,7 +240,7 @@ export interface Invoice {
   number: string;
   caseId: string;
   amount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   createdAt: string;
   dueDate: string;
   paidAt?: string;
@@ -251,7 +251,7 @@ export interface Payment {
   id: string;
   invoiceId: string;
   amount: number;
-  method: 'bank_transfer' | 'cash' | 'card';
+  method: "bank_transfer" | "cash" | "card";
   receivedAt: string;
   description?: string;
 }

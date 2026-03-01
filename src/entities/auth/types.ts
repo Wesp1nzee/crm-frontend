@@ -1,7 +1,7 @@
 export interface User {
   email: string;
   full_name: string;
-  role: 'admin' | 'ceo' | 'accountant' | 'expert';
+  role: "admin" | "ceo" | "accountant" | "expert";
   specialization?: string;
   id: string;
   is_active: boolean;

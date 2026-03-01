@@ -1,4 +1,11 @@
-import { Box, Button, FormControl, MenuItem, Select, Typography } from '@mui/material';
+import {
+  Box,
+  Button,
+  FormControl,
+  MenuItem,
+  Select,
+  Typography,
+} from "@mui/material";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -26,7 +33,14 @@ export function PaginationControls({
   limitOptions = [10, 20, 50, 100],
 }: PaginationControlsProps) {
   return (
-    <Box display="flex" justifyContent="space-between" alignItems="center" mt={2} gap={2} flexWrap="wrap">
+    <Box
+      display="flex"
+      justifyContent="space-between"
+      alignItems="center"
+      mt={2}
+      gap={2}
+      flexWrap="wrap"
+    >
       <Box display="flex" alignItems="center" gap={1.5}>
         <Typography variant="body2" color="text.secondary">
           На странице
@@ -48,8 +62,9 @@ export function PaginationControls({
 
       <Box display="flex" alignItems="center" gap={1.5}>
         <Typography variant="body2" color="text.secondary">
-          Страница {currentPage}{typeof totalPages === 'number' ? ` из ${totalPages}` : ''}
-          {typeof totalItems === 'number' ? `. Всего: ${totalItems}` : ''}
+          Страница {currentPage}
+          {typeof totalPages === "number" ? ` из ${totalPages}` : ""}
+          {typeof totalItems === "number" ? `. Всего: ${totalItems}` : ""}
         </Typography>
         <Box display="flex" gap={1}>
           <Button variant="outlined" disabled={!hasPrev} onClick={onPrev}>

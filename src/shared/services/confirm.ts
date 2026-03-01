@@ -3,7 +3,7 @@ export interface ConfirmDialogPayload {
   description: string;
   confirmText?: string;
   cancelText?: string;
-  confirmColor?: 'primary' | 'error' | 'warning';
+  confirmColor?: "primary" | "error" | "warning";
 }
 
 export interface ConfirmDialogEvent extends ConfirmDialogPayload {
@@ -25,11 +25,11 @@ export const confirmService = {
     const id = ++confirmationId;
     const event: ConfirmDialogEvent = {
       id,
-      title: payload.title ?? 'Подтверждение действия',
+      title: payload.title ?? "Подтверждение действия",
       description: payload.description,
-      confirmText: payload.confirmText ?? 'Подтвердить',
-      cancelText: payload.cancelText ?? 'Отмена',
-      confirmColor: payload.confirmColor ?? 'primary',
+      confirmText: payload.confirmText ?? "Подтвердить",
+      cancelText: payload.cancelText ?? "Отмена",
+      confirmColor: payload.confirmColor ?? "primary",
     };
 
     listeners.forEach((listener) => listener(event));

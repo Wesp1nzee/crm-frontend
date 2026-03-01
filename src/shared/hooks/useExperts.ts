@@ -1,7 +1,12 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { usersApi } from '../../entities/user/api';
-import type { UserCreate as UserCreateType, UserUpdate as UserUpdateType, UserFilterParams, UserRead } from '../../entities/user/types';
-import { UserRole } from '../../shared/types/user'; 
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { usersApi } from "../../entities/user/api";
+import type {
+  UserCreate as UserCreateType,
+  UserUpdate as UserUpdateType,
+  UserFilterParams,
+  UserRead,
+} from "../../entities/user/types";
+import { UserRole } from "../../shared/types/user";
 
 export interface ExpertFilters {
   role?: UserRole | null;
@@ -18,7 +23,7 @@ export interface Expert {
   phone: string;
   specialization: string[];
   role: UserRole;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   workload: number;
   count_case: number;
 }
@@ -29,7 +34,7 @@ export interface CreateExpertInput {
   phone?: string;
   specialization?: string;
   role: UserRole;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   password?: string;
 }
 
@@ -39,7 +44,7 @@ export interface UpdateExpertInput {
   phone?: string;
   specialization?: string;
   role?: UserRole;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
 }
 
 type UserCreateWithStatus = UserCreateType & {
@@ -82,17 +87,17 @@ const mapUserToExpert = (user: UserRead): Expert => ({
   name: user.full_name,
   specialization: user.specialization ? [user.specialization] : [],
   role: normalizeRole(user.role),
-  status: user.is_active ? 'active' : 'inactive',
+  status: user.is_active ? "active" : "inactive",
   workload: user.active_cases_count ?? 0,
   count_case: user.active_cases_count ?? 0,
-  phone: user.settings?.phone || '',
+  phone: user.settings?.phone || "",
 });
 
 export const useExperts = (filters: ExpertFilters = {}) => {
   const { role = undefined, search, is_active, page, limit } = filters;
 
   return useQuery<ExpertsQueryResult>({
-    queryKey: ['users', { role, search, is_active, page, limit }],
+    queryKey: ["users", { role, search, is_active, page, limit }],
     queryFn: async () => {
       const params: Partial<UserFilterParams> = {};
 
@@ -101,7 +106,8 @@ export const useExperts = (filters: ExpertFilters = {}) => {
       }
 
       if (search) params.search = search;
-      if (is_active !== undefined && is_active !== null) params.is_active = is_active;
+      if (is_active !== undefined && is_active !== null)
+        params.is_active = is_active;
       if (page) params.page = page;
       if (limit) params.limit = limit;
 
@@ -121,20 +127,21 @@ export const useExperts = (filters: ExpertFilters = {}) => {
 
 export const useExpert = (id: string) => {
   return useQuery({
-    queryKey: ['user', id],
-    queryFn: () => usersApi.getUser(id).then(res => {
-      const user = res.data;
-      return {
-        ...user,
-        id: user.id,
-        name: user.full_name,
-        specialization: user.specialization ? [user.specialization] : [],
-        role: normalizeRole(user.role),
-        status: user.is_active ? 'active' : 'inactive',
-        workload: user.active_cases_count ?? 0,
-        phone: user.settings?.phone || '',
-      };
-    }),
+    queryKey: ["user", id],
+    queryFn: () =>
+      usersApi.getUser(id).then((res) => {
+        const user = res.data;
+        return {
+          ...user,
+          id: user.id,
+          name: user.full_name,
+          specialization: user.specialization ? [user.specialization] : [],
+          role: normalizeRole(user.role),
+          status: user.is_active ? "active" : "inactive",
+          workload: user.active_cases_count ?? 0,
+          phone: user.settings?.phone || "",
+        };
+      }),
     enabled: !!id,
   });
 };
@@ -143,7 +150,7 @@ export const useCreateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (data: CreateExpertInput) => {
-      const isActive = data.status === 'active';
+      const isActive = data.status === "active";
 
       const userData: UserCreateWithStatus = {
         email: data.email,
@@ -153,14 +160,16 @@ export const useCreateExpert = () => {
         is_active: isActive,
         can_authenticate: isActive,
         ...(data.specialization ? { specialization: data.specialization } : {}),
-        ...(data.phone ? { settings: { phone: data.phone } } : { settings: {} }),
+        ...(data.phone
+          ? { settings: { phone: data.phone } }
+          : { settings: {} }),
       };
 
       const response = await usersApi.createUser(userData as UserCreateType);
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 };
@@ -168,9 +177,15 @@ export const useCreateExpert = () => {
 export const useUpdateExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: UpdateExpertInput }) => {
-      console.log('UPDATE id:', id, typeof id);
-      const isActive = data.status === 'active';
+    mutationFn: async ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: UpdateExpertInput;
+    }) => {
+      console.log("UPDATE id:", id, typeof id);
+      const isActive = data.status === "active";
 
       const userData: UserUpdateType = {
         full_name: data.name,
@@ -185,8 +200,8 @@ export const useUpdateExpert = () => {
       return response.data;
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
-      queryClient.invalidateQueries({ queryKey: ['user'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
+      queryClient.invalidateQueries({ queryKey: ["user"] });
     },
   });
 };
@@ -195,18 +210,19 @@ export const useDeleteExpert = () => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => {
-      console.log('DELETE id:', id, typeof id);
+      console.log("DELETE id:", id, typeof id);
       return usersApi.deleteUser(id);
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['users'] });
+      queryClient.invalidateQueries({ queryKey: ["users"] });
     },
   });
 };
 
 function generateRandomPassword(): string {
-  const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-  let password = '';
+  const chars =
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
+  let password = "";
   for (let i = 0; i < 12; i++) {
     password += chars.charAt(Math.floor(Math.random() * chars.length));
   }

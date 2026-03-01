@@ -4,7 +4,7 @@ export interface CalculationTable {
   type: string;
   createdAt: string;
   lastModified: string;
-  status: 'draft' | 'completed';
+  status: "draft" | "completed";
 }
 
 export interface CalculationType {

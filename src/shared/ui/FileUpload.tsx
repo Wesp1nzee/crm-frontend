@@ -1,12 +1,6 @@
-import { useState, useRef } from 'react';
-import {
-  Box,
-  Button,
-  Typography,
-  LinearProgress,
-  Alert,
-} from '@mui/material';
-import { CloudUpload, AttachFile } from '@mui/icons-material';
+import { useState, useRef } from "react";
+import { Box, Button, Typography, LinearProgress, Alert } from "@mui/material";
+import { CloudUpload, AttachFile } from "@mui/icons-material";
 
 interface FileUploadProps {
   onUpload: (files: File[]) => Promise<void>;
@@ -15,11 +9,11 @@ interface FileUploadProps {
   maxSize?: number; // in MB
 }
 
-export function FileUpload({ 
-  onUpload, 
-  accept = '*/*', 
-  multiple = true, 
-  maxSize = 10 
+export function FileUpload({
+  onUpload,
+  accept = "*/*",
+  multiple = true,
+  maxSize = 10,
 }: FileUploadProps) {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -44,11 +38,11 @@ export function FileUpload({
 
     setError(null);
     setUploading(true);
-    
+
     try {
       await onUpload(files);
     } catch (err) {
-      setError('Ошибка загрузки файлов');
+      setError("Ошибка загрузки файлов");
     } finally {
       setUploading(false);
     }
@@ -70,28 +64,31 @@ export function FileUpload({
     <Box>
       <Box
         onDrop={handleDrop}
-        onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
         onDragLeave={() => setDragOver(false)}
         sx={{
-          border: '2px dashed',
-          borderColor: dragOver ? 'primary.main' : 'grey.300',
+          border: "2px dashed",
+          borderColor: dragOver ? "primary.main" : "grey.300",
           borderRadius: 2,
           p: 3,
-          textAlign: 'center',
-          cursor: 'pointer',
-          bgcolor: dragOver ? 'action.hover' : 'transparent',
-          transition: 'all 0.2s',
+          textAlign: "center",
+          cursor: "pointer",
+          bgcolor: dragOver ? "action.hover" : "transparent",
+          transition: "all 0.2s",
         }}
         onClick={() => fileInputRef.current?.click()}
       >
-        <CloudUpload sx={{ fontSize: 48, color: 'grey.400', mb: 2 }} />
+        <CloudUpload sx={{ fontSize: 48, color: "grey.400", mb: 2 }} />
         <Typography variant="h6" gutterBottom>
           Перетащите файлы сюда или нажмите для выбора
         </Typography>
         <Typography variant="body2" color="text.secondary">
           Максимальный размер файла: {maxSize}MB
         </Typography>
-        
+
         <Button
           variant="contained"
           startIcon={<AttachFile />}
@@ -108,7 +105,7 @@ export function FileUpload({
         accept={accept}
         multiple={multiple}
         onChange={handleFileSelect}
-        style={{ display: 'none' }}
+        style={{ display: "none" }}
       />
 
       {uploading && (

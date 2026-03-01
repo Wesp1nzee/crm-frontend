@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Button,
   Dialog,
@@ -7,8 +7,8 @@ import {
   DialogContentText,
   DialogTitle,
   Fade,
-} from '@mui/material';
-import { confirmService, type ConfirmDialogEvent } from '../services/confirm';
+} from "@mui/material";
+import { confirmService, type ConfirmDialogEvent } from "../services/confirm";
 
 export function ConfirmDialog() {
   const [current, setCurrent] = useState<ConfirmDialogEvent | null>(null);
@@ -56,7 +56,7 @@ export function ConfirmDialog() {
         </Button>
         <Button
           variant="contained"
-          color={current?.confirmColor ?? 'primary'}
+          color={current?.confirmColor ?? "primary"}
           onClick={() => resolveCurrent(true)}
           autoFocus
         >

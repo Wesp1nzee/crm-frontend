@@ -1,6 +1,6 @@
 // src/shared/hooks/useClientsSuggest.ts
-import { useState, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { useState, useCallback, useRef } from "react";
+import axios from "axios";
 
 interface ClientSuggestion {
   id: string;
@@ -12,7 +12,7 @@ const DEBOUNCE_MS = 300;
 export function useClientsSuggest() {
   const [suggestions, setSuggestions] = useState<ClientSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const latestQueryRef = useRef<string>('');
+  const latestQueryRef = useRef<string>("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSuggestions = useCallback((query: string) => {
@@ -24,7 +24,7 @@ export function useClientsSuggest() {
     }
 
     if (!trimmed) {
-      latestQueryRef.current = '';
+      latestQueryRef.current = "";
       setSuggestions([]);
       setIsLoading(false);
       return;
@@ -36,10 +36,9 @@ export function useClientsSuggest() {
       latestQueryRef.current = trimmed;
 
       try {
-        const response = await axios.get('/api/clients/suggest', {
+        const response = await axios.get("/api/clients/suggest", {
           params: { q: trimmed },
         });
-
 
         if (latestQueryRef.current !== trimmed) {
           return;
@@ -48,7 +47,7 @@ export function useClientsSuggest() {
         const data = Array.isArray(response.data) ? response.data : [];
         setSuggestions(data);
       } catch (error) {
-        console.error(error)
+        console.error(error);
         if (latestQueryRef.current !== trimmed) return;
 
         setSuggestions([]);
@@ -65,7 +64,7 @@ export function useClientsSuggest() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    latestQueryRef.current = '';
+    latestQueryRef.current = "";
     setSuggestions([]);
     setIsLoading(false);
   }, []);

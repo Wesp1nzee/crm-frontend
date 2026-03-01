@@ -1,7 +1,7 @@
-import { Navigate } from 'react-router-dom';
-import { CircularProgress, Box } from '@mui/material';
-import { useAuth } from '../hooks/useAuth';
-import { useMemo } from 'react';
+import { Navigate } from "react-router-dom";
+import { CircularProgress, Box } from "@mui/material";
+import { useAuth } from "../hooks/useAuth";
+import { useMemo } from "react";
 
 interface ProtectedRouteProps {
   children: React.ReactNode;
@@ -14,8 +14,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
     if (isLoading) return false;
     if (!user) return true;
     if (!user?.can_authenticate) return true;
-    
-    const errorStatus = (error as any)?.message?.includes('401');
+
+    const errorStatus = (error as any)?.message?.includes("401");
     return errorStatus;
   }, [user, isLoading, error]);
 
@@ -25,7 +25,12 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="100vh"
+      >
         <CircularProgress />
       </Box>
     );

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Paper,
@@ -16,46 +16,41 @@ import {
   Collapse,
   IconButton,
   Typography,
-} from '@mui/material';
-import {
-  Search,
-  Clear,
-  ExpandMore,
-  ExpandLess,
-} from '@mui/icons-material';
-import { DatePicker } from '@mui/x-date-pickers/DatePicker';
-import dayjs from 'dayjs';
-import { useExperts } from '../../shared/hooks/useExperts';
-import { useClients } from '../../shared/hooks/useClients';
-import type { GetCasesQuery, CaseStatus } from '../../entities/case/types';
+} from "@mui/material";
+import { Search, Clear, ExpandMore, ExpandLess } from "@mui/icons-material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import dayjs from "dayjs";
+import { useExperts } from "../../shared/hooks/useExperts";
+import { useClients } from "../../shared/hooks/useClients";
+import type { GetCasesQuery, CaseStatus } from "../../entities/case/types";
 
 const CASE_STATUSES: { value: CaseStatus; label: string }[] = [
-  { value: 'archive', label: 'Архив' },
-  { value: 'in_work', label: 'В работе' },
-  { value: 'debt', label: 'Долг' },
-  { value: 'executed', label: 'Выполнено' },
-  { value: 'withdrawn', label: 'Отозвано' },
-  { value: 'cancelled', label: 'Отменено' },
-  { value: 'fssp', label: 'ФССП' },
+  { value: "archive", label: "Архив" },
+  { value: "in_work", label: "В работе" },
+  { value: "debt", label: "Долг" },
+  { value: "executed", label: "Выполнено" },
+  { value: "withdrawn", label: "Отозвано" },
+  { value: "cancelled", label: "Отменено" },
+  { value: "fssp", label: "ФССП" },
 ];
 
 const SORT_FIELDS = [
-  { value: 'created_at', label: 'Дата создания' },
-  { value: 'updated_at', label: 'Дата обновления' },
-  { value: 'start_date', label: 'Дата начала' },
-  { value: 'deadline', label: 'Срок выполнения' },
-  { value: 'completion_date', label: 'Дата завершения' },
-  { value: 'number', label: 'Номер дела' },
-  { value: 'case_number', label: 'Номер производства' },
-  { value: 'status', label: 'Статус' },
-  { value: 'cost', label: 'Стоимость' },
-  { value: 'remaining_debt', label: 'Остаток долга' },
-  { value: 'client_name', label: 'Имя клиента' },
-  { value: 'expert_name', label: 'Имя эксперта' },
+  { value: "created_at", label: "Дата создания" },
+  { value: "updated_at", label: "Дата обновления" },
+  { value: "start_date", label: "Дата начала" },
+  { value: "deadline", label: "Срок выполнения" },
+  { value: "completion_date", label: "Дата завершения" },
+  { value: "number", label: "Номер дела" },
+  { value: "case_number", label: "Номер производства" },
+  { value: "status", label: "Статус" },
+  { value: "cost", label: "Стоимость" },
+  { value: "remaining_debt", label: "Остаток долга" },
+  { value: "client_name", label: "Имя клиента" },
+  { value: "expert_name", label: "Имя эксперта" },
 ];
 
 const premiumFieldSx = {
-  '& .MuiOutlinedInput-root': {
+  "& .MuiOutlinedInput-root": {
     minHeight: 48,
   },
 };
@@ -80,7 +75,8 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
   };
 
   const hasActiveFilters = Object.keys(filters).some(
-    key => key !== 'page' && key !== 'limit' && filters[key as keyof GetCasesQuery]
+    (key) =>
+      key !== "page" && key !== "limit" && filters[key as keyof GetCasesQuery],
   );
 
   return (
@@ -93,8 +89,8 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             size="small"
             sx={premiumFieldSx}
             placeholder="Поиск по всем полям..."
-            value={filters.search || ''}
-            onChange={(e) => updateFilter('search', e.target.value)}
+            value={filters.search || ""}
+            onChange={(e) => updateFilter("search", e.target.value)}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start">
@@ -104,7 +100,7 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             }}
           />
         </Grid>
-        
+
         <Grid size={{ xs: 12, md: 3 }}>
           <Autocomplete
             multiple
@@ -112,8 +108,16 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             sx={premiumFieldSx}
             options={CASE_STATUSES}
             getOptionLabel={(option) => option.label}
-            value={CASE_STATUSES.filter(s => filters.status?.includes(s.value)) || []}
-            onChange={(_, value) => updateFilter('status', value.map(v => v.value))}
+            value={
+              CASE_STATUSES.filter((s) => filters.status?.includes(s.value)) ||
+              []
+            }
+            onChange={(_, value) =>
+              updateFilter(
+                "status",
+                value.map((v) => v.value),
+              )
+            }
             renderInput={(params) => (
               <TextField {...params} label="Статус" sx={premiumFieldSx} />
             )}
@@ -134,9 +138,11 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
           <FormControl fullWidth size="small" sx={premiumFieldSx}>
             <InputLabel>Эксперт</InputLabel>
             <Select
-              value={filters.expert_id || ''}
+              value={filters.expert_id || ""}
               label="Эксперт"
-              onChange={(e) => updateFilter('expert_id', e.target.value || undefined)}
+              onChange={(e) =>
+                updateFilter("expert_id", e.target.value || undefined)
+              }
             >
               <MenuItem value="">Все эксперты</MenuItem>
               {experts.map((expert) => (
@@ -153,16 +159,12 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
             <IconButton
               onClick={() => setExpanded(!expanded)}
               size="small"
-              color={expanded ? 'primary' : 'default'}
+              color={expanded ? "primary" : "default"}
             >
               {expanded ? <ExpandLess /> : <ExpandMore />}
             </IconButton>
             {hasActiveFilters && (
-              <Button
-                size="small"
-                startIcon={<Clear />}
-                onClick={clearFilters}
-              >
+              <Button size="small" startIcon={<Clear />} onClick={clearFilters}>
                 Очистить
               </Button>
             )}
@@ -172,20 +174,22 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
 
       {/* Advanced Filters */}
       <Collapse in={expanded}>
-        <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+        <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: "divider" }}>
           <Typography variant="subtitle2" gutterBottom>
             Расширенные фильтры
           </Typography>
-          
+
           <Grid container spacing={3}>
             {/* Client Filter */}
             <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Клиент</InputLabel>
                 <Select
-                  value={filters.client_id || ''}
+                  value={filters.client_id || ""}
                   label="Клиент"
-                  onChange={(e) => updateFilter('client_id', e.target.value || undefined)}
+                  onChange={(e) =>
+                    updateFilter("client_id", e.target.value || undefined)
+                  }
                 >
                   <MenuItem value="">Все клиенты</MenuItem>
                   {clients?.items?.map((client) => (
@@ -202,10 +206,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Тип дела"
-                value={filters.case_type || ''}
-                onChange={(e) => updateFilter('case_type', e.target.value)}
+                value={filters.case_type || ""}
+                onChange={(e) => updateFilter("case_type", e.target.value)}
               />
             </Grid>
 
@@ -214,10 +218,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Тип объекта"
-                value={filters.object_type || ''}
-                onChange={(e) => updateFilter('object_type', e.target.value)}
+                value={filters.object_type || ""}
+                onChange={(e) => updateFilter("object_type", e.target.value)}
               />
             </Grid>
 
@@ -226,10 +230,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Орган власти"
-                value={filters.authority || ''}
-                onChange={(e) => updateFilter('authority', e.target.value)}
+                value={filters.authority || ""}
+                onChange={(e) => updateFilter("authority", e.target.value)}
               />
             </Grid>
 
@@ -238,10 +242,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Адрес объекта"
-                value={filters.object_address || ''}
-                onChange={(e) => updateFilter('object_address', e.target.value)}
+                value={filters.object_address || ""}
+                onChange={(e) => updateFilter("object_address", e.target.value)}
               />
             </Grid>
 
@@ -250,10 +254,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Номер дела"
-                value={filters.number || ''}
-                onChange={(e) => updateFilter('number', e.target.value)}
+                value={filters.number || ""}
+                onChange={(e) => updateFilter("number", e.target.value)}
               />
             </Grid>
 
@@ -261,10 +265,10 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 label="Номер производства"
-                value={filters.case_number || ''}
-                onChange={(e) => updateFilter('case_number', e.target.value)}
+                value={filters.case_number || ""}
+                onChange={(e) => updateFilter("case_number", e.target.value)}
               />
             </Grid>
 
@@ -273,11 +277,16 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 type="number"
                 label="Мин. стоимость"
-                value={filters.min_cost || ''}
-                onChange={(e) => updateFilter('min_cost', e.target.value ? Number(e.target.value) : undefined)}
+                value={filters.min_cost || ""}
+                onChange={(e) =>
+                  updateFilter(
+                    "min_cost",
+                    e.target.value ? Number(e.target.value) : undefined,
+                  )
+                }
               />
             </Grid>
 
@@ -285,11 +294,16 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <TextField
                 fullWidth
                 size="small"
-            sx={premiumFieldSx}
+                sx={premiumFieldSx}
                 type="number"
                 label="Макс. стоимость"
-                value={filters.max_cost || ''}
-                onChange={(e) => updateFilter('max_cost', e.target.value ? Number(e.target.value) : undefined)}
+                value={filters.max_cost || ""}
+                onChange={(e) =>
+                  updateFilter(
+                    "max_cost",
+                    e.target.value ? Number(e.target.value) : undefined,
+                  )
+                }
               />
             </Grid>
 
@@ -298,8 +312,16 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <DatePicker
                 label="Дата начала от"
                 value={filters.start_date ? dayjs(filters.start_date) : null}
-                onChange={(date) => updateFilter('start_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
+                onChange={(date) =>
+                  updateFilter("start_date", date?.toISOString())
+                }
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: premiumFieldSx,
+                  },
+                }}
               />
             </Grid>
 
@@ -307,26 +329,58 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <DatePicker
                 label="Дата начала до"
                 value={filters.end_date ? dayjs(filters.end_date) : null}
-                onChange={(date) => updateFilter('end_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
+                onChange={(date) =>
+                  updateFilter("end_date", date?.toISOString())
+                }
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: premiumFieldSx,
+                  },
+                }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 3 }}>
               <DatePicker
                 label="Срок от"
-                value={filters.deadline_start_date ? dayjs(filters.deadline_start_date) : null}
-                onChange={(date) => updateFilter('deadline_start_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
+                value={
+                  filters.deadline_start_date
+                    ? dayjs(filters.deadline_start_date)
+                    : null
+                }
+                onChange={(date) =>
+                  updateFilter("deadline_start_date", date?.toISOString())
+                }
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: premiumFieldSx,
+                  },
+                }}
               />
             </Grid>
 
             <Grid size={{ xs: 12, md: 3 }}>
               <DatePicker
                 label="Срок до"
-                value={filters.deadline_end_date ? dayjs(filters.deadline_end_date) : null}
-                onChange={(date) => updateFilter('deadline_end_date', date?.toISOString())}
-                slotProps={{ textField: { size: 'small', fullWidth: true, sx: premiumFieldSx } }}
+                value={
+                  filters.deadline_end_date
+                    ? dayjs(filters.deadline_end_date)
+                    : null
+                }
+                onChange={(date) =>
+                  updateFilter("deadline_end_date", date?.toISOString())
+                }
+                slotProps={{
+                  textField: {
+                    size: "small",
+                    fullWidth: true,
+                    sx: premiumFieldSx,
+                  },
+                }}
               />
             </Grid>
 
@@ -335,9 +389,9 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Сортировка</InputLabel>
                 <Select
-                  value={filters.sort_field || 'created_at'}
+                  value={filters.sort_field || "created_at"}
                   label="Сортировка"
-                  onChange={(e) => updateFilter('sort_field', e.target.value)}
+                  onChange={(e) => updateFilter("sort_field", e.target.value)}
                 >
                   {SORT_FIELDS.map((field) => (
                     <MenuItem key={field.value} value={field.value}>
@@ -352,9 +406,11 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Порядок</InputLabel>
                 <Select
-                  value={filters.sort_order || 'desc'}
+                  value={filters.sort_order || "desc"}
                   label="Порядок"
-                  onChange={(e) => updateFilter('sort_order', e.target.value as 'asc' | 'desc')}
+                  onChange={(e) =>
+                    updateFilter("sort_order", e.target.value as "asc" | "desc")
+                  }
                 >
                   <MenuItem value="desc">По убыванию</MenuItem>
                   <MenuItem value="asc">По возрастанию</MenuItem>

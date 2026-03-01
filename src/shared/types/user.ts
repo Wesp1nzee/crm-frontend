@@ -1,10 +1,10 @@
-import { z } from 'zod';
+import { z } from "zod";
 
 export enum UserRole {
-  ADMIN = 'ADMIN',
-  CEO = 'CEO',
-  ACCOUNTANT = 'ACCOUNTANT',
-  EXPERT = 'EXPERT',
+  ADMIN = "ADMIN",
+  CEO = "CEO",
+  ACCOUNTANT = "ACCOUNTANT",
+  EXPERT = "EXPERT",
 }
 
 // Схемы для валидации с помощью Zod
@@ -31,7 +31,10 @@ export const EmailConfigReadSchema = EmailConfigBaseSchema.extend({
 
 export const UserBaseSchema = z.object({
   email: z.string().regex(emailRegex, "Некорректный email"),
-  full_name: z.string().min(2, "Имя должно содержать минимум 2 символа").max(255),
+  full_name: z
+    .string()
+    .min(2, "Имя должно содержать минимум 2 символа")
+    .max(255),
   role: z.nativeEnum(UserRole),
   specialization: z.string().nullable().optional(),
 });
@@ -81,7 +84,9 @@ export const UserFilterParamsSchema = z.object({
   can_authenticate: z.boolean().optional().nullable(),
   search: z.string().optional().describe("Поиск по имени или email"),
 
-  sort_by: z.enum(["created_at", "full_name", "last_login", "email"]).default("created_at"),
+  sort_by: z
+    .enum(["created_at", "full_name", "last_login", "email"])
+    .default("created_at"),
   order: z.enum(["asc", "desc"]).default("desc"),
 
   page: z.number().int().positive().default(1),
@@ -104,7 +109,12 @@ export type UserFilterParams = z.infer<typeof UserFilterParamsSchema>;
 
 // Константы разрешений ролей
 export const ROLE_PERMISSIONS = {
-  [UserRole.ADMIN]: [UserRole.ADMIN, UserRole.CEO, UserRole.ACCOUNTANT, UserRole.EXPERT],
+  [UserRole.ADMIN]: [
+    UserRole.ADMIN,
+    UserRole.CEO,
+    UserRole.ACCOUNTANT,
+    UserRole.EXPERT,
+  ],
   [UserRole.CEO]: [UserRole.ACCOUNTANT, UserRole.EXPERT],
   [UserRole.ACCOUNTANT]: [UserRole.EXPERT],
   [UserRole.EXPERT]: [],

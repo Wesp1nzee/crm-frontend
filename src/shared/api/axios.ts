@@ -1,14 +1,14 @@
-import axios from 'axios';
-import { notificationService } from '../services/notifications';
-import { getApiErrorMessage } from '../utils/errorMessages';
+import axios from "axios";
+import { notificationService } from "../services/notifications";
+import { getApiErrorMessage } from "../utils/errorMessages";
 
-const baseURL = '/api';
+const baseURL = "/api";
 
 export const api = axios.create({
   baseURL,
   timeout: 10000,
   headers: {
-    'Content-Type': 'application/json',
+    "Content-Type": "application/json",
   },
   withCredentials: true,
 });
@@ -19,8 +19,10 @@ api.interceptors.response.use(
     const status = error.response?.status as number | undefined;
 
     if (status === 401) {
-      notificationService.warning('Сессия истекла. Перенаправляем на страницу входа...');
-      window.location.href = '/login';
+      notificationService.warning(
+        "Сессия истекла. Перенаправляем на страницу входа...",
+      );
+      window.location.href = "/login";
       return Promise.reject(error);
     }
 
@@ -28,5 +30,5 @@ api.interceptors.response.use(
     notificationService.error(message);
 
     return Promise.reject(error);
-  }
+  },
 );

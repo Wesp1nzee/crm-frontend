@@ -15,6 +15,7 @@
 ## Установка и запуск
 
 ### 1. Установка зависимостей
+
 ```bash
 npm install
 ```
@@ -22,6 +23,7 @@ npm install
 ### 2. Запуск в режиме разработки
 
 **С mock API (рекомендуется для разработки):**
+
 ```bash
 npm run dev:mock
 # или
@@ -29,16 +31,19 @@ VITE_MOCK=true npm run dev
 ```
 
 **С реальным backend:**
+
 ```bash
 npm run dev
 ```
 
 ### 3. Сборка для продакшена
+
 ```bash
 npm run build
 ```
 
 ### 4. Предварительный просмотр сборки
+
 ```bash
 npm run preview
 ```
@@ -60,7 +65,7 @@ VITE_MOCK=true
 Отредактируйте файл `src/shared/api/axios.ts`:
 
 ```typescript
-const baseURL = import.meta.env.VITE_API_URL || 'http://your-backend-url/api';
+const baseURL = import.meta.env.VITE_API_URL || "http://your-backend-url/api";
 ```
 
 ## Структура проекта
@@ -138,7 +143,15 @@ interface Case {
   caseType: string;
   objectType: string;
   objectAddress: string;
-  status: 'new' | 'accepted' | 'awaiting_documents' | 'inspection' | 'in_progress' | 'on_check' | 'done' | 'closed';
+  status:
+    | "new"
+    | "accepted"
+    | "awaiting_documents"
+    | "inspection"
+    | "in_progress"
+    | "on_check"
+    | "done"
+    | "closed";
   assignedExpertId?: string;
   startDate: string;
   deadline: string;
@@ -164,6 +177,7 @@ npm run test         # Запуск тестов
 ### Mock API
 
 Mock API автоматически включается при `VITE_MOCK=true`. Содержит:
+
 - 2 тестовых дела с разными статусами
 - 2 клиента
 - Полная имитация CRUD операций

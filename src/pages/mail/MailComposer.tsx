@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -10,16 +10,11 @@ import {
   Chip,
   IconButton,
   Typography,
-} from '@mui/material';
-import {
-  Close,
-  Send,
-  AttachFile,
-  Save,
-} from '@mui/icons-material';
-import { useSendMail } from '../../shared/hooks/useMail';
-import { FileUpload } from '../../shared/ui/FileUpload';
-import type { MailDraft, MailAttachment } from '../../entities/mail/types';
+} from "@mui/material";
+import { Close, Send, AttachFile, Save } from "@mui/icons-material";
+import { useSendMail } from "../../shared/hooks/useMail";
+import { FileUpload } from "../../shared/ui/FileUpload";
+import type { MailDraft, MailAttachment } from "../../entities/mail/types";
 
 interface MailComposerProps {
   open: boolean;
@@ -28,13 +23,18 @@ interface MailComposerProps {
   draft?: MailDraft;
 }
 
-export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProps) {
+export function MailComposer({
+  open,
+  onClose,
+  replyTo,
+  draft,
+}: MailComposerProps) {
   const [formData, setFormData] = useState<MailDraft>({
     to: draft?.to || [],
     cc: draft?.cc || [],
     bcc: draft?.bcc || [],
-    subject: draft?.subject || '',
-    body: draft?.body || '',
+    subject: draft?.subject || "",
+    body: draft?.body || "",
     attachments: draft?.attachments || [],
   });
   const [showCc, setShowCc] = useState(false);
@@ -47,7 +47,7 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
   };
 
   const handleFileUpload = async (files: File[]) => {
-    const newAttachments: MailAttachment[] = files.map(file => ({
+    const newAttachments: MailAttachment[] = files.map((file) => ({
       id: Date.now().toString(),
       name: file.name,
       size: file.size,
@@ -56,7 +56,7 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
     }));
     setFormData({
       ...formData,
-      attachments: [...formData.attachments, ...newAttachments]
+      attachments: [...formData.attachments, ...newAttachments],
     });
   };
 
@@ -65,7 +65,7 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
       <DialogTitle>
         <Box display="flex" alignItems="center" justifyContent="space-between">
           <Typography variant="h6">
-            {replyTo ? 'Ответить' : 'Новое письмо'}
+            {replyTo ? "Ответить" : "Новое письмо"}
           </Typography>
           <IconButton onClick={onClose}>
             <Close />
@@ -73,14 +73,22 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
         </Box>
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
           {/* Поле "Кому" */}
           <TextField
             label="Кому"
             placeholder="Введите email получателя (например: user@example.com)"
             fullWidth
-            value={formData.to.join(', ')}
-            onChange={(e) => setFormData({ ...formData, to: e.target.value.split(', ').map(email => email.trim()).filter(email => email.length > 0) })}
+            value={formData.to.join(", ")}
+            onChange={(e) =>
+              setFormData({
+                ...formData,
+                to: e.target.value
+                  .split(", ")
+                  .map((email) => email.trim())
+                  .filter((email) => email.length > 0),
+              })
+            }
             helperText="Основные получатели письма. Все они увидят друг друга в списке."
           />
 
@@ -89,14 +97,14 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
             <Button
               size="small"
               onClick={() => setShowCc(!showCc)}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: "none" }}
             >
               Копия (CC)
             </Button>
             <Button
               size="small"
               onClick={() => setShowBcc(!showBcc)}
-              sx={{ textTransform: 'none' }}
+              sx={{ textTransform: "none" }}
             >
               Скрытая копия (BCC)
             </Button>
@@ -108,8 +116,16 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
               label="Копия (CC)"
               placeholder="Введите email получателей копии (через запятую)"
               fullWidth
-              value={formData.cc?.join(', ') || ''}
-              onChange={(e) => setFormData({ ...formData, cc: e.target.value.split(', ').map(email => email.trim()).filter(email => email.length > 0) })}
+              value={formData.cc?.join(", ") || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  cc: e.target.value
+                    .split(", ")
+                    .map((email) => email.trim())
+                    .filter((email) => email.length > 0),
+                })
+              }
               helperText="Получатели копии увидят основных получателей и других получателей копии."
             />
           )}
@@ -120,8 +136,16 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
               label="Скрытая копия (BCC)"
               placeholder="Введите email получателей скрытой копии (через запятую)"
               fullWidth
-              value={formData.bcc?.join(', ') || ''}
-              onChange={(e) => setFormData({ ...formData, bcc: e.target.value.split(', ').map(email => email.trim()).filter(email => email.length > 0) })}
+              value={formData.bcc?.join(", ") || ""}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  bcc: e.target.value
+                    .split(", ")
+                    .map((email) => email.trim())
+                    .filter((email) => email.length > 0),
+                })
+              }
               helperText="Получатели скрытой копии не будут видны никому, кроме отправителя."
             />
           )}
@@ -132,7 +156,9 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
             placeholder="Введите тему письма"
             fullWidth
             value={formData.subject}
-            onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+            onChange={(e) =>
+              setFormData({ ...formData, subject: e.target.value })
+            }
             helperText="Краткое описание содержания письма."
           />
 
@@ -162,7 +188,9 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
                     onDelete={() => {
                       setFormData({
                         ...formData,
-                        attachments: formData.attachments.filter(a => a.id !== attachment.id)
+                        attachments: formData.attachments.filter(
+                          (a) => a.id !== attachment.id,
+                        ),
                       });
                     }}
                     deleteIcon={<Close />}
@@ -178,10 +206,7 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
       </DialogContent>
       <DialogActions>
         <Box display="flex" gap={1} width="100%" justifyContent="space-between">
-
-          <Button startIcon={<AttachFile />}>
-            Выбрать файлы
-          </Button>
+          <Button startIcon={<AttachFile />}>Выбрать файлы</Button>
           <Box display="flex" gap={1}>
             <Button startIcon={<Save />} disabled={sendMail.isPending}>
               Сохранить черновик
@@ -195,7 +220,7 @@ export function MailComposer({ open, onClose, replyTo, draft }: MailComposerProp
               onClick={handleSend}
               disabled={sendMail.isPending}
             >
-              {sendMail.isPending ? 'Отправка...' : 'Отправить'}
+              {sendMail.isPending ? "Отправка..." : "Отправить"}
             </Button>
           </Box>
         </Box>

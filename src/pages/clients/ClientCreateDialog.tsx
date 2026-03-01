@@ -15,10 +15,10 @@ import {
   Alert,
   useTheme,
   CircularProgress,
-} from '@mui/material';
-import { Close, Save } from '@mui/icons-material';
-import { useState } from 'react';
-import type { ClientType } from '../../entities/client/types';
+} from "@mui/material";
+import { Close, Save } from "@mui/icons-material";
+import { useState } from "react";
+import type { ClientType } from "../../entities/client/types";
 
 interface ClientFormData {
   name: string;
@@ -39,9 +39,9 @@ interface ClientCreateDialogProps {
 }
 
 const TYPE_ICONS = {
-  legal: '🏢',
-  individual: '👤',
-  court: '⚖️',
+  legal: "🏢",
+  individual: "👤",
+  court: "⚖️",
 };
 
 export function ClientCreateDialog({
@@ -52,26 +52,26 @@ export function ClientCreateDialog({
 }: ClientCreateDialogProps) {
   const theme = useTheme();
   const [formData, setFormData] = useState<ClientFormData>({
-    name: '',
-    short_name: '',
-    type: 'legal',
-    inn: '',
-    email: '',
-    phone: '',
-    legal_address: '',
-    actual_address: '',
+    name: "",
+    short_name: "",
+    type: "legal",
+    inn: "",
+    email: "",
+    phone: "",
+    legal_address: "",
+    actual_address: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
   const handleTypeChange = (type: ClientType) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
       type,
-      inn: type !== 'legal' ? '' : prev.inn,
+      inn: type !== "legal" ? "" : prev.inn,
     }));
-    if (type !== 'legal') {
-      setErrors(prev => {
+    if (type !== "legal") {
+      setErrors((prev) => {
         const newErrs = { ...prev };
         delete newErrs.inn;
         return newErrs;
@@ -80,18 +80,18 @@ export function ClientCreateDialog({
   };
 
   const handleChange = (field: keyof ClientFormData, value: string) => {
-    setFormData(prev => ({ ...prev, [field]: value }));
+    setFormData((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) {
-      setErrors(prev => {
+      setErrors((prev) => {
         const newErrs = { ...prev };
         delete newErrs[field];
         return newErrs;
       });
     }
-    
+
     // Если меняем тип клиента и это не юрлицо, удаляем ошибку ИНН
-    if (field === 'type' && value !== 'legal') {
-      setErrors(prev => {
+    if (field === "type" && value !== "legal") {
+      setErrors((prev) => {
         const newErrs = { ...prev };
         delete newErrs.inn;
         return newErrs;
@@ -102,11 +102,14 @@ export function ClientCreateDialog({
   const validate = (): boolean => {
     const newErrors: Record<string, string> = {};
     if (!formData.name.trim()) {
-      newErrors.name = 'Обязательное поле';
+      newErrors.name = "Обязательное поле";
     }
     // Проверяем ИНН только для юридических лиц
-    if (formData.type === 'legal' && (!formData.inn || !/^\d{10,12}$/.test(formData.inn))) {
-      newErrors.inn = 'ИНН должен содержать 10 или 12 цифр';
+    if (
+      formData.type === "legal" &&
+      (!formData.inn || !/^\d{10,12}$/.test(formData.inn))
+    ) {
+      newErrors.inn = "ИНН должен содержать 10 или 12 цифр";
     }
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -114,13 +117,14 @@ export function ClientCreateDialog({
 
   const handleSubmit = async () => {
     if (!validate()) return;
-    
+
     try {
       const submitData = {
         ...formData,
-        inn: formData.type === 'legal' && formData.inn ? formData.inn : undefined,
+        inn:
+          formData.type === "legal" && formData.inn ? formData.inn : undefined,
       };
-      
+
       await onSubmit(submitData);
     } catch (err) {
       console.error(err);
@@ -135,24 +139,24 @@ export function ClientCreateDialog({
       fullWidth
       PaperProps={{
         sx: {
-          borderRadius: '16px',
+          borderRadius: "16px",
           boxShadow: theme.shadows[8],
-          overflow: 'hidden',
+          overflow: "hidden",
         },
       }}
     >
       <DialogTitle
         sx={{
           p: 3,
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
           borderBottom: `1px solid ${theme.palette.divider}`,
         }}
       >
-        <Typography 
-          variant="h6" 
-          fontWeight={600} 
+        <Typography
+          variant="h6"
+          fontWeight={600}
           color="text.primary"
           component="span"
         >
@@ -172,21 +176,21 @@ export function ClientCreateDialog({
             fullWidth
             label="Полное название *"
             value={formData.name}
-            onChange={(e) => handleChange('name', e.target.value)}
+            onChange={(e) => handleChange("name", e.target.value)}
             error={!!errors.name}
             helperText={errors.name}
             autoFocus
             size="small"
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
           <TextField
             fullWidth
             label="Краткое название"
             value={formData.short_name}
-            onChange={(e) => handleChange('short_name', e.target.value)}
+            onChange={(e) => handleChange("short_name", e.target.value)}
             size="small"
             sx={{ mt: 2 }}
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
           <FormControl fullWidth size="small" sx={{ mt: 2 }}>
             <InputLabel id="client-type-label">Тип клиента *</InputLabel>
@@ -196,23 +200,40 @@ export function ClientCreateDialog({
               label="Тип клиента *"
               onChange={(e) => handleTypeChange(e.target.value as ClientType)}
               renderValue={(value) => (
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                  {TYPE_ICONS[value]} {value === 'legal' ? 'Юридическое лицо' : value === 'individual' ? 'Физическое лицо' : 'Суд'}
+                <Box
+                  component="span"
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
+                  {TYPE_ICONS[value]}{" "}
+                  {value === "legal"
+                    ? "Юридическое лицо"
+                    : value === "individual"
+                      ? "Физическое лицо"
+                      : "Суд"}
                 </Box>
               )}
             >
               <MenuItem value="legal">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  component="span"
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
                   {TYPE_ICONS.legal} Юридическое лицо
                 </Box>
               </MenuItem>
               <MenuItem value="individual">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  component="span"
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
                   {TYPE_ICONS.individual} Физическое лицо
                 </Box>
               </MenuItem>
               <MenuItem value="court">
-                <Box component="span" sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  component="span"
+                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                >
                   {TYPE_ICONS.court} Суд
                 </Box>
               </MenuItem>
@@ -230,32 +251,34 @@ export function ClientCreateDialog({
             label="Email"
             type="email"
             value={formData.email}
-            onChange={(e) => handleChange('email', e.target.value)}
+            onChange={(e) => handleChange("email", e.target.value)}
             size="small"
             placeholder="example@domain.ru"
             sx={{ mt: 2 }}
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
           <TextField
             fullWidth
             label="Телефон"
             value={formData.phone}
-            onChange={(e) => handleChange('phone', e.target.value)}
+            onChange={(e) => handleChange("phone", e.target.value)}
             size="small"
             placeholder="+7 (999) 000-00-00"
             sx={{ mt: 2 }}
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
         </Box>
 
         {/* ИНН — только для ЮЛ */}
-        {formData.type === 'legal' && (
+        {formData.type === "legal" && (
           <Box mb={3}>
             <TextField
               fullWidth
               label="ИНН *"
               value={formData.inn}
-              onChange={(e) => handleChange('inn', e.target.value.replace(/\D/g, ''))}
+              onChange={(e) =>
+                handleChange("inn", e.target.value.replace(/\D/g, ""))
+              }
               error={!!errors.inn}
               helperText={
                 errors.inn ? (
@@ -263,14 +286,22 @@ export function ClientCreateDialog({
                     {errors.inn}
                   </Typography>
                 ) : (
-                  <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5 }}>
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ mt: 0.5 }}
+                  >
                     10 или 12 цифр
                   </Typography>
                 )
               }
               size="small"
               sx={{ mt: 2 }}
-              inputProps={{ maxLength: 12, inputMode: 'numeric', style: { fontSize: '14px' } }}
+              inputProps={{
+                maxLength: 12,
+                inputMode: "numeric",
+                style: { fontSize: "14px" },
+              }}
             />
           </Box>
         )}
@@ -286,11 +317,11 @@ export function ClientCreateDialog({
             multiline
             rows={2}
             value={formData.legal_address}
-            onChange={(e) => handleChange('legal_address', e.target.value)}
+            onChange={(e) => handleChange("legal_address", e.target.value)}
             size="small"
             placeholder="Улица, дом, город, ИНН (если есть)"
             sx={{ mt: 2 }}
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
           <TextField
             fullWidth
@@ -298,22 +329,24 @@ export function ClientCreateDialog({
             multiline
             rows={2}
             value={formData.actual_address}
-            onChange={(e) => handleChange('actual_address', e.target.value)}
+            onChange={(e) => handleChange("actual_address", e.target.value)}
             size="small"
             placeholder="Если отличается от юридического"
             sx={{ mt: 2 }}
-            inputProps={{ style: { fontSize: '14px' } }}
+            inputProps={{ style: { fontSize: "14px" } }}
           />
         </Box>
 
         {Object.keys(errors).length > 0 && (
-          <Alert severity="warning" sx={{ mt: 3, borderRadius: '8px' }}>
+          <Alert severity="warning" sx={{ mt: 3, borderRadius: "8px" }}>
             Пожалуйста, исправьте ошибки в форме.
           </Alert>
         )}
       </DialogContent>
 
-      <DialogActions sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}>
+      <DialogActions
+        sx={{ p: 3, pt: 2, borderTop: `1px solid ${theme.palette.divider}` }}
+      >
         <Button
           onClick={onClose}
           variant="text"
@@ -326,17 +359,23 @@ export function ClientCreateDialog({
         <Button
           onClick={handleSubmit}
           variant="contained"
-          startIcon={isLoading ? <CircularProgress size={16} color="inherit" /> : <Save />}
+          startIcon={
+            isLoading ? (
+              <CircularProgress size={16} color="inherit" />
+            ) : (
+              <Save />
+            )
+          }
           disabled={isLoading || !formData.name.trim()}
           sx={{
             minWidth: 120,
             fontWeight: 500,
-            textTransform: 'none',
-            boxShadow: 'none',
-            '&:hover': { boxShadow: '0 4px 12px rgba(66, 153, 225, 0.2)' },
+            textTransform: "none",
+            boxShadow: "none",
+            "&:hover": { boxShadow: "0 4px 12px rgba(66, 153, 225, 0.2)" },
           }}
         >
-          {isLoading ? 'Создание...' : 'Создать клиента'}
+          {isLoading ? "Создание..." : "Создать клиента"}
         </Button>
       </DialogActions>
     </Dialog>

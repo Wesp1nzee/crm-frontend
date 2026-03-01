@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Dialog,
   DialogTitle,
@@ -8,10 +8,10 @@ import {
   Button,
   Autocomplete,
   Box,
-} from '@mui/material';
-import type { FileSystemEntry } from '../../entities/document/types';
-import type { CaseSuggestion } from '../../entities/case/types';
-import { useCaseSuggestions } from '../hooks/useDocuments';
+} from "@mui/material";
+import type { FileSystemEntry } from "../../entities/document/types";
+import type { CaseSuggestion } from "../../entities/case/types";
+import { useCaseSuggestions } from "../hooks/useDocuments";
 
 interface EditAssetDialogProps {
   open: boolean;
@@ -25,9 +25,15 @@ interface EditAssetDialogProps {
   loading?: boolean;
 }
 
-export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditAssetDialogProps) {
-  const [name, setName] = useState('');
-  const [caseSearchQuery, setCaseSearchQuery] = useState('');
+export function EditAssetDialog({
+  open,
+  onClose,
+  onSave,
+  entry,
+  loading,
+}: EditAssetDialogProps) {
+  const [name, setName] = useState("");
+  const [caseSearchQuery, setCaseSearchQuery] = useState("");
   const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
 
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
@@ -35,7 +41,7 @@ export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditA
   useEffect(() => {
     if (entry) {
       setName(entry.name);
-      setCaseSearchQuery('');
+      setCaseSearchQuery("");
       setSelectedCase(null);
     }
   }, [entry]);
@@ -44,13 +50,13 @@ export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditA
     if (!entry) return;
 
     const data: any = {};
-    
-    if (entry.type === 'folder') {
+
+    if (entry.type === "folder") {
       data.name = name.trim();
     } else {
       data.title = name.trim();
     }
-    
+
     if (selectedCase) {
       data.case_id = selectedCase.id;
     }
@@ -59,8 +65,8 @@ export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditA
   };
 
   const handleClose = () => {
-    setName('');
-    setCaseSearchQuery('');
+    setName("");
+    setCaseSearchQuery("");
     setSelectedCase(null);
     onClose();
   };
@@ -70,25 +76,31 @@ export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditA
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>
-        Редактировать {entry.type === 'folder' ? 'папку' : 'файл'}
+        Редактировать {entry.type === "folder" ? "папку" : "файл"}
       </DialogTitle>
       <DialogContent>
-        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, pt: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           <TextField
-            label={entry.type === 'folder' ? 'Название папки' : 'Название файла'}
+            label={
+              entry.type === "folder" ? "Название папки" : "Название файла"
+            }
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
             required
           />
-          
+
           <Autocomplete
             options={caseSuggestions || []}
-            getOptionLabel={(option) => `${option.case_number} - ${option.authority}`}
+            getOptionLabel={(option) =>
+              `${option.case_number} - ${option.authority}`
+            }
             value={selectedCase}
             onChange={(_, newValue) => setSelectedCase(newValue)}
             inputValue={caseSearchQuery}
-            onInputChange={(_, newInputValue) => setCaseSearchQuery(newInputValue)}
+            onInputChange={(_, newInputValue) =>
+              setCaseSearchQuery(newInputValue)
+            }
             renderInput={(params) => (
               <TextField
                 {...params}
@@ -103,8 +115,8 @@ export function EditAssetDialog({ open, onClose, onSave, entry, loading }: EditA
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose}>Отмена</Button>
-        <Button 
-          onClick={handleSave} 
+        <Button
+          onClick={handleSave}
           variant="contained"
           disabled={!name.trim() || loading}
         >

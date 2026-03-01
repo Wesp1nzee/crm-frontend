@@ -1,5 +1,5 @@
-import { useState, useCallback, useRef } from 'react';
-import axios from 'axios';
+import { useState, useCallback, useRef } from "react";
+import axios from "axios";
 
 interface ExpertSuggestion {
   id: string;
@@ -11,7 +11,7 @@ const DEBOUNCE_MS = 300;
 export function useExpertsSuggest() {
   const [suggestions, setSuggestions] = useState<ExpertSuggestion[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const latestQueryRef = useRef<string>('');
+  const latestQueryRef = useRef<string>("");
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const fetchSuggestions = useCallback((query: string) => {
@@ -23,7 +23,7 @@ export function useExpertsSuggest() {
     }
 
     if (!trimmed) {
-      latestQueryRef.current = '';
+      latestQueryRef.current = "";
       setSuggestions([]);
       setIsLoading(false);
       return;
@@ -35,7 +35,7 @@ export function useExpertsSuggest() {
       latestQueryRef.current = trimmed;
 
       try {
-        const response = await axios.get('/api/users/suggest', {
+        const response = await axios.get("/api/users/suggest", {
           params: { q: trimmed },
         });
 
@@ -44,7 +44,7 @@ export function useExpertsSuggest() {
         const data = Array.isArray(response.data) ? response.data : [];
         setSuggestions(data);
       } catch (error) {
-        console.error('Ошибка поиска экспертов:', error);
+        console.error("Ошибка поиска экспертов:", error);
         if (latestQueryRef.current !== trimmed) return;
         setSuggestions([]);
       } finally {
@@ -60,7 +60,7 @@ export function useExpertsSuggest() {
       clearTimeout(timerRef.current);
       timerRef.current = null;
     }
-    latestQueryRef.current = '';
+    latestQueryRef.current = "";
     setSuggestions([]);
     setIsLoading(false);
   }, []);

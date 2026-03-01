@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Card,
   CardContent,
@@ -8,16 +8,16 @@ import {
   Button,
   Chip,
   Fade,
-} from '@mui/material';
-import { Add, TableChart } from '@mui/icons-material';
-import type { CalculationCardProps } from './types';
+} from "@mui/material";
+import { Add, TableChart } from "@mui/icons-material";
+import type { CalculationCardProps } from "./types";
 
-export function CalculationCard({ 
-  type, 
-  tablesCount, 
-  completedCount, 
-  onCreateTable, 
-  onShowTables 
+export function CalculationCard({
+  type,
+  tablesCount,
+  completedCount,
+  onCreateTable,
+  onShowTables,
 }: CalculationCardProps) {
   const [isHovered, setIsHovered] = useState(false);
 
@@ -26,13 +26,13 @@ export function CalculationCard({
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       sx={{
-        height: '100%',
-        transition: 'all 0.3s ease',
-        transform: isHovered ? 'translateY(-4px)' : 'translateY(0)',
+        height: "100%",
+        transition: "all 0.3s ease",
+        transform: isHovered ? "translateY(-4px)" : "translateY(0)",
         boxShadow: isHovered ? 4 : 1,
-        border: `2px solid ${isHovered ? type.color : 'transparent'}`,
-        position: 'relative',
-        overflow: 'visible',
+        border: `2px solid ${isHovered ? type.color : "transparent"}`,
+        position: "relative",
+        overflow: "visible",
       }}
     >
       <CardContent sx={{ pb: 1 }}>
@@ -52,7 +52,7 @@ export function CalculationCard({
             {type.title}
           </Typography>
         </Box>
-        
+
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           {type.description}
         </Typography>
@@ -75,14 +75,14 @@ export function CalculationCard({
       <Fade in={isHovered} timeout={200}>
         <CardActions
           sx={{
-            position: 'absolute',
+            position: "absolute",
             bottom: 0,
             left: 0,
             right: 0,
-            bgcolor: 'background.paper',
-            borderTop: '1px solid',
-            borderColor: 'divider',
-            justifyContent: 'space-between',
+            bgcolor: "background.paper",
+            borderTop: "1px solid",
+            borderColor: "divider",
+            justifyContent: "space-between",
             p: 2,
           }}
         >
@@ -94,7 +94,7 @@ export function CalculationCard({
           >
             Создать таблицу
           </Button>
-          
+
           <Button
             variant="outlined"
             startIcon={<TableChart />}

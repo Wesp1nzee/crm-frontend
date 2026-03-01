@@ -1,4 +1,4 @@
-export type NotificationSeverity = 'success' | 'info' | 'warning' | 'error';
+export type NotificationSeverity = "success" | "info" | "warning" | "error";
 
 export interface NotificationPayload {
   message: string;
@@ -19,7 +19,7 @@ let notificationId = 0;
 const emit = (payload: NotificationPayload) => {
   const event: NotificationEvent = {
     id: ++notificationId,
-    severity: payload.severity ?? 'info',
+    severity: payload.severity ?? "info",
     autoHideDuration: payload.autoHideDuration,
     message: payload.message,
   };
@@ -38,15 +38,15 @@ export const notificationService = {
     emit(payload);
   },
   success(message: string, autoHideDuration?: number) {
-    emit({ message, severity: 'success', autoHideDuration });
+    emit({ message, severity: "success", autoHideDuration });
   },
   info(message: string, autoHideDuration?: number) {
-    emit({ message, severity: 'info', autoHideDuration });
+    emit({ message, severity: "info", autoHideDuration });
   },
   warning(message: string, autoHideDuration?: number) {
-    emit({ message, severity: 'warning', autoHideDuration });
+    emit({ message, severity: "warning", autoHideDuration });
   },
   error(message: string, autoHideDuration?: number) {
-    emit({ message, severity: 'error', autoHideDuration });
+    emit({ message, severity: "error", autoHideDuration });
   },
 };

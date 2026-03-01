@@ -1,5 +1,5 @@
 // src/entities/user/types.ts
-export { UserRole } from '../../shared/types/user';
+export { UserRole } from "../../shared/types/user";
 
 export type {
   UserRead,
@@ -13,4 +13,4 @@ export type {
   EmailConfigRead,
   StatusResponse,
   LogoutResponse,
-} from '../../shared/types/user';
+} from "../../shared/types/user";

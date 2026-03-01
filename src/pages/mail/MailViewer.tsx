@@ -1,13 +1,28 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback } from "react";
 import {
-  Box, Typography, IconButton, Button, Divider, Avatar, Paper, Collapse
-} from '@mui/material';
+  Box,
+  Typography,
+  IconButton,
+  Button,
+  Divider,
+  Avatar,
+  Paper,
+  Collapse,
+} from "@mui/material";
 import {
-  Reply, Forward, Archive, Delete, Star, StarBorder, ExpandMore, ExpandLess, AttachFile
-} from '@mui/icons-material';
-import dayjs from 'dayjs';
-import DOMPurify from 'dompurify';
-import type { MailThread, Mail } from '../../entities/mail/types';
+  Reply,
+  Forward,
+  Archive,
+  Delete,
+  Star,
+  StarBorder,
+  ExpandMore,
+  ExpandLess,
+  AttachFile,
+} from "@mui/icons-material";
+import dayjs from "dayjs";
+import DOMPurify from "dompurify";
+import type { MailThread, Mail } from "../../entities/mail/types";
 
 interface SafeHtmlViewerProps {
   html: string;
@@ -15,25 +30,60 @@ interface SafeHtmlViewerProps {
 
 function SafeHtmlViewer({ html }: SafeHtmlViewerProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null);
-  const [height, setHeight] = useState('0px');
+  const [height, setHeight] = useState("0px");
 
   const sanitizedHtml = DOMPurify.sanitize(html, {
     ALLOWED_TAGS: [
-      'a', 'b', 'i', 'em', 'strong', 'p', 'br', 'ul', 'ol', 'li', 
-      'img', 'div', 'span', 'table', 'tbody', 'tr', 'td', 'th', 'thead', 'h1', 'h2', 'h3'
+      "a",
+      "b",
+      "i",
+      "em",
+      "strong",
+      "p",
+      "br",
+      "ul",
+      "ol",
+      "li",
+      "img",
+      "div",
+      "span",
+      "table",
+      "tbody",
+      "tr",
+      "td",
+      "th",
+      "thead",
+      "h1",
+      "h2",
+      "h3",
     ],
-    ALLOWED_ATTR: ['href', 'src', 'alt', 'title', 'style', 'target', 'width', 'height'],
+    ALLOWED_ATTR: [
+      "href",
+      "src",
+      "alt",
+      "title",
+      "style",
+      "target",
+      "width",
+      "height",
+    ],
   });
 
-  const handleMessage = useCallback((event: MessageEvent) => {
-    if (event.data.type === 'setHeight' && event.data.id === html.substring(0, 10)) {
-      setHeight(`${event.data.height}px`);
-    }
-  }, [html]);
+  const handleMessage = useCallback(
+    (event: MessageEvent) => {
+      if (
+        event.data.type === "setHeight" &&
+        event.data.id === html.substring(0, 10)
+      ) {
+        setHeight(`${event.data.height}px`);
+      }
+    },
+    [html],
+  );
 
   useEffect(() => {
-    window.addEventListener('message', handleMessage);
-    return () => window.removeEventListener('message', handleMessage);
+    window.addEventListener("message", handleMessage);
+    return () => window.removeEventListener("message", handleMessage);
   }, [handleMessage]);
 
   const srcDoc = `
@@ -83,10 +133,10 @@ function SafeHtmlViewer({ html }: SafeHtmlViewerProps) {
       // Мы НЕ добавляем allow-same-origin, поэтому доступа к кукам CRM НЕТ
       sandbox="allow-scripts allow-popups allow-popups-to-escape-sandbox"
       style={{
-        width: '100%',
+        width: "100%",
         height: height,
-        border: 'none',
-        transition: 'height 0.2s ease'
+        border: "none",
+        transition: "height 0.2s ease",
       }}
     />
   );
@@ -99,7 +149,7 @@ interface MailViewerProps {
 
 export function MailViewer({ thread }: MailViewerProps) {
   const [expandedMails, setExpandedMails] = useState<Set<string>>(
-    new Set([thread.mails[thread.mails.length - 1]?.id])
+    new Set([thread.mails[thread.mails.length - 1]?.id]),
   );
 
   const toggleMailExpansion = (mailId: string) => {
@@ -114,37 +164,45 @@ export function MailViewer({ thread }: MailViewerProps) {
 
   const renderMail = (mail: Mail, isLast: boolean) => {
     const isExpanded = expandedMails.has(mail.id);
-    
+
     return (
-      <Paper key={mail.id} variant="outlined" sx={{ mb: 2, overflow: 'hidden' }}>
-        <Box 
-          sx={{ 
-            p: 2, 
-            cursor: 'pointer',
-            bgcolor: isExpanded ? 'action.hover' : 'transparent',
-            display: 'flex', 
-            alignItems: 'center', 
-            gap: 2 
+      <Paper
+        key={mail.id}
+        variant="outlined"
+        sx={{ mb: 2, overflow: "hidden" }}
+      >
+        <Box
+          sx={{
+            p: 2,
+            cursor: "pointer",
+            bgcolor: isExpanded ? "action.hover" : "transparent",
+            display: "flex",
+            alignItems: "center",
+            gap: 2,
           }}
           onClick={() => toggleMailExpansion(mail.id)}
         >
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
+          <Avatar sx={{ width: 32, height: 32, bgcolor: "primary.main" }}>
             {mail.from.charAt(0).toUpperCase()}
           </Avatar>
-          
+
           <Box sx={{ flexGrow: 1 }}>
-            <Typography variant="subtitle2" fontWeight="bold">{mail.from}</Typography>
+            <Typography variant="subtitle2" fontWeight="bold">
+              {mail.from}
+            </Typography>
             <Typography variant="caption" color="text.secondary">
-              {dayjs(mail.receivedAt).format('DD.MM.YYYY HH:mm')}
+              {dayjs(mail.receivedAt).format("DD.MM.YYYY HH:mm")}
             </Typography>
           </Box>
 
-          {mail.attachments.length > 0 && <AttachFile fontSize="small" color="action" />}
-          
+          {mail.attachments.length > 0 && (
+            <AttachFile fontSize="small" color="action" />
+          )}
+
           <IconButton size="small">
             {mail.isStarred ? <Star color="warning" /> : <StarBorder />}
           </IconButton>
-          
+
           <IconButton size="small">
             {isExpanded ? <ExpandLess /> : <ExpandMore />}
           </IconButton>
@@ -158,7 +216,10 @@ export function MailViewer({ thread }: MailViewerProps) {
               {mail.htmlBody ? (
                 <SafeHtmlViewer html={mail.htmlBody} />
               ) : (
-                <Typography variant="body2" sx={{ whiteSpace: 'pre-line', px: 1 }}>
+                <Typography
+                  variant="body2"
+                  sx={{ whiteSpace: "pre-line", px: 1 }}
+                >
                   {mail.body}
                 </Typography>
               )}
@@ -166,8 +227,13 @@ export function MailViewer({ thread }: MailViewerProps) {
 
             {/* Вложения */}
             {mail.attachments.length > 0 && (
-              <Box sx={{ mb: 2, p: 1, bgcolor: 'grey.50', borderRadius: 1 }}>
-                <Typography variant="caption" fontWeight="bold" display="block" sx={{ mb: 1 }}>
+              <Box sx={{ mb: 2, p: 1, bgcolor: "grey.50", borderRadius: 1 }}>
+                <Typography
+                  variant="caption"
+                  fontWeight="bold"
+                  display="block"
+                  sx={{ mb: 1 }}
+                >
                   ВЛОЖЕНИЯ ({mail.attachments.length})
                 </Typography>
                 {mail.attachments.map((att) => (
@@ -176,7 +242,7 @@ export function MailViewer({ thread }: MailViewerProps) {
                     variant="outlined"
                     size="small"
                     startIcon={<AttachFile />}
-                    sx={{ mr: 1, mb: 1, textTransform: 'none' }}
+                    sx={{ mr: 1, mb: 1, textTransform: "none" }}
                   >
                     {att.name} ({Math.round(att.size / 1024)}KB)
                   </Button>
@@ -185,9 +251,13 @@ export function MailViewer({ thread }: MailViewerProps) {
             )}
 
             {isLast && (
-              <Box sx={{ display: 'flex', gap: 1, mt: 2 }}>
-                <Button startIcon={<Reply />} variant="contained" size="small">Ответить</Button>
-                <Button startIcon={<Forward />} variant="outlined" size="small">Переслать</Button>
+              <Box sx={{ display: "flex", gap: 1, mt: 2 }}>
+                <Button startIcon={<Reply />} variant="contained" size="small">
+                  Ответить
+                </Button>
+                <Button startIcon={<Forward />} variant="outlined" size="small">
+                  Переслать
+                </Button>
               </Box>
             )}
           </Box>
@@ -197,24 +267,37 @@ export function MailViewer({ thread }: MailViewerProps) {
   };
 
   return (
-    <Box sx={{ flexGrow: 1, p: 3, maxWidth: 1000, margin: '0 auto' }}>
-      <Box sx={{ mb: 3, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <Box sx={{ flexGrow: 1, p: 3, maxWidth: 1000, margin: "0 auto" }}>
+      <Box
+        sx={{
+          mb: 3,
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+        }}
+      >
         <Box>
-          <Typography variant="h5" fontWeight="bold" gutterBottom>{thread.subject}</Typography>
+          <Typography variant="h5" fontWeight="bold" gutterBottom>
+            {thread.subject}
+          </Typography>
           <Typography variant="caption" color="text.secondary">
             {thread.mails.length} сообщений в переписке
           </Typography>
         </Box>
         <Box>
-          <IconButton><Archive /></IconButton>
-          <IconButton color="error"><Delete /></IconButton>
+          <IconButton>
+            <Archive />
+          </IconButton>
+          <IconButton color="error">
+            <Delete />
+          </IconButton>
         </Box>
       </Box>
 
       <Divider sx={{ mb: 3 }} />
 
-      {thread.mails.map((mail, index) => 
-        renderMail(mail, index === thread.mails.length - 1)
+      {thread.mails.map((mail, index) =>
+        renderMail(mail, index === thread.mails.length - 1),
       )}
     </Box>
   );

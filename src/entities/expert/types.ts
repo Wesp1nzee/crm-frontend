@@ -4,7 +4,7 @@ export interface Expert {
   email: string;
   phone: string;
   specialization: string[];
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   workload: number; // количество активных дел
   createdAt: string;
 }

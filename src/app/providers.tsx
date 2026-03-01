@@ -1,12 +1,12 @@
-import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
-import { AdapterDayjs } from '@mui/x-date-pickers/AdapterDayjs';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { ThemeProvider } from '@mui/material/styles';
-import CssBaseline from '@mui/material/CssBaseline';
-import { theme } from '../styles/theme';
-import 'dayjs/locale/ru';
-import { NotificationCenter } from '../shared/ui/NotificationCenter';
-import { ConfirmDialog } from '../shared/ui/ConfirmDialog';
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDayjs } from "@mui/x-date-pickers/AdapterDayjs";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { ThemeProvider } from "@mui/material/styles";
+import CssBaseline from "@mui/material/CssBaseline";
+import { theme } from "../styles/theme";
+import "dayjs/locale/ru";
+import { NotificationCenter } from "../shared/ui/NotificationCenter";
+import { ConfirmDialog } from "../shared/ui/ConfirmDialog";
 
 const queryClient = new QueryClient({
   defaultOptions: {

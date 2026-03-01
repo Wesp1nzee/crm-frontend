@@ -13,14 +13,14 @@ import {
   Button,
   Alert,
   alpha,
-} from '@mui/material';
-import { Add, AccountBalance, Gavel, PersonOutline } from '@mui/icons-material';
-import { useNavigate } from 'react-router-dom';
-import { useClients, useCreateClient } from '../../shared/hooks/useClients';
-import { useState } from 'react';
-import { ClientCreateDialog } from './ClientCreateDialog';
-import { notificationService } from '../../shared/services/notifications';
-import { PaginationControls } from '../../shared/ui/PaginationControls';
+} from "@mui/material";
+import { Add, AccountBalance, Gavel, PersonOutline } from "@mui/icons-material";
+import { useNavigate } from "react-router-dom";
+import { useClients, useCreateClient } from "../../shared/hooks/useClients";
+import { useState } from "react";
+import { ClientCreateDialog } from "./ClientCreateDialog";
+import { notificationService } from "../../shared/services/notifications";
+import { PaginationControls } from "../../shared/ui/PaginationControls";
 
 const TYPE_ICONS = {
   legal: <AccountBalance sx={{ fontSize: 18 }} />,
@@ -32,7 +32,12 @@ export function ClientListPage() {
   const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(20);
-  const { data: clients, isLoading: clientsLoading, error: clientsError, refetch } = useClients({
+  const {
+    data: clients,
+    isLoading: clientsLoading,
+    error: clientsError,
+    refetch,
+  } = useClients({
     page,
     limit,
   });
@@ -44,11 +49,13 @@ export function ClientListPage() {
     try {
       await createClient.mutateAsync(formData);
       setCreateDialogOpen(false);
-      notificationService.success('Клиент успешно создан');
+      notificationService.success("Клиент успешно создан");
       refetch();
     } catch (error: any) {
-      console.error('Ошибка создания клиента:', error);
-      notificationService.error(error?.response?.data?.detail || 'Ошибка создания клиента');
+      console.error("Ошибка создания клиента:", error);
+      notificationService.error(
+        error?.response?.data?.detail || "Ошибка создания клиента",
+      );
     }
   };
 
@@ -76,20 +83,38 @@ export function ClientListPage() {
 
   return (
     <Box>
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h4">Клиенты</Typography>
           <Typography variant="body2" color="text.secondary">
             Всего: {totalItems} клиентов
           </Typography>
         </Box>
-        <Button variant="contained" color="primary" startIcon={<Add />} onClick={() => setCreateDialogOpen(true)}>
+        <Button
+          variant="contained"
+          color="primary"
+          startIcon={<Add />}
+          onClick={() => setCreateDialogOpen(true)}
+        >
           Добавить клиента
         </Button>
       </Box>
 
-      <TableContainer component={Paper} sx={{ borderRadius: 4, overflow: 'hidden' }}>
-        <Table sx={{ '& th:first-of-type, & td:first-of-type': { pl: 4 }, '& th:last-of-type, & td:last-of-type': { pr: 4 } }}>
+      <TableContainer
+        component={Paper}
+        sx={{ borderRadius: 4, overflow: "hidden" }}
+      >
+        <Table
+          sx={{
+            "& th:first-of-type, & td:first-of-type": { pl: 4 },
+            "& th:last-of-type, & td:last-of-type": { pr: 4 },
+          }}
+        >
           <TableHead>
             <TableRow>
               <TableCell>Название</TableCell>
@@ -108,13 +133,19 @@ export function ClientListPage() {
                   hover
                   onClick={() => navigate(`/crm/clients/${client.id}`)}
                   sx={{
-                    cursor: 'pointer',
+                    cursor: "pointer",
                     backgroundColor: (theme) =>
-                      index % 2 === 1 ? alpha(theme.palette.common.black, 0.02) : 'transparent',
+                      index % 2 === 1
+                        ? alpha(theme.palette.common.black, 0.02)
+                        : "transparent",
                   }}
                 >
                   <TableCell>
-                    <Typography variant="body1" fontWeight="medium" textAlign="left">
+                    <Typography
+                      variant="body1"
+                      fontWeight="medium"
+                      textAlign="left"
+                    >
                       {client.name}
                     </Typography>
                     {client.short_name && (
@@ -124,24 +155,43 @@ export function ClientListPage() {
                     )}
                   </TableCell>
                   <TableCell>
-                    <Typography variant="body2">{client.email || '—'}</Typography>
+                    <Typography variant="body2">
+                      {client.email || "—"}
+                    </Typography>
                     <Typography variant="caption" color="text.secondary">
-                      {client.phone || 'Телефон не указан'}
+                      {client.phone || "Телефон не указан"}
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    <Box display="flex" alignItems="center" gap={1} color="text.secondary">
+                    <Box
+                      display="flex"
+                      alignItems="center"
+                      gap={1}
+                      color="text.secondary"
+                    >
                       {TYPE_ICONS[client.type]}
                       <Typography variant="body2" color="text.primary">
-                        {client.type === 'legal' ? 'ЮЛ' : client.type === 'individual' ? 'ФЛ' : 'Суд'}
+                        {client.type === "legal"
+                          ? "ЮЛ"
+                          : client.type === "individual"
+                            ? "ФЛ"
+                            : "Суд"}
                       </Typography>
                     </Box>
                   </TableCell>
-                  <TableCell>{client.inn || '—'}</TableCell>
+                  <TableCell>{client.inn || "—"}</TableCell>
                   <TableCell>
                     <Box display="flex" gap={1}>
-                      <Chip label={`${client.active_cases} активных`} size="small" sx={{ bgcolor: 'rgba(79,144,255,0.12)' }} />
-                      <Chip label={`${client.total_cases} всего`} size="small" variant="outlined" />
+                      <Chip
+                        label={`${client.active_cases} активных`}
+                        size="small"
+                        sx={{ bgcolor: "rgba(79,144,255,0.12)" }}
+                      />
+                      <Chip
+                        label={`${client.total_cases} всего`}
+                        size="small"
+                        variant="outlined"
+                      />
                     </Box>
                   </TableCell>
                   <TableCell>

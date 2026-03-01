@@ -1,8 +1,34 @@
-import { AppBar, Toolbar, Typography, TextField, Badge, IconButton, Box, Menu, MenuItem, ListItemIcon, ListItemText, Divider, Avatar, Chip } from '@mui/material';
-import { Search, Notifications, AccountCircle, Menu as MenuIcon, Settings, ExitToApp, Person, CheckCircle, Warning, Info } from '@mui/icons-material';
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useAuth, useLogout } from '../shared/hooks/useAuth';
+import {
+  AppBar,
+  Toolbar,
+  Typography,
+  TextField,
+  Badge,
+  IconButton,
+  Box,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Divider,
+  Avatar,
+  Chip,
+} from "@mui/material";
+import {
+  Search,
+  Notifications,
+  AccountCircle,
+  Menu as MenuIcon,
+  Settings,
+  ExitToApp,
+  Person,
+  CheckCircle,
+  Warning,
+  Info,
+} from "@mui/icons-material";
+import { useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAuth, useLogout } from "../shared/hooks/useAuth";
 // import dayjs from 'dayjs';
 
 interface TopbarProps {
@@ -11,7 +37,7 @@ interface TopbarProps {
 
 interface Notification {
   id: string;
-  type: 'info' | 'warning' | 'success';
+  type: "info" | "warning" | "success";
   title: string;
   message: string;
   time: string;
@@ -20,27 +46,27 @@ interface Notification {
 
 const mockNotifications: Notification[] = [
   {
-    id: '1',
-    type: 'warning',
-    title: 'Просроченный срок',
-    message: 'Дело ЭКС-2024-001 просрочено на 2 дня',
-    time: '2024-01-28T10:30:00Z',
+    id: "1",
+    type: "warning",
+    title: "Просроченный срок",
+    message: "Дело ЭКС-2024-001 просрочено на 2 дня",
+    time: "2024-01-28T10:30:00Z",
     read: false,
   },
   {
-    id: '2',
-    type: 'success',
-    title: 'Дело завершено',
-    message: 'Эксперт Петров П.П. завершил дело ЭКС-2024-003',
-    time: '2024-01-28T09:15:00Z',
+    id: "2",
+    type: "success",
+    title: "Дело завершено",
+    message: "Эксперт Петров П.П. завершил дело ЭКС-2024-003",
+    time: "2024-01-28T09:15:00Z",
     read: false,
   },
   {
-    id: '3',
-    type: 'info',
-    title: 'Новый клиент',
+    id: "3",
+    type: "info",
+    title: "Новый клиент",
     message: 'Зарегистрирован новый клиент ООО "Строй Плюс"',
-    time: '2024-01-27T16:45:00Z',
+    time: "2024-01-27T16:45:00Z",
     read: true,
   },
 ];
@@ -49,11 +75,12 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
   const { data: user } = useAuth();
   const logout = useLogout();
-  const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
+  const [notificationAnchor, setNotificationAnchor] =
+    useState<null | HTMLElement>(null);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
   const [notifications, setNotifications] = useState(mockNotifications);
 
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
     setNotificationAnchor(event.currentTarget);
@@ -76,18 +103,23 @@ export function Topbar({ onMenuClick }: TopbarProps) {
   };
 
   const markAsRead = (id: string) => {
-    setNotifications(prev => prev.map(n => n.id === id ? { ...n, read: true } : n));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
+    );
   };
 
   const markAllAsRead = () => {
-    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
   };
 
-  const getNotificationIcon = (type: Notification['type']) => {
+  const getNotificationIcon = (type: Notification["type"]) => {
     switch (type) {
-      case 'warning': return <Warning color="warning" />;
-      case 'success': return <CheckCircle color="success" />;
-      case 'info': return <Info color="info" />;
+      case "warning":
+        return <Warning color="warning" />;
+      case "success":
+        return <CheckCircle color="success" />;
+      case "info":
+        return <Info color="info" />;
     }
   };
 
@@ -97,33 +129,33 @@ export function Topbar({ onMenuClick }: TopbarProps) {
       elevation={0}
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        bgcolor: 'rgba(245, 247, 250, 0.78)',
-        backdropFilter: 'blur(20px)',
-        borderBottom: '1px solid rgba(255,255,255,0.9)',
-        color: 'text.primary',
-        animation: 'topbarDropIn 260ms ease',
-        '@keyframes topbarDropIn': {
-          '0%': { opacity: 0, transform: 'translateY(-8px)' },
-          '100%': { opacity: 1, transform: 'translateY(0)' },
+        bgcolor: "rgba(245, 247, 250, 0.78)",
+        backdropFilter: "blur(20px)",
+        borderBottom: "1px solid rgba(255,255,255,0.9)",
+        color: "text.primary",
+        animation: "topbarDropIn 260ms ease",
+        "@keyframes topbarDropIn": {
+          "0%": { opacity: 0, transform: "translateY(-8px)" },
+          "100%": { opacity: 1, transform: "translateY(0)" },
         },
       }}
     >
       <Toolbar>
         {/* Левая часть: меню и заголовок */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           <IconButton
             color="inherit"
             edge="start"
             onClick={onMenuClick}
             sx={{
               mr: 2,
-              transition: 'transform 180ms ease, background-color 180ms ease',
-              '&:hover': { transform: 'rotate(-8deg) scale(1.04)' },
+              transition: "transform 180ms ease, background-color 180ms ease",
+              "&:hover": { transform: "rotate(-8deg) scale(1.04)" },
             }}
           >
             <MenuIcon />
           </IconButton>
-          
+
           <Typography
             variant="h6"
             noWrap
@@ -131,9 +163,9 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             sx={{
               mr: 4,
               fontWeight: 700,
-              transition: 'letter-spacing 220ms ease, opacity 220ms ease',
-              '&:hover': {
-                letterSpacing: '0.02em',
+              transition: "letter-spacing 220ms ease, opacity 220ms ease",
+              "&:hover": {
+                letterSpacing: "0.02em",
                 opacity: 0.9,
               },
             }}
@@ -167,7 +199,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
         */}
 
         {/* Правая часть: иконки уведомлений и профиля */}
-        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+        <Box sx={{ display: "flex", alignItems: "center" }}>
           {/* Раскомментируйте, если нужно показать уведомления
           <IconButton 
             color="inherit" 
@@ -182,13 +214,13 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </Badge>
           </IconButton>
           */}
-          
-          <IconButton 
+
+          <IconButton
             color="inherit"
             onClick={handleProfileClick}
             sx={{
-              transition: 'transform 0.2s ease, background-color 0.2s ease',
-              '&:hover': { transform: 'scale(1.08)' }
+              transition: "transform 0.2s ease, background-color 0.2s ease",
+              "&:hover": { transform: "scale(1.08)" },
             }}
           >
             <AccountCircle />
@@ -275,45 +307,57 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             sx: {
               width: 280,
               mt: 1,
-              animation: 'profileMenuIn 180ms ease',
-              transformOrigin: 'top right',
-              '@keyframes profileMenuIn': {
-                '0%': { opacity: 0, transform: 'translateY(-6px) scale(0.98)' },
-                '100%': { opacity: 1, transform: 'translateY(0) scale(1)' },
+              animation: "profileMenuIn 180ms ease",
+              transformOrigin: "top right",
+              "@keyframes profileMenuIn": {
+                "0%": { opacity: 0, transform: "translateY(-6px) scale(0.98)" },
+                "100%": { opacity: 1, transform: "translateY(0) scale(1)" },
               },
-            }
+            },
           }}
-          transformOrigin={{ horizontal: 'right', vertical: 'top' }}
-          anchorOrigin={{ horizontal: 'right', vertical: 'bottom' }}
+          transformOrigin={{ horizontal: "right", vertical: "top" }}
+          anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
         >
-          <Box sx={{ px: 2, py: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
-            <Avatar sx={{ width: 48, height: 48, bgcolor: 'primary.main' }}>
-              {user?.full_name?.charAt(0) || 'U'}
+          <Box
+            sx={{ px: 2, py: 2, display: "flex", alignItems: "center", gap: 2 }}
+          >
+            <Avatar sx={{ width: 48, height: 48, bgcolor: "primary.main" }}>
+              {user?.full_name?.charAt(0) || "U"}
             </Avatar>
             <Box>
               <Typography variant="subtitle1" fontWeight="bold">
-                {user?.full_name || 'Пользователь'}
+                {user?.full_name || "Пользователь"}
               </Typography>
               <Typography variant="body2" color="text.secondary">
-                {user?.email || 'user@example.com'}
+                {user?.email || "user@example.com"}
               </Typography>
             </Box>
           </Box>
           <Divider />
-          <MenuItem onClick={() => { handleProfileClose(); navigate('/crm/profile'); }}>
+          <MenuItem
+            onClick={() => {
+              handleProfileClose();
+              navigate("/crm/profile");
+            }}
+          >
             <ListItemIcon>
               <Person />
             </ListItemIcon>
             <ListItemText primary="Мой профиль" />
           </MenuItem>
-          <MenuItem onClick={() => { handleProfileClose(); navigate('/crm/settings'); }}>
+          <MenuItem
+            onClick={() => {
+              handleProfileClose();
+              navigate("/crm/settings");
+            }}
+          >
             <ListItemIcon>
               <Settings />
             </ListItemIcon>
             <ListItemText primary="Настройки" />
           </MenuItem>
           <Divider />
-          <MenuItem onClick={handleLogout} sx={{ color: 'error.main' }}>
+          <MenuItem onClick={handleLogout} sx={{ color: "error.main" }}>
             <ListItemIcon>
               <ExitToApp color="error" />
             </ListItemIcon>

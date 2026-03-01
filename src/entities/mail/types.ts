@@ -13,7 +13,7 @@ export interface Mail {
   isRead: boolean;
   isStarred: boolean;
   isArchived: boolean;
-  priority: 'low' | 'normal' | 'high';
+  priority: "low" | "normal" | "high";
 }
 
 export interface MailThread {
@@ -36,7 +36,7 @@ export interface MailAttachment {
 export interface MailFolder {
   id: string;
   name: string;
-  type: 'inbox' | 'sent' | 'drafts' | 'archive' | 'trash' | 'custom';
+  type: "inbox" | "sent" | "drafts" | "archive" | "trash" | "custom";
   unreadCount: number;
 }
 

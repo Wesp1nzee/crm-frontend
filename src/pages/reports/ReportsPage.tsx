@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo } from "react";
 import {
   Box,
   Paper,
@@ -33,7 +33,7 @@ import {
   useMediaQuery,
   Alert,
   Divider,
-} from '@mui/material';
+} from "@mui/material";
 import {
   DownloadOutlined,
   RefreshOutlined,
@@ -52,28 +52,28 @@ import {
   Receipt,
   Warning as WarningIcon,
   TrendingUp,
-} from '@mui/icons-material';
-import { 
-  LineChart, 
-  Line, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip as ChartTooltip, 
-  Legend, 
-  ResponsiveContainer, 
-  PieChart, 
-  Pie, 
-  Cell 
-} from 'recharts';
-import dayjs from 'dayjs';
-import relativeTime from 'dayjs/plugin/relativeTime';
-import 'dayjs/locale/ru';
+} from "@mui/icons-material";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as ChartTooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import dayjs from "dayjs";
+import relativeTime from "dayjs/plugin/relativeTime";
+import "dayjs/locale/ru";
 
 dayjs.extend(relativeTime);
-dayjs.locale('ru');
+dayjs.locale("ru");
 
 // Типы данных
 interface StorageMetric {
@@ -91,9 +91,9 @@ interface LoginLog {
   loginTime: string;
   logoutTime?: string;
   ipAddress: string;
-  deviceType: 'desktop' | 'mobile' | 'tablet';
+  deviceType: "desktop" | "mobile" | "tablet";
   browser: string;
-  status: 'success' | 'failed' | 'warning';
+  status: "success" | "failed" | "warning";
   location?: string;
   duration?: number;
   sessionId: string;
@@ -103,7 +103,7 @@ interface Invoice {
   id: string;
   number: string;
   amount: number;
-  status: 'draft' | 'sent' | 'paid' | 'overdue' | 'cancelled';
+  status: "draft" | "sent" | "paid" | "overdue" | "cancelled";
   caseId: string;
   createdAt: string;
   dueDate: string;
@@ -148,124 +148,251 @@ function TabPanel(props: TabPanelProps) {
 
 // Моковые данные
 const mockStorageData: StorageMetric[] = [
-  { category: 'Документы', used: 45.2, limit: 100, percent: 45.2, icon: <AssignmentOutlined /> },
-  { category: 'Финансы', used: 23.1, limit: 50, percent: 46.2, icon: <AccountBalance /> },
-  { category: 'Изображения', used: 12.8, limit: 25, percent: 51.2, icon: <CloudUploadOutlined /> },
-  { category: 'Видео', used: 8.9, limit: 20, percent: 44.5, icon: <AssignmentOutlined /> },
+  {
+    category: "Документы",
+    used: 45.2,
+    limit: 100,
+    percent: 45.2,
+    icon: <AssignmentOutlined />,
+  },
+  {
+    category: "Финансы",
+    used: 23.1,
+    limit: 50,
+    percent: 46.2,
+    icon: <AccountBalance />,
+  },
+  {
+    category: "Изображения",
+    used: 12.8,
+    limit: 25,
+    percent: 51.2,
+    icon: <CloudUploadOutlined />,
+  },
+  {
+    category: "Видео",
+    used: 8.9,
+    limit: 20,
+    percent: 44.5,
+    icon: <AssignmentOutlined />,
+  },
 ];
 
 const mockLoginLogs: LoginLog[] = [
   {
-    id: '1',
-    userName: 'Иван Петров',
-    userEmail: 'ivan@example.com',
-    loginTime: '2026-02-01T09:30:00Z',
-    ipAddress: '192.168.1.100',
-    deviceType: 'desktop',
-    browser: 'Chrome',
-    status: 'success',
-    location: 'Москва, РФ',
+    id: "1",
+    userName: "Иван Петров",
+    userEmail: "ivan@example.com",
+    loginTime: "2026-02-01T09:30:00Z",
+    ipAddress: "192.168.1.100",
+    deviceType: "desktop",
+    browser: "Chrome",
+    status: "success",
+    location: "Москва, РФ",
     duration: 120,
-    sessionId: 'session-001'
+    sessionId: "session-001",
   },
   {
-    id: '2',
-    userName: 'Мария Сидорова',
-    userEmail: 'maria@example.com',
-    loginTime: '2026-02-01T10:15:00Z',
-    ipAddress: '192.168.1.101',
-    deviceType: 'mobile',
-    browser: 'Safari',
-    status: 'success',
-    location: 'Санкт-Петербург, РФ',
+    id: "2",
+    userName: "Мария Сидорова",
+    userEmail: "maria@example.com",
+    loginTime: "2026-02-01T10:15:00Z",
+    ipAddress: "192.168.1.101",
+    deviceType: "mobile",
+    browser: "Safari",
+    status: "success",
+    location: "Санкт-Петербург, РФ",
     duration: 45,
-    sessionId: 'session-002'
+    sessionId: "session-002",
   },
   {
-    id: '3',
-    userName: 'Алексей Козлов',
-    userEmail: 'alexey@example.com',
-    loginTime: '2026-02-01T11:20:00Z',
-    ipAddress: '192.168.1.102',
-    deviceType: 'tablet',
-    browser: 'Firefox',
-    status: 'failed',
-    location: 'Новосибирск, РФ',
-    sessionId: 'session-003'
+    id: "3",
+    userName: "Алексей Козлов",
+    userEmail: "alexey@example.com",
+    loginTime: "2026-02-01T11:20:00Z",
+    ipAddress: "192.168.1.102",
+    deviceType: "tablet",
+    browser: "Firefox",
+    status: "failed",
+    location: "Новосибирск, РФ",
+    sessionId: "session-003",
   },
 ];
 
 const mockReportData: ReportMetric[] = [
-  { date: '2026-01-27', cases: 12, documents: 45, revenue: 250000, users: 8 },
-  { date: '2026-01-28', cases: 15, documents: 52, revenue: 320000, users: 10 },
-  { date: '2026-01-29', cases: 8, documents: 38, revenue: 180000, users: 7 },
-  { date: '2026-01-30', cases: 18, documents: 67, revenue: 410000, users: 12 },
-  { date: '2026-01-31', cases: 14, documents: 55, revenue: 290000, users: 9 },
+  { date: "2026-01-27", cases: 12, documents: 45, revenue: 250000, users: 8 },
+  { date: "2026-01-28", cases: 15, documents: 52, revenue: 320000, users: 10 },
+  { date: "2026-01-29", cases: 8, documents: 38, revenue: 180000, users: 7 },
+  { date: "2026-01-30", cases: 18, documents: 67, revenue: 410000, users: 12 },
+  { date: "2026-01-31", cases: 14, documents: 55, revenue: 290000, users: 9 },
 ];
 
 const mockInvoices: Invoice[] = [
-  { id: 'inv-001', number: 'INV-2026-001', amount: 150000, status: 'paid', caseId: 'case-001', createdAt: '2026-01-15T10:00:00Z', dueDate: '2026-01-25T23:59:59Z', paidAt: '2026-01-20T14:30:00Z' },
-  { id: 'inv-002', number: 'INV-2026-002', amount: 220000, status: 'sent', caseId: 'case-002', createdAt: '2026-01-20T09:00:00Z', dueDate: '2026-01-30T23:59:59Z' },
-  { id: 'inv-003', number: 'INV-2026-003', amount: 95000, status: 'overdue', caseId: 'case-003', createdAt: '2026-01-10T11:00:00Z', dueDate: '2026-01-20T23:59:59Z' },
-  { id: 'inv-004', number: 'INV-2026-004', amount: 180000, status: 'draft', caseId: 'case-004', createdAt: '2026-01-25T13:00:00Z', dueDate: '2026-02-05T23:59:59Z' },
-  { id: 'inv-005', number: 'INV-2026-005', amount: 310000, status: 'paid', caseId: 'case-005', createdAt: '2026-01-05T16:00:00Z', dueDate: '2026-01-15T23:59:59Z', paidAt: '2026-01-12T09:45:00Z' },
+  {
+    id: "inv-001",
+    number: "INV-2026-001",
+    amount: 150000,
+    status: "paid",
+    caseId: "case-001",
+    createdAt: "2026-01-15T10:00:00Z",
+    dueDate: "2026-01-25T23:59:59Z",
+    paidAt: "2026-01-20T14:30:00Z",
+  },
+  {
+    id: "inv-002",
+    number: "INV-2026-002",
+    amount: 220000,
+    status: "sent",
+    caseId: "case-002",
+    createdAt: "2026-01-20T09:00:00Z",
+    dueDate: "2026-01-30T23:59:59Z",
+  },
+  {
+    id: "inv-003",
+    number: "INV-2026-003",
+    amount: 95000,
+    status: "overdue",
+    caseId: "case-003",
+    createdAt: "2026-01-10T11:00:00Z",
+    dueDate: "2026-01-20T23:59:59Z",
+  },
+  {
+    id: "inv-004",
+    number: "INV-2026-004",
+    amount: 180000,
+    status: "draft",
+    caseId: "case-004",
+    createdAt: "2026-01-25T13:00:00Z",
+    dueDate: "2026-02-05T23:59:59Z",
+  },
+  {
+    id: "inv-005",
+    number: "INV-2026-005",
+    amount: 310000,
+    status: "paid",
+    caseId: "case-005",
+    createdAt: "2026-01-05T16:00:00Z",
+    dueDate: "2026-01-15T23:59:59Z",
+    paidAt: "2026-01-12T09:45:00Z",
+  },
 ];
 
 const mockCases: Case[] = [
-  { id: 'case-001', caseNumber: 'CASE-2026-001', clientId: 'client-001', clientName: 'ООО "Ромашка"', status: 'active', createdAt: '2026-01-01T00:00:00Z', updatedAt: '2026-01-20T14:30:00Z' },
-  { id: 'case-002', caseNumber: 'CASE-2026-002', clientId: 'client-002', clientName: 'АО "Солнечные технологии"', status: 'in-progress', createdAt: '2026-01-05T00:00:00Z', updatedAt: '2026-01-25T10:00:00Z' },
-  { id: 'case-003', caseNumber: 'CASE-2026-003', clientId: 'client-003', clientName: 'ИП "Веселый"', status: 'closed', createdAt: '2025-12-15T00:00:00Z', updatedAt: '2026-01-10T16:00:00Z' },
-  { id: 'case-004', caseNumber: 'CASE-2026-004', clientId: 'client-001', clientName: 'ООО "Ромашка"', status: 'new', createdAt: '2026-01-25T00:00:00Z', updatedAt: '2026-01-25T13:00:00Z' },
-  { id: 'case-005', caseNumber: 'CASE-2026-005', clientId: 'client-004', clientName: 'ЗАО "Городские решения"', status: 'active', createdAt: '2026-01-10T00:00:00Z', updatedAt: '2026-01-30T11:00:00Z' },
+  {
+    id: "case-001",
+    caseNumber: "CASE-2026-001",
+    clientId: "client-001",
+    clientName: 'ООО "Ромашка"',
+    status: "active",
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-20T14:30:00Z",
+  },
+  {
+    id: "case-002",
+    caseNumber: "CASE-2026-002",
+    clientId: "client-002",
+    clientName: 'АО "Солнечные технологии"',
+    status: "in-progress",
+    createdAt: "2026-01-05T00:00:00Z",
+    updatedAt: "2026-01-25T10:00:00Z",
+  },
+  {
+    id: "case-003",
+    caseNumber: "CASE-2026-003",
+    clientId: "client-003",
+    clientName: 'ИП "Веселый"',
+    status: "closed",
+    createdAt: "2025-12-15T00:00:00Z",
+    updatedAt: "2026-01-10T16:00:00Z",
+  },
+  {
+    id: "case-004",
+    caseNumber: "CASE-2026-004",
+    clientId: "client-001",
+    clientName: 'ООО "Ромашка"',
+    status: "new",
+    createdAt: "2026-01-25T00:00:00Z",
+    updatedAt: "2026-01-25T13:00:00Z",
+  },
+  {
+    id: "case-005",
+    caseNumber: "CASE-2026-005",
+    clientId: "client-004",
+    clientName: 'ЗАО "Городские решения"',
+    status: "active",
+    createdAt: "2026-01-10T00:00:00Z",
+    updatedAt: "2026-01-30T11:00:00Z",
+  },
 ];
 
 function FinanceDashboard() {
-  const [filterStatus, setFilterStatus] = useState<Invoice['status'] | 'all'>('all');
-  
+  const [filterStatus, setFilterStatus] = useState<Invoice["status"] | "all">(
+    "all",
+  );
+
   const invoices = mockInvoices;
   const payments = [];
   const cases = mockCases;
 
-  const filteredInvoices = invoices?.filter(invoice => 
-    filterStatus === 'all' || invoice.status === filterStatus
+  const filteredInvoices = invoices?.filter(
+    (invoice) => filterStatus === "all" || invoice.status === filterStatus,
   );
 
   // Проверяем, что cases - это массив, иначе используем пустой массив
   const casesArray = Array.isArray(cases) ? cases : [];
 
   const getCaseName = (caseId: string) => {
-    const caseItem = casesArray.find(c => c.id === caseId);
+    const caseItem = casesArray.find((c) => c.id === caseId);
     return caseItem?.caseNumber || caseId;
   };
 
   // Получаем имя клиента напрямую из данных дела
   const getClientName = (caseId: string) => {
-    const caseItem = casesArray.find(c => c.id === caseId);
-    return caseItem?.clientName || caseItem?.client?.name || '-';
+    const caseItem = casesArray.find((c) => c.id === caseId);
+    return caseItem?.clientName || caseItem?.client?.name || "-";
   };
 
   // Аналитика
-  const totalRevenue = invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0) || 0;
-  const pendingAmount = invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0) || 0;
-  const overdueCount = invoices?.filter(i => i.status === 'overdue').length || 0;
-  const thisMonthRevenue = payments?.filter((p: any) => 
-    dayjs(p.receivedAt).isAfter(dayjs().startOf('month'))
-  ).reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
+  const totalRevenue =
+    invoices
+      ?.filter((i) => i.status === "paid")
+      .reduce((sum, i) => sum + i.amount, 0) || 0;
+  const pendingAmount =
+    invoices
+      ?.filter((i) => ["sent", "overdue"].includes(i.status))
+      .reduce((sum, i) => sum + i.amount, 0) || 0;
+  const overdueCount =
+    invoices?.filter((i) => i.status === "overdue").length || 0;
+  const thisMonthRevenue =
+    payments
+      ?.filter((p: any) =>
+        dayjs(p.receivedAt).isAfter(dayjs().startOf("month")),
+      )
+      .reduce((sum: number, p: any) => sum + p.amount, 0) || 0;
 
-  const invoiceStatusLabels: Record<Invoice['status'], string> = {
-    draft: 'Черновик',
-    sent: 'Отправлен',
-    paid: 'Оплачен',
-    overdue: 'Просрочен',
-    cancelled: 'Отменен',
+  const invoiceStatusLabels: Record<Invoice["status"], string> = {
+    draft: "Черновик",
+    sent: "Отправлен",
+    paid: "Оплачен",
+    overdue: "Просрочен",
+    cancelled: "Отменен",
   };
 
-  const invoiceStatusColors: Record<Invoice['status'], 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-    draft: 'default',
-    sent: 'info',
-    paid: 'success',
-    overdue: 'error',
-    cancelled: 'secondary',
+  const invoiceStatusColors: Record<
+    Invoice["status"],
+    | "default"
+    | "primary"
+    | "secondary"
+    | "error"
+    | "info"
+    | "success"
+    | "warning"
+  > = {
+    draft: "default",
+    sent: "info",
+    paid: "success",
+    overdue: "error",
+    cancelled: "secondary",
   };
 
   return (
@@ -279,7 +406,11 @@ function FinanceDashboard() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     Общая выручка
@@ -293,11 +424,15 @@ function FinanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     К оплате
@@ -311,11 +446,15 @@ function FinanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     За этот месяц
@@ -329,11 +468,15 @@ function FinanceDashboard() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     Просрочено
@@ -357,7 +500,9 @@ function FinanceDashboard() {
             <Select
               value={filterStatus}
               label="Статус счета"
-              onChange={(e) => setFilterStatus(e.target.value as Invoice['status'] | 'all')}
+              onChange={(e) =>
+                setFilterStatus(e.target.value as Invoice["status"] | "all")
+              }
             >
               <MenuItem value="all">Все статусы</MenuItem>
               {Object.entries(invoiceStatusLabels).map(([value, label]) => (
@@ -367,7 +512,7 @@ function FinanceDashboard() {
               ))}
             </Select>
           </FormControl>
-          
+
           <Button variant="contained" color="primary">
             Создать счет
           </Button>
@@ -412,18 +557,22 @@ function FinanceDashboard() {
                   />
                 </TableCell>
                 <TableCell>
-                  {dayjs(invoice.createdAt).format('DD.MM.YYYY')}
+                  {dayjs(invoice.createdAt).format("DD.MM.YYYY")}
                 </TableCell>
                 <TableCell>
                   <Typography
-                    color={invoice.status === 'overdue' ? 'error' : 'inherit'}
-                    fontWeight={invoice.status === 'overdue' ? 'bold' : 'normal'}
+                    color={invoice.status === "overdue" ? "error" : "inherit"}
+                    fontWeight={
+                      invoice.status === "overdue" ? "bold" : "normal"
+                    }
                   >
-                    {dayjs(invoice.dueDate).format('DD.MM.YYYY')}
+                    {dayjs(invoice.dueDate).format("DD.MM.YYYY")}
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  {invoice.paidAt ? dayjs(invoice.paidAt).format('DD.MM.YYYY') : '-'}
+                  {invoice.paidAt
+                    ? dayjs(invoice.paidAt).format("DD.MM.YYYY")
+                    : "-"}
                 </TableCell>
               </TableRow>
             ))}
@@ -440,18 +589,20 @@ function StorageAnalyticsCard() {
   const totalLimit = mockStorageData.reduce((sum, item) => sum + item.limit, 0);
   const totalPercent = (totalUsed / totalLimit) * 100;
 
-  const chartData = mockStorageData.map(item => ({
+  const chartData = mockStorageData.map((item) => ({
     name: item.category,
     value: item.used,
     percent: item.percent,
   }));
 
-  const COLORS = ['#1976d2', '#388e3c', '#f57c00', '#7b1fa2'];
+  const COLORS = ["#1976d2", "#388e3c", "#f57c00", "#7b1fa2"];
 
   return (
     <Card sx={{ mb: 3 }}>
       <CardHeader
-        avatar={<StorageOutlined sx={{ color: 'primary.main', fontSize: 28 }} />}
+        avatar={
+          <StorageOutlined sx={{ color: "primary.main", fontSize: 28 }} />
+        }
         title="Анализ облачного хранилища"
         subheader={`Используется ${totalUsed.toFixed(1)} ГБ из ${totalLimit} ГБ`}
         action={
@@ -482,7 +633,7 @@ function StorageAnalyticsCard() {
                   height: 8,
                   borderRadius: 4,
                   backgroundColor: theme.palette.grey[200],
-                  '& .MuiLinearProgress-bar': {
+                  "& .MuiLinearProgress-bar": {
                     borderRadius: 4,
                     background: `linear-gradient(90deg, ${theme.palette.primary.main}, ${theme.palette.success.main})`,
                   },
@@ -503,13 +654,18 @@ function StorageAnalyticsCard() {
                   cx="50%"
                   cy="50%"
                   labelLine={false}
-                  label={({ name, percent }) => `${name} ${(percent * 100).toFixed(0)}%`}
+                  label={({ name, percent }) =>
+                    `${name} ${(percent * 100).toFixed(0)}%`
+                  }
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
                   {chartData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
               </PieChart>
@@ -524,7 +680,12 @@ function StorageAnalyticsCard() {
             <Box>
               {mockStorageData.map((metric, index) => (
                 <Box key={index} mb={2}>
-                  <Box display="flex" alignItems="center" justifyContent="space-between" mb={0.5}>
+                  <Box
+                    display="flex"
+                    alignItems="center"
+                    justifyContent="space-between"
+                    mb={0.5}
+                  >
                     <Box display="flex" alignItems="center" gap={1}>
                       <Box sx={{ color: COLORS[index] }}>{metric.icon}</Box>
                       <Typography variant="body2" fontWeight="500">
@@ -542,7 +703,7 @@ function StorageAnalyticsCard() {
                       height: 6,
                       borderRadius: 3,
                       backgroundColor: theme.palette.grey[200],
-                      '& .MuiLinearProgress-bar': {
+                      "& .MuiLinearProgress-bar": {
                         background: COLORS[index],
                         borderRadius: 3,
                       },
@@ -560,35 +721,41 @@ function StorageAnalyticsCard() {
 
 function LoginLogsSection() {
   const theme = useTheme();
-  const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+  const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const [filterOpen, setFilterOpen] = useState(false);
-  const [selectedStatus, setSelectedStatus] = useState<'all' | 'success' | 'failed' | 'warning'>('all');
-  const [selectedDevice, setSelectedDevice] = useState<'all' | 'desktop' | 'mobile' | 'tablet'>('all');
+  const [selectedStatus, setSelectedStatus] = useState<
+    "all" | "success" | "failed" | "warning"
+  >("all");
+  const [selectedDevice, setSelectedDevice] = useState<
+    "all" | "desktop" | "mobile" | "tablet"
+  >("all");
 
   const filteredLogs = useMemo(() => {
-    return mockLoginLogs.filter(log => {
-      if (selectedStatus !== 'all' && log.status !== selectedStatus) return false;
-      if (selectedDevice !== 'all' && log.deviceType !== selectedDevice) return false;
+    return mockLoginLogs.filter((log) => {
+      if (selectedStatus !== "all" && log.status !== selectedStatus)
+        return false;
+      if (selectedDevice !== "all" && log.deviceType !== selectedDevice)
+        return false;
       return true;
     });
   }, [selectedStatus, selectedDevice]);
 
-  const getStatusIcon = (status: LoginLog['status']) => {
+  const getStatusIcon = (status: LoginLog["status"]) => {
     switch (status) {
-      case 'success':
-        return <CheckCircleOutlineOutlined sx={{ color: 'success.main' }} />;
-      case 'failed':
-        return <ErrorOutlineOutlined sx={{ color: 'error.main' }} />;
-      case 'warning': 
-        return <WarningOutlined sx={{ color: 'warning.main' }} />;
+      case "success":
+        return <CheckCircleOutlineOutlined sx={{ color: "success.main" }} />;
+      case "failed":
+        return <ErrorOutlineOutlined sx={{ color: "error.main" }} />;
+      case "warning":
+        return <WarningOutlined sx={{ color: "warning.main" }} />;
     }
   };
 
-  const getStatusChip = (status: LoginLog['status']) => {
+  const getStatusChip = (status: LoginLog["status"]) => {
     const statusMap = {
-      success: { label: 'Успешно', color: 'success' as const },
-      failed: { label: 'Ошибка', color: 'error' as const },
-      warning: { label: 'Предупреждение', color: 'warning' as const },
+      success: { label: "Успешно", color: "success" as const },
+      failed: { label: "Ошибка", color: "error" as const },
+      warning: { label: "Предупреждение", color: "warning" as const },
     };
     return (
       <Chip
@@ -601,19 +768,23 @@ function LoginLogsSection() {
     );
   };
 
-  const getDeviceChip = (device: LoginLog['deviceType']) => {
+  const getDeviceChip = (device: LoginLog["deviceType"]) => {
     const deviceMap = {
-      desktop: { label: 'ПК', color: 'primary' },
-      mobile: { label: 'Мобиль', color: 'info' },
-      tablet: { label: 'Планшет', color: 'secondary' },
+      desktop: { label: "ПК", color: "primary" },
+      mobile: { label: "Мобиль", color: "info" },
+      tablet: { label: "Планшет", color: "secondary" },
     };
-    return <Chip label={deviceMap[device].label} size="small" variant="outlined" />;
+    return (
+      <Chip label={deviceMap[device].label} size="small" variant="outlined" />
+    );
   };
 
   return (
     <Card>
       <CardHeader
-        avatar={<SecurityOutlined sx={{ color: 'primary.main', fontSize: 28 }} />}
+        avatar={
+          <SecurityOutlined sx={{ color: "primary.main", fontSize: 28 }} />
+        }
         title="Логи входа пользователей"
         subheader={`Всего записей: ${mockLoginLogs.length}`}
         action={
@@ -622,7 +793,7 @@ function LoginLogsSection() {
               <IconButton
                 size="small"
                 onClick={() => setFilterOpen(!filterOpen)}
-                color={filterOpen ? 'primary' : 'default'}
+                color={filterOpen ? "primary" : "default"}
               >
                 <FilterListOutlined />
               </IconButton>
@@ -637,7 +808,14 @@ function LoginLogsSection() {
       />
 
       {filterOpen && (
-        <Box sx={{ p: 2, bgcolor: 'grey.50', borderBottom: 1, borderColor: 'divider' }}>
+        <Box
+          sx={{
+            p: 2,
+            bgcolor: "grey.50",
+            borderBottom: 1,
+            borderColor: "divider",
+          }}
+        >
           <Grid container spacing={2}>
             <Grid item xs={12} sm={6}>
               <FormControl fullWidth size="small">
@@ -680,18 +858,18 @@ function LoginLogsSection() {
             {filteredLogs.length === 0 ? (
               <Alert severity="info">Логи не найдены</Alert>
             ) : (
-              filteredLogs.map(log => (
+              filteredLogs.map((log) => (
                 <Paper
                   key={log.id}
                   sx={{
                     p: 2,
                     borderLeft: 4,
-                    borderColor: 
-                      log.status === 'success'
-                        ? 'success.main'
-                        : log.status === 'failed'
-                          ? 'error.main'
-                          : 'warning.main',
+                    borderColor:
+                      log.status === "success"
+                        ? "success.main"
+                        : log.status === "failed"
+                          ? "error.main"
+                          : "warning.main",
                   }}
                 >
                   <Box display="flex" alignItems="center" gap={1} mb={1}>
@@ -714,7 +892,7 @@ function LoginLogsSection() {
                       Время входа:
                     </Typography>
                     <Typography variant="caption" fontWeight="500">
-                      {dayjs(log.loginTime).format('HH:mm, DD MMM')}
+                      {dayjs(log.loginTime).format("HH:mm, DD MMM")}
                     </Typography>
                   </Box>
                   <Box display="flex" justifyContent="space-between" mb={0.5}>
@@ -750,7 +928,7 @@ function LoginLogsSection() {
           <TableContainer>
             <Table>
               <TableHead>
-                <TableRow sx={{ bgcolor: 'grey.50' }}>
+                <TableRow sx={{ bgcolor: "grey.50" }}>
                   <TableCell>Пользователь</TableCell>
                   <TableCell>IP адрес</TableCell>
                   <TableCell>Время входа</TableCell>
@@ -765,11 +943,13 @@ function LoginLogsSection() {
                 {filteredLogs.length === 0 ? (
                   <TableRow>
                     <TableCell colSpan={8} align="center" sx={{ py: 4 }}>
-                      <Typography color="textSecondary">Логи не найдены</Typography>
+                      <Typography color="textSecondary">
+                        Логи не найдены
+                      </Typography>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  filteredLogs.map(log => (
+                  filteredLogs.map((log) => (
                     <TableRow key={log.id} hover>
                       <TableCell>
                         <Box display="flex" alignItems="center" gap={1}>
@@ -787,13 +967,16 @@ function LoginLogsSection() {
                         </Box>
                       </TableCell>
                       <TableCell>
-                        <Typography variant="body2" sx={{ fontFamily: 'monospace' }}>
+                        <Typography
+                          variant="body2"
+                          sx={{ fontFamily: "monospace" }}
+                        >
                           {log.ipAddress}
                         </Typography>
                       </TableCell>
                       <TableCell>
                         <Typography variant="body2">
-                          {dayjs(log.loginTime).format('DD MMM, HH:mm')}
+                          {dayjs(log.loginTime).format("DD MMM, HH:mm")}
                         </Typography>
                         <Typography variant="caption" color="textSecondary">
                           {dayjs(log.loginTime).fromNow()}
@@ -806,7 +989,7 @@ function LoginLogsSection() {
                       <TableCell>{getStatusChip(log.status)}</TableCell>
                       <TableCell>
                         <Typography variant="caption">
-                          {log.location || '—'}
+                          {log.location || "—"}
                         </Typography>
                       </TableCell>
                       <TableCell align="right">
@@ -837,7 +1020,9 @@ function ReportsChartSection() {
   return (
     <Card>
       <CardHeader
-        avatar={<TrendingUpOutlined sx={{ color: 'primary.main', fontSize: 28 }} />}
+        avatar={
+          <TrendingUpOutlined sx={{ color: "primary.main", fontSize: 28 }} />
+        }
         title="Статистика деятельности"
         subheader="Данные за последние 5 дней"
       />
@@ -852,13 +1037,13 @@ function ReportsChartSection() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={date => dayjs(date).format('DD MMM')}
+                  tickFormatter={(date) => dayjs(date).format("DD MMM")}
                 />
                 <YAxis />
                 <ChartTooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #ccc',
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    border: "1px solid #ccc",
                     borderRadius: 4,
                   }}
                 />
@@ -878,13 +1063,13 @@ function ReportsChartSection() {
                 <CartesianGrid strokeDasharray="3 3" />
                 <XAxis
                   dataKey="date"
-                  tickFormatter={date => dayjs(date).format('DD MMM')}
+                  tickFormatter={(date) => dayjs(date).format("DD MMM")}
                 />
                 <YAxis />
                 <ChartTooltip
                   contentStyle={{
-                    backgroundColor: 'rgba(255, 255, 255, 0.95)',
-                    border: '1px solid #ccc',
+                    backgroundColor: "rgba(255, 255, 255, 0.95)",
+                    border: "1px solid #ccc",
                     borderRadius: 4,
                   }}
                 />
@@ -910,7 +1095,9 @@ export default function AnalyticsPage() {
   const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
-  const [exportFormat, setExportFormat] = useState<'pdf' | 'excel' | 'csv'>('pdf');
+  const [exportFormat, setExportFormat] = useState<"pdf" | "excel" | "csv">(
+    "pdf",
+  );
 
   const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -924,7 +1111,12 @@ export default function AnalyticsPage() {
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={4}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={4}
+      >
         <Box>
           <Typography variant="h4" fontWeight="bold">
             Аналитика и отчеты
@@ -975,7 +1167,10 @@ export default function AnalyticsPage() {
       </TabPanel>
 
       {/* Export Dialog */}
-      <Dialog open={exportDialogOpen} onClose={() => setExportDialogOpen(false)}>
+      <Dialog
+        open={exportDialogOpen}
+        onClose={() => setExportDialogOpen(false)}
+      >
         <DialogTitle>Экспорт отчета</DialogTitle>
         <DialogContent>
           <Box sx={{ pt: 2 }}>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -20,65 +20,86 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
-} from '@mui/material';
+} from "@mui/material";
 import {
   TrendingUp,
   AccountBalance,
   Receipt,
   Warning,
-} from '@mui/icons-material';
-import dayjs from 'dayjs';
-import { useInvoices, usePayments, useCases } from '../../shared/hooks/useCases';
-import type { Invoice } from '../../entities/case/types';
+} from "@mui/icons-material";
+import dayjs from "dayjs";
+import {
+  useInvoices,
+  usePayments,
+  useCases,
+} from "../../shared/hooks/useCases";
+import type { Invoice } from "../../entities/case/types";
 
-const invoiceStatusLabels: Record<Invoice['status'], string> = {
-  draft: 'Черновик',
-  sent: 'Отправлен',
-  paid: 'Оплачен',
-  overdue: 'Просрочен',
-  cancelled: 'Отменен',
+const invoiceStatusLabels: Record<Invoice["status"], string> = {
+  draft: "Черновик",
+  sent: "Отправлен",
+  paid: "Оплачен",
+  overdue: "Просрочен",
+  cancelled: "Отменен",
 };
 
-const invoiceStatusColors: Record<Invoice['status'], 'default' | 'primary' | 'secondary' | 'error' | 'info' | 'success' | 'warning'> = {
-  draft: 'default',
-  sent: 'info',
-  paid: 'success',
-  overdue: 'error',
-  cancelled: 'secondary',
+const invoiceStatusColors: Record<
+  Invoice["status"],
+  "default" | "primary" | "secondary" | "error" | "info" | "success" | "warning"
+> = {
+  draft: "default",
+  sent: "info",
+  paid: "success",
+  overdue: "error",
+  cancelled: "secondary",
 };
 
 export function FinancePage() {
-  const [filterStatus, setFilterStatus] = useState<Invoice['status'] | 'all'>('all');
-  
-  const {  invoices, isLoading: invoicesLoading, error: invoicesError } = useInvoices();
-  const {  payments, isLoading: paymentsLoading } = usePayments();
-  const {  cases } = useCases();
+  const [filterStatus, setFilterStatus] = useState<Invoice["status"] | "all">(
+    "all",
+  );
 
-  const filteredInvoices = invoices?.filter(invoice => 
-    filterStatus === 'all' || invoice.status === filterStatus
+  const {
+    invoices,
+    isLoading: invoicesLoading,
+    error: invoicesError,
+  } = useInvoices();
+  const { payments, isLoading: paymentsLoading } = usePayments();
+  const { cases } = useCases();
+
+  const filteredInvoices = invoices?.filter(
+    (invoice) => filterStatus === "all" || invoice.status === filterStatus,
   );
 
   // Проверяем, что cases - это массив, иначе используем пустой массив
   const casesArray = Array.isArray(cases) ? cases : [];
 
   const getCaseName = (caseId: string) => {
-    const caseItem = casesArray.find(c => c.id === caseId);
+    const caseItem = casesArray.find((c) => c.id === caseId);
     return caseItem?.caseNumber || caseId;
   };
 
   // Получаем имя клиента напрямую из данных дела
   const getClientName = (caseId: string) => {
-    const caseItem = casesArray.find(c => c.id === caseId);
-    return caseItem?.clientName || caseItem?.client?.name || '-';
+    const caseItem = casesArray.find((c) => c.id === caseId);
+    return caseItem?.clientName || caseItem?.client?.name || "-";
   };
 
   // Аналитика
-  const totalRevenue = invoices?.filter(i => i.status === 'paid').reduce((sum, i) => sum + i.amount, 0) || 0;
-  const pendingAmount = invoices?.filter(i => ['sent', 'overdue'].includes(i.status)).reduce((sum, i) => sum + i.amount, 0) || 0;
-  const overdueCount = invoices?.filter(i => i.status === 'overdue').length || 0;
-  const thisMonthRevenue = payments?.filter(p => 
-    dayjs(p.receivedAt).isAfter(dayjs().startOf('month'))
-  ).reduce((sum, p) => sum + p.amount, 0) || 0;
+  const totalRevenue =
+    invoices
+      ?.filter((i) => i.status === "paid")
+      .reduce((sum, i) => sum + i.amount, 0) || 0;
+  const pendingAmount =
+    invoices
+      ?.filter((i) => ["sent", "overdue"].includes(i.status))
+      .reduce((sum, i) => sum + i.amount, 0) || 0;
+  const overdueCount =
+    invoices?.filter((i) => i.status === "overdue").length || 0;
+  const thisMonthRevenue =
+    payments
+      ?.filter((p) => dayjs(p.receivedAt).isAfter(dayjs().startOf("month")))
+      .reduce((sum, p) => sum + p.amount, 0) || 0;
 
   if (invoicesLoading || paymentsLoading) {
     return (
@@ -89,11 +110,7 @@ export function FinancePage() {
   }
 
   if (invoicesError) {
-    return (
-      <Alert severity="error">
-        Ошибка загрузки финансовых данных
-      </Alert>
-    );
+    return <Alert severity="error">Ошибка загрузки финансовых данных</Alert>;
   }
 
   return (
@@ -107,7 +124,11 @@ export function FinancePage() {
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     Общая выручка
@@ -121,11 +142,15 @@ export function FinancePage() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     К оплате
@@ -139,11 +164,15 @@ export function FinancePage() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     За этот месяц
@@ -157,11 +186,15 @@ export function FinancePage() {
             </CardContent>
           </Card>
         </Grid>
-        
+
         <Grid item xs={12} sm={6} md={3}>
           <Card>
             <CardContent>
-              <Box display="flex" alignItems="center" justifyContent="space-between">
+              <Box
+                display="flex"
+                alignItems="center"
+                justifyContent="space-between"
+              >
                 <Box>
                   <Typography color="text.secondary" gutterBottom>
                     Просрочено
@@ -185,7 +218,9 @@ export function FinancePage() {
             <Select
               value={filterStatus}
               label="Статус счета"
-              onChange={(e) => setFilterStatus(e.target.value as Invoice['status'] | 'all')}
+              onChange={(e) =>
+                setFilterStatus(e.target.value as Invoice["status"] | "all")
+              }
             >
               <MenuItem value="all">Все статусы</MenuItem>
               {Object.entries(invoiceStatusLabels).map(([value, label]) => (
@@ -195,7 +230,7 @@ export function FinancePage() {
               ))}
             </Select>
           </FormControl>
-          
+
           <Button variant="contained" color="primary">
             Создать счет
           </Button>
@@ -240,18 +275,22 @@ export function FinancePage() {
                   />
                 </TableCell>
                 <TableCell>
-                  {dayjs(invoice.createdAt).format('DD.MM.YYYY')}
+                  {dayjs(invoice.createdAt).format("DD.MM.YYYY")}
                 </TableCell>
                 <TableCell>
                   <Typography
-                    color={invoice.status === 'overdue' ? 'error' : 'inherit'}
-                    fontWeight={invoice.status === 'overdue' ? 'bold' : 'normal'}
+                    color={invoice.status === "overdue" ? "error" : "inherit"}
+                    fontWeight={
+                      invoice.status === "overdue" ? "bold" : "normal"
+                    }
                   >
-                    {dayjs(invoice.dueDate).format('DD.MM.YYYY')}
+                    {dayjs(invoice.dueDate).format("DD.MM.YYYY")}
                   </Typography>
                 </TableCell>
                 <TableCell>
-                  {invoice.paidAt ? dayjs(invoice.paidAt).format('DD.MM.YYYY') : '-'}
+                  {invoice.paidAt
+                    ? dayjs(invoice.paidAt).format("DD.MM.YYYY")
+                    : "-"}
                 </TableCell>
               </TableRow>
             ))}

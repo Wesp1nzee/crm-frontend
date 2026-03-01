@@ -1,5 +1,8 @@
-export type ClientType = 'legal' | 'individual' | 'court';
-export type ContactType = 'legal_representative' | 'court_officer' | 'individual';
+export type ClientType = "legal" | "individual" | "court";
+export type ContactType =
+  | "legal_representative"
+  | "court_officer"
+  | "individual";
 
 // ===== КОНТАКТЫ =====
 export interface ContactBase {

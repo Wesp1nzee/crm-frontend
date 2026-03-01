@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Typography,
@@ -6,14 +6,17 @@ import {
   Button,
   Popover,
   Paper,
-} from '@mui/material';
+} from "@mui/material";
+import { ChevronLeft, ChevronRight, Today } from "@mui/icons-material";
 import {
-  ChevronLeft,
-  ChevronRight,
-  Today,
-} from '@mui/icons-material';
-import { format, addDays, subDays, isToday, startOfDay, differenceInMinutes } from 'date-fns';
-import { ru } from 'date-fns/locale';
+  format,
+  addDays,
+  subDays,
+  isToday,
+  startOfDay,
+  differenceInMinutes,
+} from "date-fns";
+import { ru } from "date-fns/locale";
 
 interface Case {
   id: string;
@@ -23,39 +26,39 @@ interface Case {
   expertName: string;
   inspectionDate: string;
   inspectionEndDate: string;
-  status: 'inspection' | 'deadline' | 'court';
+  status: "inspection" | "deadline" | "court";
 }
 
 const mockCases: Case[] = [
   {
-    id: '1',
-    caseNumber: 'ЭКС-2024-001',
-    title: 'Осмотр жилого здания',
-    objectAddress: 'г. Москва, ул. Тверская, д. 1',
-    expertName: 'Петров П.П.',
-    inspectionDate: `${format(new Date(), 'yyyy-MM-dd')}T10:00:00`,
-    inspectionEndDate: `${format(new Date(), 'yyyy-MM-dd')}T12:00:00`,
-    status: 'inspection',
+    id: "1",
+    caseNumber: "ЭКС-2024-001",
+    title: "Осмотр жилого здания",
+    objectAddress: "г. Москва, ул. Тверская, д. 1",
+    expertName: "Петров П.П.",
+    inspectionDate: `${format(new Date(), "yyyy-MM-dd")}T10:00:00`,
+    inspectionEndDate: `${format(new Date(), "yyyy-MM-dd")}T12:00:00`,
+    status: "inspection",
   },
   {
-    id: '2',
-    caseNumber: 'ЭКС-2024-002',
-    title: 'Срок подачи документов',
-    objectAddress: 'г. Москва, Красная площадь, д. 1',
-    expertName: 'Сидорова А.И.',
-    inspectionDate: `${format(new Date(), 'yyyy-MM-dd')}T14:30:00`,
-    inspectionEndDate: `${format(new Date(), 'yyyy-MM-dd')}T15:00:00`,
-    status: 'deadline',
+    id: "2",
+    caseNumber: "ЭКС-2024-002",
+    title: "Срок подачи документов",
+    objectAddress: "г. Москва, Красная площадь, д. 1",
+    expertName: "Сидорова А.И.",
+    inspectionDate: `${format(new Date(), "yyyy-MM-dd")}T14:30:00`,
+    inspectionEndDate: `${format(new Date(), "yyyy-MM-dd")}T15:00:00`,
+    status: "deadline",
   },
   {
-    id: '3',
-    caseNumber: 'ЭКС-2024-003',
-    title: 'Судебное заседание',
-    objectAddress: 'МО, г. Подольск, ул. Промышленная, д. 15',
-    expertName: 'Петров П.П.',
-    inspectionDate: `${format(new Date(), 'yyyy-MM-dd')}T16:00:00`,
-    inspectionEndDate: `${format(new Date(), 'yyyy-MM-dd')}T17:30:00`,
-    status: 'court',
+    id: "3",
+    caseNumber: "ЭКС-2024-003",
+    title: "Судебное заседание",
+    objectAddress: "МО, г. Подольск, ул. Промышленная, д. 15",
+    expertName: "Петров П.П.",
+    inspectionDate: `${format(new Date(), "yyyy-MM-dd")}T16:00:00`,
+    inspectionEndDate: `${format(new Date(), "yyyy-MM-dd")}T17:30:00`,
+    status: "court",
   },
 ];
 
@@ -63,12 +66,16 @@ const HOUR_HEIGHT = 60;
 const START_HOUR = 8;
 const END_HOUR = 22;
 
-const getEventColor = (status: Case['status']) => {
+const getEventColor = (status: Case["status"]) => {
   switch (status) {
-    case 'inspection': return '#1976d2';
-    case 'deadline': return '#d32f2f';
-    case 'court': return '#2e7d32';
-    default: return '#757575';
+    case "inspection":
+      return "#1976d2";
+    case "deadline":
+      return "#d32f2f";
+    case "court":
+      return "#2e7d32";
+    default:
+      return "#757575";
   }
 };
 
@@ -78,10 +85,10 @@ const calculateEventPosition = (startTime: string, endTime: string) => {
   const startMinutes = start.getHours() * 60 + start.getMinutes();
   const endMinutes = end.getHours() * 60 + end.getMinutes();
   const baseMinutes = START_HOUR * 60;
-  
+
   const top = ((startMinutes - baseMinutes) / 60) * HOUR_HEIGHT;
   const height = ((endMinutes - startMinutes) / 60) * HOUR_HEIGHT;
-  
+
   return { top, height };
 };
 
@@ -94,7 +101,9 @@ const getCurrentTimePosition = () => {
 
 export function DailyCalendar() {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentTimePosition, setCurrentTimePosition] = useState(getCurrentTimePosition());
+  const [currentTimePosition, setCurrentTimePosition] = useState(
+    getCurrentTimePosition(),
+  );
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null);
   const [selectedCase, setSelectedCase] = useState<Case | null>(null);
   const gridRef = useRef<HTMLDivElement>(null);
@@ -106,8 +115,10 @@ export function DailyCalendar() {
     return () => clearInterval(interval);
   }, []);
 
-  const todayCases = mockCases.filter(case_ => 
-    format(new Date(case_.inspectionDate), 'yyyy-MM-dd') === format(currentDate, 'yyyy-MM-dd')
+  const todayCases = mockCases.filter(
+    (case_) =>
+      format(new Date(case_.inspectionDate), "yyyy-MM-dd") ===
+      format(currentDate, "yyyy-MM-dd"),
   );
 
   const handleGridClick = (e: React.MouseEvent) => {
@@ -116,7 +127,9 @@ export function DailyCalendar() {
       const y = e.clientY - rect.top;
       const hour = Math.floor(y / HOUR_HEIGHT) + START_HOUR;
       const minutes = Math.round(((y % HOUR_HEIGHT) / HOUR_HEIGHT) * 60);
-      console.log(`Clicked time: ${hour.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`);
+      console.log(
+        `Clicked time: ${hour.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}`,
+      );
     }
   };
 
@@ -126,12 +139,20 @@ export function DailyCalendar() {
     setPopoverAnchor(e.currentTarget as HTMLElement);
   };
 
-  const hours = Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i);
+  const hours = Array.from(
+    { length: END_HOUR - START_HOUR },
+    (_, i) => START_HOUR + i,
+  );
 
   return (
     <Box>
       {/* Header */}
-      <Box display="flex" alignItems="center" justifyContent="space-between" mb={2}>
+      <Box
+        display="flex"
+        alignItems="center"
+        justifyContent="space-between"
+        mb={2}
+      >
         <Box display="flex" alignItems="center" gap={1}>
           <IconButton onClick={() => setCurrentDate(subDays(currentDate, 1))}>
             <ChevronLeft />
@@ -148,28 +169,31 @@ export function DailyCalendar() {
           </Button>
         </Box>
         <Typography variant="h6">
-          {format(currentDate, 'd MMMM, EEEE', { locale: ru })}
+          {format(currentDate, "d MMMM, EEEE", { locale: ru })}
         </Typography>
       </Box>
 
       {/* Calendar Grid */}
-      <Box display="flex" sx={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT + 20 }}>
+      <Box
+        display="flex"
+        sx={{ height: (END_HOUR - START_HOUR) * HOUR_HEIGHT + 20 }}
+      >
         {/* Time Column */}
         <Box sx={{ width: 60, flexShrink: 0 }}>
-          {hours.map(hour => (
+          {hours.map((hour) => (
             <Box
               key={hour}
               sx={{
                 height: HOUR_HEIGHT,
-                display: 'flex',
-                alignItems: 'flex-start',
-                justifyContent: 'flex-end',
+                display: "flex",
+                alignItems: "flex-start",
+                justifyContent: "flex-end",
                 pr: 1,
                 pt: 0.5,
               }}
             >
               <Typography variant="caption" color="text.secondary">
-                {hour.toString().padStart(2, '0')}:00
+                {hour.toString().padStart(2, "0")}:00
               </Typography>
             </Box>
           ))}
@@ -181,10 +205,10 @@ export function DailyCalendar() {
           onClick={handleGridClick}
           sx={{
             flex: 1,
-            position: 'relative',
-            borderLeft: '1px solid',
-            borderColor: 'divider',
-            cursor: 'pointer',
+            position: "relative",
+            borderLeft: "1px solid",
+            borderColor: "divider",
+            cursor: "pointer",
           }}
         >
           {/* Hour Lines */}
@@ -192,12 +216,12 @@ export function DailyCalendar() {
             <Box
               key={hour}
               sx={{
-                position: 'absolute',
+                position: "absolute",
                 top: index * HOUR_HEIGHT,
                 left: 0,
                 right: 0,
                 height: 1,
-                bgcolor: 'divider',
+                bgcolor: "divider",
               }}
             />
           ))}
@@ -206,48 +230,51 @@ export function DailyCalendar() {
           {isToday(currentDate) && (
             <Box
               sx={{
-                position: 'absolute',
+                position: "absolute",
                 top: currentTimePosition,
                 left: -6,
                 right: 0,
                 height: 2,
-                bgcolor: 'error.main',
+                bgcolor: "error.main",
                 zIndex: 10,
-                '&::before': {
+                "&::before": {
                   content: '""',
-                  position: 'absolute',
+                  position: "absolute",
                   left: -4,
                   top: -4,
                   width: 10,
                   height: 10,
-                  bgcolor: 'error.main',
-                  borderRadius: '50%',
+                  bgcolor: "error.main",
+                  borderRadius: "50%",
                 },
               }}
             />
           )}
 
           {/* Events */}
-          {todayCases.map(case_ => {
-            const { top, height } = calculateEventPosition(case_.inspectionDate, case_.inspectionEndDate);
+          {todayCases.map((case_) => {
+            const { top, height } = calculateEventPosition(
+              case_.inspectionDate,
+              case_.inspectionEndDate,
+            );
             return (
               <Box
                 key={case_.id}
                 onClick={(e) => handleEventClick(e, case_)}
                 sx={{
-                  position: 'absolute',
+                  position: "absolute",
                   top,
                   left: 8,
                   right: 8,
                   height,
-                  bgcolor: 'background.paper',
+                  bgcolor: "background.paper",
                   border: `3px solid ${getEventColor(case_.status)}`,
                   borderRadius: 1,
                   p: 1,
-                  cursor: 'pointer',
+                  cursor: "pointer",
                   boxShadow: 1,
                   zIndex: 5,
-                  '&:hover': {
+                  "&:hover": {
                     boxShadow: 2,
                   },
                 }}
@@ -256,7 +283,8 @@ export function DailyCalendar() {
                   {case_.title}
                 </Typography>
                 <Typography variant="caption" color="text.secondary" noWrap>
-                  {format(new Date(case_.inspectionDate), 'HH:mm')} - {format(new Date(case_.inspectionEndDate), 'HH:mm')}
+                  {format(new Date(case_.inspectionDate), "HH:mm")} -{" "}
+                  {format(new Date(case_.inspectionEndDate), "HH:mm")}
                 </Typography>
               </Box>
             );
@@ -272,8 +300,8 @@ export function DailyCalendar() {
           setPopoverAnchor(null);
           setSelectedCase(null);
         }}
-        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        anchorOrigin={{ vertical: "top", horizontal: "left" }}
+        transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         {selectedCase && (
           <Paper sx={{ p: 2, minWidth: 250 }}>
@@ -287,7 +315,9 @@ export function DailyCalendar() {
               <strong>Эксперт:</strong> {selectedCase.expertName}
             </Typography>
             <Typography variant="body2">
-              <strong>Время:</strong> {format(new Date(selectedCase.inspectionDate), 'HH:mm')} - {format(new Date(selectedCase.inspectionEndDate), 'HH:mm')}
+              <strong>Время:</strong>{" "}
+              {format(new Date(selectedCase.inspectionDate), "HH:mm")} -{" "}
+              {format(new Date(selectedCase.inspectionEndDate), "HH:mm")}
             </Typography>
           </Paper>
         )}

@@ -1,5 +1,5 @@
 // src/pages/cases/CaseListPage.tsx
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -24,7 +24,7 @@ import {
   Stack,
   Fade,
   Avatar,
-} from '@mui/material';
+} from "@mui/material";
 import {
   Add as AddIcon,
   Delete as DeleteIcon,
@@ -32,27 +32,29 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
   Person as PersonIcon,
-} from '@mui/icons-material';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import dayjs from 'dayjs';
-import { useCases, useCreateCase, useDeleteCase } from '../../shared/hooks/useCases';
-import type { CaseStatus, GetCasesQuery } from '../../entities/case/types';
-import { CreateCaseDialog } from './CreateCaseDialog';
-import { CaseFilters } from './CaseFilters';
-import { notificationService } from '../../shared/services/notifications';
-import { PaginationControls } from '../../shared/ui/PaginationControls';
-
+} from "@mui/icons-material";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import dayjs from "dayjs";
+import {
+  useCases,
+  useCreateCase,
+  useDeleteCase,
+} from "../../shared/hooks/useCases";
+import type { CaseStatus, GetCasesQuery } from "../../entities/case/types";
+import { CreateCaseDialog } from "./CreateCaseDialog";
+import { CaseFilters } from "./CaseFilters";
+import { notificationService } from "../../shared/services/notifications";
+import { PaginationControls } from "../../shared/ui/PaginationControls";
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
-  archive: 'Архив',
-  in_work: 'В работе',
-  debt: 'Долг',
-  executed: 'Выполнено',
-  withdrawn: 'Отозвано',
-  cancelled: 'Отменено',
-  fssp: 'ФССП',
+  archive: "Архив",
+  in_work: "В работе",
+  debt: "Долг",
+  executed: "Выполнено",
+  withdrawn: "Отозвано",
+  cancelled: "Отменено",
+  fssp: "ФССП",
 };
-
 
 export function CaseListPage() {
   const navigate = useNavigate();
@@ -60,27 +62,26 @@ export function CaseListPage() {
   const [filters, setFilters] = useState<GetCasesQuery>({
     page: 1,
     limit: 20,
-    sort_field: 'created_at',
-    sort_order: 'desc',
+    sort_field: "created_at",
+    sort_order: "desc",
   });
 
   useEffect(() => {
-    const clientId = searchParams.get('client');
+    const clientId = searchParams.get("client");
     if (clientId) {
-      console.log('Setting client filter:', clientId);
-      setFilters(prev => ({ ...prev, client_id: clientId }));
+      console.log("Setting client filter:", clientId);
+      setFilters((prev) => ({ ...prev, client_id: clientId }));
     }
   }, [searchParams]);
-  
+
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingCaseId, setDeletingCaseId] = useState<string>('');
+  const [deletingCaseId, setDeletingCaseId] = useState<string>("");
 
   const { data: casesResponse, isLoading, error, refetch } = useCases(filters);
-  
+
   const createCase = useCreateCase();
   const deleteCase = useDeleteCase();
-
 
   const cases = casesResponse?.data || [];
   const totalCases = casesResponse?.pagination?.total || 0;
@@ -90,14 +91,20 @@ export function CaseListPage() {
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
-  const handleCreateSubmit = async (formData: Parameters<typeof createCase.mutateAsync>[0]) => {
+  const handleCreateSubmit = async (
+    formData: Parameters<typeof createCase.mutateAsync>[0],
+  ) => {
     try {
       await createCase.mutateAsync(formData);
-      notificationService.success(`Дело "${formData.case_number}" успешно создано`);
+      notificationService.success(
+        `Дело "${formData.case_number}" успешно создано`,
+      );
       setCreateDialogOpen(false);
       refetch();
     } catch (err: any) {
-      notificationService.error(err.response?.data?.detail || 'Ошибка создания дела');
+      notificationService.error(
+        err.response?.data?.detail || "Ошибка создания дела",
+      );
     }
   };
 
@@ -107,12 +114,14 @@ export function CaseListPage() {
     if (!deletingCaseId) return;
     try {
       await deleteCase.mutateAsync(deletingCaseId);
-      notificationService.success('Дело успешно удалено');
+      notificationService.success("Дело успешно удалено");
       setDeleteDialogOpen(false);
-      setDeletingCaseId('');
+      setDeletingCaseId("");
       refetch();
     } catch (err: any) {
-      notificationService.error(err.response?.data?.detail || 'Ошибка удаления дела');
+      notificationService.error(
+        err.response?.data?.detail || "Ошибка удаления дела",
+      );
     }
   };
 
@@ -127,12 +136,15 @@ export function CaseListPage() {
 
   const handleCloseDeleteDialog = () => {
     setDeleteDialogOpen(false);
-    setDeletingCaseId('');
+    setDeletingCaseId("");
   };
 
   // ── Pagination handlers ──────────────────────────────────────────────────
   const handlePrevPage = () => {
-    setFilters((prev) => ({ ...prev, page: Math.max((prev.page || 1) - 1, 1) }));
+    setFilters((prev) => ({
+      ...prev,
+      page: Math.max((prev.page || 1) - 1, 1),
+    }));
   };
 
   const handleNextPage = () => {
@@ -147,7 +159,12 @@ export function CaseListPage() {
 
   if (isLoading) {
     return (
-      <Box display="flex" justifyContent="center" alignItems="center" minHeight="400px">
+      <Box
+        display="flex"
+        justifyContent="center"
+        alignItems="center"
+        minHeight="400px"
+      >
         <CircularProgress size={60} />
       </Box>
     );
@@ -166,7 +183,12 @@ export function CaseListPage() {
   return (
     <Box sx={{ p: 3 }}>
       {/* Header */}
-      <Box display="flex" justifyContent="space-between" alignItems="center" mb={3}>
+      <Box
+        display="flex"
+        justifyContent="space-between"
+        alignItems="center"
+        mb={3}
+      >
         <Box>
           <Typography variant="h4" component="h1" gutterBottom>
             Дела
@@ -190,11 +212,19 @@ export function CaseListPage() {
       <CaseFilters filters={filters} onFiltersChange={setFilters} />
 
       {/* Table */}
-      <Card elevation={0} sx={{ border: 1, borderColor: 'divider', borderRadius: 4 }}>
+      <Card
+        elevation={0}
+        sx={{ border: 1, borderColor: "divider", borderRadius: 4 }}
+      >
         <TableContainer>
-          <Table sx={{ '& th:first-of-type, & td:first-of-type': { pl: 4 }, '& th:last-of-type, & td:last-of-type': { pr: 4 } }}>
+          <Table
+            sx={{
+              "& th:first-of-type, & td:first-of-type": { pl: 4 },
+              "& th:last-of-type, & td:last-of-type": { pr: 4 },
+            }}
+          >
             <TableHead>
-              <TableRow sx={{ backgroundColor: 'background.paper' }}>
+              <TableRow sx={{ backgroundColor: "background.paper" }}>
                 <TableCell width="5%">№</TableCell>
                 <TableCell width="15%">Номер дела</TableCell>
                 <TableCell width="15%">Суд / Орган</TableCell>
@@ -215,10 +245,11 @@ export function CaseListPage() {
                   hover
                   onClick={() => handleOpenDetail(case_.id)}
                   sx={{
-                    cursor: 'pointer',
-                    '&:hover': { backgroundColor: 'action.hover' },
-                    transition: 'background-color 0.15s ease',
-                    backgroundColor: index % 2 ? 'rgba(0,0,0,0.02)' : 'transparent',
+                    cursor: "pointer",
+                    "&:hover": { backgroundColor: "action.hover" },
+                    transition: "background-color 0.15s ease",
+                    backgroundColor:
+                      index % 2 ? "rgba(0,0,0,0.02)" : "transparent",
                   }}
                 >
                   <TableCell>
@@ -244,7 +275,11 @@ export function CaseListPage() {
                       <Typography
                         variant="body2"
                         noWrap
-                        sx={{ maxWidth: '200px', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        sx={{
+                          maxWidth: "200px",
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                        }}
                       >
                         {case_.object_address}
                       </Typography>
@@ -257,19 +292,28 @@ export function CaseListPage() {
                       variant="filled"
                       sx={{
                         fontWeight: 600,
-                        fontSize: '0.75rem',
+                        fontSize: "0.75rem",
                         height: 24,
                         bgcolor:
-                          case_.status === 'executed' ? 'rgba(34,197,94,0.14)' :
-                          case_.status === 'debt' ? 'rgba(245,158,11,0.14)' :
-                          case_.status === 'cancelled' ? 'rgba(239,68,68,0.14)' :
-                          case_.status === 'in_work' ? 'rgba(79,144,255,0.14)' :
-                          'rgba(120,120,120,0.12)',
+                          case_.status === "executed"
+                            ? "rgba(34,197,94,0.14)"
+                            : case_.status === "debt"
+                              ? "rgba(245,158,11,0.14)"
+                              : case_.status === "cancelled"
+                                ? "rgba(239,68,68,0.14)"
+                                : case_.status === "in_work"
+                                  ? "rgba(79,144,255,0.14)"
+                                  : "rgba(120,120,120,0.12)",
                         color:
-                          case_.status === 'executed' ? 'success.dark' :
-                          case_.status === 'debt' ? 'warning.dark' :
-                          case_.status === 'cancelled' ? 'error.dark' :
-                          case_.status === 'in_work' ? 'primary.dark' : 'text.secondary',
+                          case_.status === "executed"
+                            ? "success.dark"
+                            : case_.status === "debt"
+                              ? "warning.dark"
+                              : case_.status === "cancelled"
+                                ? "error.dark"
+                                : case_.status === "in_work"
+                                  ? "primary.dark"
+                                  : "text.secondary",
                       }}
                     />
                   </TableCell>
@@ -277,26 +321,34 @@ export function CaseListPage() {
                     <Typography
                       variant="body2"
                       sx={{
-                        color: dayjs(case_.deadline).isBefore(dayjs(), 'day')
-                          ? 'error.main'
-                          : 'text.primary',
-                        fontWeight: dayjs(case_.deadline).isBefore(dayjs(), 'day')
-                          ? 'medium'
-                          : 'regular',
+                        color: dayjs(case_.deadline).isBefore(dayjs(), "day")
+                          ? "error.main"
+                          : "text.primary",
+                        fontWeight: dayjs(case_.deadline).isBefore(
+                          dayjs(),
+                          "day",
+                        )
+                          ? "medium"
+                          : "regular",
                       }}
                     >
-                      {dayjs(case_.deadline).format('DD.MM.YYYY')}
+                      {dayjs(case_.deadline).format("DD.MM.YYYY")}
                     </Typography>
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2" fontWeight="medium">
-                      {new Intl.NumberFormat('ru-RU').format(Number(case_.cost))} ₽
+                      {new Intl.NumberFormat("ru-RU").format(
+                        Number(case_.cost),
+                      )}{" "}
+                      ₽
                     </Typography>
                   </TableCell>
                   <TableCell>
                     {case_.assigned_expert ? (
                       <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar sx={{ width: 24, height: 24, fontSize: '0.75rem' }}>
+                        <Avatar
+                          sx={{ width: 24, height: 24, fontSize: "0.75rem" }}
+                        >
                           {case_.assigned_expert.full_name.charAt(0)}
                         </Avatar>
                         <Typography variant="body2" noWrap>
@@ -321,7 +373,9 @@ export function CaseListPage() {
                             e.stopPropagation();
                             handleOpenDetail(case_.id);
                           }}
-                          sx={{ '&:hover': { backgroundColor: 'action.hover' } }}
+                          sx={{
+                            "&:hover": { backgroundColor: "action.hover" },
+                          }}
                         >
                           <VisibilityIcon fontSize="small" />
                         </IconButton>
@@ -334,10 +388,10 @@ export function CaseListPage() {
                             handleOpenDelete(case_.id);
                           }}
                           sx={{
-                            color: 'text.secondary',
-                            '&:hover': {
-                              backgroundColor: 'action.hover',
-                              color: 'text.primary',
+                            color: "text.secondary",
+                            "&:hover": {
+                              backgroundColor: "action.hover",
+                              color: "text.primary",
                             },
                           }}
                         >
@@ -352,18 +406,23 @@ export function CaseListPage() {
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
                     <Stack spacing={2} alignItems="center">
-                      <Box sx={{
-                        width: 88,
-                        height: 88,
-                        borderRadius: 6,
-                        background: 'linear-gradient(160deg, rgba(79,144,255,0.3), rgba(255,255,255,0.75))',
-                        border: '1px solid rgba(255,255,255,0.9)',
-                        backdropFilter: 'blur(10px)',
-                        display: 'grid',
-                        placeItems: 'center',
-                        boxShadow: '0 14px 30px rgba(79,144,255,0.18)',
-                      }}>
-                        <InfoIcon sx={{ color: 'primary.main', fontSize: 40 }} />
+                      <Box
+                        sx={{
+                          width: 88,
+                          height: 88,
+                          borderRadius: 6,
+                          background:
+                            "linear-gradient(160deg, rgba(79,144,255,0.3), rgba(255,255,255,0.75))",
+                          border: "1px solid rgba(255,255,255,0.9)",
+                          backdropFilter: "blur(10px)",
+                          display: "grid",
+                          placeItems: "center",
+                          boxShadow: "0 14px 30px rgba(79,144,255,0.18)",
+                        }}
+                      >
+                        <InfoIcon
+                          sx={{ color: "primary.main", fontSize: 40 }}
+                        />
                       </Box>
                       <Typography variant="h6" color="text.secondary">
                         Нет данных
@@ -412,20 +471,20 @@ export function CaseListPage() {
         transitionDuration={200}
         PaperProps={{
           sx: {
-            borderRadius: '16px',
-            boxShadow: '0 24px 48px -12px rgba(0,0,0,0.18)',
-            overflow: 'hidden',
+            borderRadius: "16px",
+            boxShadow: "0 24px 48px -12px rgba(0,0,0,0.18)",
+            overflow: "hidden",
           },
         }}
       >
         <DialogTitle
           sx={{
             pb: 2,
-            display: 'flex',
-            alignItems: 'center',
+            display: "flex",
+            alignItems: "center",
             gap: 1,
-            bgcolor: 'error.light',
-            color: 'error.contrastText',
+            bgcolor: "error.light",
+            color: "error.contrastText",
           }}
         >
           <WarningIcon />
@@ -436,17 +495,24 @@ export function CaseListPage() {
             <Alert
               severity="warning"
               icon={<WarningIcon />}
-              sx={{ bgcolor: 'warning.light', color: 'warning.contrastText', border: 'none' }}
+              sx={{
+                bgcolor: "warning.light",
+                color: "warning.contrastText",
+                border: "none",
+              }}
             >
-              Вы уверены, что хотите удалить это дело? Это действие нельзя отменить.
+              Вы уверены, что хотите удалить это дело? Это действие нельзя
+              отменить.
             </Alert>
             <Typography variant="body2" color="text.secondary">
-              После удаления все связанные данные будут безвозвратно потеряны. Убедитесь, что вы
-              сохранили все необходимые документы.
+              После удаления все связанные данные будут безвозвратно потеряны.
+              Убедитесь, что вы сохранили все необходимые документы.
             </Typography>
           </Stack>
         </DialogContent>
-        <DialogActions sx={{ p: 3, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+        <DialogActions
+          sx={{ p: 3, pt: 2, borderTop: 1, borderColor: "divider" }}
+        >
           <Button
             onClick={handleCloseDeleteDialog}
             variant="outlined"
@@ -469,12 +535,11 @@ export function CaseListPage() {
                 Удаление...
               </>
             ) : (
-              'Удалить'
+              "Удалить"
             )}
           </Button>
         </DialogActions>
       </Dialog>
-
     </Box>
   );
 }

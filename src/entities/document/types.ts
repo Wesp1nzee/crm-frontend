@@ -1,4 +1,4 @@
-export type EntryType = 'folder' | 'file';
+export type EntryType = "folder" | "file";
 
 export interface FolderBase {
   name: string;
@@ -74,7 +74,7 @@ export interface DocumentsListParams {
   case_id?: string | null;
   search?: string;
   sort_by?: string;
-  order?: 'asc' | 'desc';
+  order?: "asc" | "desc";
   page?: number;
   limit?: number;
 }
@@ -99,17 +99,18 @@ export interface FolderDownloadRequest extends DownloadProgressOptions {
   folderId: string;
 }
 
-export interface BulkAssetsDownloadRequest extends BulkAssetsRequest, DownloadProgressOptions {}
+export interface BulkAssetsDownloadRequest
+  extends BulkAssetsRequest, DownloadProgressOptions {}
 
 export interface AssetUpdateRequest {
   asset_id: string;
-  asset_type: 'file' | 'folder';
+  asset_type: "file" | "folder";
   data: {
     // Для файлов:
     title?: string;
     case_id?: string | null;
     folder_id?: string | null;
-    
+
     // Для папок:
     name?: string;
     parent_id?: string | null;
