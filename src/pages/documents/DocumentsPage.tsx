@@ -56,6 +56,7 @@ import {
   Share,
   Group,
   Link as LinkIcon,
+  MoveToInbox,
 } from "@mui/icons-material";
 import DOMPurify from "dompurify";
 import dayjs from "dayjs";
@@ -82,7 +83,6 @@ import { PaginationControls } from "../../shared/ui/PaginationControls";
 import { usePermissions } from "../../shared/hooks/usePermissions";
 import { usersApi } from "../../entities/user/api";
 import { useCreateLinkShare, useCreateUserShare, useRevokeShare, useShareResource } from "../../shared/hooks/useShare";
-import { shareApi } from "../../entities/share/api";
 import type { UserRead } from "../../entities/user/types";
 
 type SortField = "name" | "size" | "created_at" | "created_by";
@@ -226,7 +226,6 @@ export function DocumentsPage() {
   const [expiresAt, setExpiresAt] = useState("");
   const [shareMessage, setShareMessage] = useState("");
   const [publicLink, setPublicLink] = useState<string | null>(null);
-  const [shareIndicators, setShareIndicators] = useState<Record<string, { recipients: number; links: number }>>({});
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -349,6 +348,13 @@ export function DocumentsPage() {
   const isCaseBoundFolder = (entry: FileSystemEntry) =>
     entry.type === "folder" && Boolean(entry.case_id);
 
+
+  const isOwnedResource = (entry: FileSystemEntry) => entry.share_info !== null;
+
+  const hasShareInfo = (entry: FileSystemEntry) =>
+    (entry.share_info?.recipient_count ?? 0) > 0 ||
+    (entry.share_info?.public_link_count ?? 0) > 0;
+
   const clearSelection = useCallback(() => {
     setSelectedEntryIds([]);
     setSelectionAnchorId(null);
@@ -421,24 +427,6 @@ export function DocumentsPage() {
       shareResourceQuery.refetch();
     } catch {
       // noop
-    }
-  };
-
-  const loadShareIndicator = async (entry: FileSystemEntry) => {
-    if (shareIndicators[entry.id]) return;
-    try {
-      const data = await (entry.type === "folder"
-        ? shareApi.getResourceShares({ folder_id: entry.id })
-        : shareApi.getResourceShares({ document_id: entry.id }));
-      setShareIndicators((prev) => ({
-        ...prev,
-        [entry.id]: {
-          recipients: data.recipients?.length ?? 0,
-          links: data.public_links?.length ?? 0,
-        },
-      }));
-    } catch {
-      // ignore
     }
   };
 
@@ -1718,6 +1706,7 @@ export function DocumentsPage() {
                       Имя
                     </TableSortLabel>
                   </TableCell>
+                  <TableCell sx={{ width: 130 }}>Передан</TableCell>
                   <TableCell sx={{ width: 110 }}>
                     <TableSortLabel
                       active={sortField === "size"}
@@ -1765,6 +1754,9 @@ export function DocumentsPage() {
                           <Skeleton variant="text" width="30%" />
                         </TableCell>
                         <TableCell>
+                          <Skeleton variant="text" width="45%" />
+                        </TableCell>
+                        <TableCell>
                           <Skeleton variant="text" width="50%" />
                         </TableCell>
                         <TableCell>
@@ -1797,10 +1789,7 @@ export function DocumentsPage() {
                             onDragLeave={handleRowDragLeave}
                             onDragOver={handleRowDragOver}
                             onDrop={(e) => handleRowDrop(e, entry)}
-                            onMouseEnter={() => {
-                              setHoveredEntryId(entry.id);
-                              loadShareIndicator(entry);
-                            }}
+                            onMouseEnter={() => setHoveredEntryId(entry.id)}
                             onMouseLeave={() =>
                               setHoveredEntryId((prev) =>
                                 prev === entry.id ? null : prev,
@@ -1977,6 +1966,50 @@ export function DocumentsPage() {
                               </Box>
                             </TableCell>
                             <TableCell>
+                              {!isOwnedResource(entry) ? (
+                                <Chip
+                                  size="small"
+                                  color="info"
+                                  icon={<MoveToInbox />}
+                                  label="Передано вам"
+                                  variant="outlined"
+                                />
+                              ) : hasShareInfo(entry) ? (
+                                <Stack
+                                  direction="row"
+                                  spacing={0.5}
+                                  alignItems="center"
+                                  sx={{ cursor: "pointer" }}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    setShareEntry(entry);
+                                    setShareInfoOpen(true);
+                                  }}
+                                >
+                                  {(entry.share_info?.recipient_count ?? 0) > 0 && (
+                                    <Tooltip title="Передано сотрудникам">
+                                      <Chip
+                                        size="small"
+                                        icon={<Group sx={{ fontSize: 14 }} />}
+                                        label={entry.share_info?.recipient_count}
+                                      />
+                                    </Tooltip>
+                                  )}
+                                  {(entry.share_info?.public_link_count ?? 0) > 0 && (
+                                    <Tooltip title="Публичные ссылки">
+                                      <Chip
+                                        size="small"
+                                        icon={<LinkIcon sx={{ fontSize: 14 }} />}
+                                        label={entry.share_info?.public_link_count}
+                                      />
+                                    </Tooltip>
+                                  )}
+                                </Stack>
+                              ) : (
+                                <Typography variant="body2" color="text.disabled">—</Typography>
+                              )}
+                            </TableCell>
+                            <TableCell>
                               <Typography
                                 variant="body2"
                                 color="text.secondary"
@@ -2011,32 +2044,6 @@ export function DocumentsPage() {
                               </Box>
                             </TableCell>
                             <TableCell align="right" sx={{ pr: 1.5 }}>
-                              {canShare && (
-                                <IconButton
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    openShareDialog(entry);
-                                  }}
-                                  size="small"
-                                >
-                                  <Share fontSize="small" />
-                                </IconButton>
-                              )}
-                              {shareIndicators[entry.id] &&
-                                (shareIndicators[entry.id].recipients > 0 || shareIndicators[entry.id].links > 0) && (
-                                  <IconButton
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      setShareEntry(entry);
-                                      setShareInfoOpen(true);
-                                    }}
-                                    size="small"
-                                  >
-                                    <Tooltip title="Уже передан">
-                                      <Group fontSize="small" color="primary" />
-                                    </Tooltip>
-                                  </IconButton>
-                                )}
                               <IconButton
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2102,6 +2109,25 @@ export function DocumentsPage() {
             <MenuItem onClick={handleMenuEdit}>
               <Edit sx={{ mr: 1 }} />
               Редактировать
+            </MenuItem>
+          )}
+          {selectedEntryIds.length <= 1 && menuEntry && isOwnedResource(menuEntry) && canShare && (
+            <MenuItem onClick={() => {
+              openShareDialog(menuEntry);
+              handleMenuClose();
+            }}>
+              <Share sx={{ mr: 1 }} />
+              Поделиться
+            </MenuItem>
+          )}
+          {selectedEntryIds.length <= 1 && menuEntry && isOwnedResource(menuEntry) && hasShareInfo(menuEntry) && (
+            <MenuItem onClick={() => {
+              setShareEntry(menuEntry);
+              setShareInfoOpen(true);
+              handleMenuClose();
+            }}>
+              <Group sx={{ mr: 1 }} />
+              Кому передан
             </MenuItem>
           )}
           {(menuEntry?.type === "file" || selectedEntryIds.length > 1) && (
