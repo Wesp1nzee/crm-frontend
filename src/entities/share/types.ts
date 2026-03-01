@@ -22,9 +22,13 @@ export interface ShareLinkPayload {
 }
 
 export interface ShareBatch {
-  batch_id: string;
+  id?: string;
+  batch_id?: string;
   recipient_name?: string | null;
   recipient_email?: string | null;
+  full_name?: string | null;
+  email?: string | null;
+  user_id?: string | null;
   permission_level?: PermissionLevel;
   can_download: boolean;
   created_at: string;
@@ -32,6 +36,8 @@ export interface ShareBatch {
   is_public_link?: boolean;
   has_password?: boolean;
   link_url?: string;
+  url?: string;
+  share_token?: string | null;
   current_views?: number;
   current_downloads?: number;
 }

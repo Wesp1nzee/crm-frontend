@@ -31,7 +31,6 @@ import {
   Stack,
   Tabs,
   Tab,
-  Drawer,
   List,
   ListItem,
   ListItemText,
@@ -321,6 +320,18 @@ export function DocumentsPage() {
     Boolean(shareEntry),
   );
 
+  const getShareBatchId = (batch: { id?: string | null; batch_id?: string | null }) =>
+    (typeof batch.batch_id === "string" && batch.batch_id) ||
+    (typeof batch.id === "string" && batch.id) ||
+    "";
+
+  const getShareLinkUrl = (link: { link_url?: string | null; url?: string | null; share_token?: string | null }) => {
+    if (link.link_url) return link.link_url;
+    if (link.url) return link.url;
+    if (link.share_token) return `${window.location.origin}/share/${link.share_token}`;
+    return "";
+  };
+
   const sanitizedEntries = useMemo(
     () =>
       entriesArray.filter((entry) => entry.id && !entry.id.startsWith("__")),
@@ -429,7 +440,7 @@ export function DocumentsPage() {
         expires_at: expiresAt ? dayjs(expiresAt).toISOString() : null,
         message: shareMessage || null,
       });
-      setPublicLink(created?.link_url ?? created?.url ?? null);
+      setPublicLink(getShareLinkUrl(created) || null);
       shareResourceQuery.refetch();
     } catch {
       // noop
@@ -2245,15 +2256,15 @@ export function DocumentsPage() {
               <Button variant="contained" onClick={handleCreatePublicLink} disabled={createLinkShare.isPending}>
                 Создать ссылку
               </Button>
-              {(publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url) && (
+              {(publicLink || getShareLinkUrl(shareResourceQuery.data?.public_links?.[0] ?? {})) && (
                 <Paper variant="outlined" sx={{ p: 2 }}>
                   <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
                     <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
                       <LinkIcon sx={{ verticalAlign: "middle", mr: 1, fontSize: 16 }} />
-                      {publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url}
+                      {publicLink || getShareLinkUrl(shareResourceQuery.data?.public_links?.[0] ?? {})}
                     </Typography>
                     <Button
-                      onClick={() => navigator.clipboard.writeText(publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url || "")}
+                      onClick={() => navigator.clipboard.writeText(publicLink || getShareLinkUrl(shareResourceQuery.data?.public_links?.[0] ?? {}) || "")}
                     >
                       Копировать
                     </Button>
@@ -2273,45 +2284,45 @@ export function DocumentsPage() {
         </DialogActions>
       </Dialog>
 
-      <Drawer
-        anchor="right"
-        open={shareInfoOpen}
-        onClose={() => setShareInfoOpen(false)}
-        PaperProps={{
-          sx: {
-            mt: { xs: 64, sm: 72 },
-            height: { xs: "calc(100% - 64px)", sm: "calc(100% - 72px)" },
-          },
-        }}
-      >
-        <Box sx={{ width: 420, p: 2 }}>
-          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
-            Кому передан: {shareEntry?.name}
-          </Typography>
+      <Dialog open={shareInfoOpen} onClose={() => setShareInfoOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Кому передан: {shareEntry?.name}</DialogTitle>
+        <DialogContent dividers>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Сотрудники</Typography>
           <List>
-            {(shareResourceQuery.data?.recipients ?? []).map((recipient) => {
+            {(shareResourceQuery.data?.recipients ?? []).map((recipient, index) => {
+              const recipientBatchId = getShareBatchId(recipient);
               const expireSoon = recipient.expires_at && dayjs(recipient.expires_at).diff(dayjs(), "day") <= 3;
               return (
-                <ListItem key={recipient.batch_id} secondaryAction={<Button color="error" onClick={() => revokeShare.mutate(recipient.batch_id)}>Отозвать</Button>}>
+                <ListItem
+                  key={recipientBatchId || recipient.user_id || `recipient-${index}`}
+                  secondaryAction={
+                    <Button
+                      color="error"
+                      disabled={!recipientBatchId}
+                      onClick={() => recipientBatchId && revokeShare.mutate(recipientBatchId)}
+                    >
+                      Отозвать
+                    </Button>
+                  }
+                >
                   <ListItemText
-                    primary={recipient.recipient_name || recipient.recipient_email || "Сотрудник"}
+                    primary={recipient.full_name || recipient.recipient_name || recipient.email || recipient.recipient_email || "Сотрудник"}
                     secondary={`${recipient.permission_level === "edit" ? "Редактирование" : "Просмотр"} · Скачивание ${recipient.can_download ? "✓" : "✗"}${expireSoon ? " ⚠️" : ""}`}
                   />
                 </ListItem>
               );
             })}
           </List>
+
           <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Публичные ссылки</Typography>
           <List>
             {(shareResourceQuery.data?.public_links ?? []).map((link, index) => {
-              const linkBatchId = typeof link.batch_id === "string" ? link.batch_id : "";
-              const linkLabel =
-                link.link_url ||
-                `Ссылка ${linkBatchId.length > 0 ? linkBatchId.slice(0, 6) : index + 1}`;
+              const linkBatchId = getShareBatchId(link);
+              const linkUrl = getShareLinkUrl(link);
+              const linkLabel = linkUrl || `Ссылка ${linkBatchId.length > 0 ? linkBatchId.slice(0, 6) : index + 1}`;
               return (
                 <ListItem
-                  key={linkBatchId || link.link_url || `public-link-${index}`}
+                  key={linkBatchId || linkUrl || `public-link-${index}`}
                   secondaryAction={
                     <Button color="error" disabled={!linkBatchId} onClick={() => linkBatchId && revokeShare.mutate(linkBatchId)}>
                       Отозвать
@@ -2326,13 +2337,16 @@ export function DocumentsPage() {
               );
             })}
           </List>
+        </DialogContent>
+        <DialogActions>
           {canShare && shareEntry && (
-            <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }}>
+            <Button variant="contained" onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }}>
               + Добавить получателя
             </Button>
           )}
-        </Box>
-      </Drawer>
+          <Button onClick={() => setShareInfoOpen(false)}>Закрыть</Button>
+        </DialogActions>
+      </Dialog>
 
       {/* Скрытый input для выбора файлов */}
       <input
