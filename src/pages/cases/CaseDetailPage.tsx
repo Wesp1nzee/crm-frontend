@@ -91,6 +91,46 @@ const formatFileSize = (bytes: number) => {
   return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+
+const isSystemOrTempFile = (file: File) => {
+  const relativePath = file.webkitRelativePath || file.name;
+  const fileName = relativePath.split('/').pop() || file.name;
+  const lowerName = fileName.toLowerCase();
+  const pathParts = relativePath.split('/').map((part) => part.toLowerCase());
+
+  return (
+    fileName.startsWith('~$') ||
+    fileName.startsWith('._') ||
+    fileName.startsWith('~') ||
+    lowerName === '.ds_store' ||
+    lowerName === 'thumbs.db' ||
+    lowerName === 'desktop.ini' ||
+    pathParts.includes('__macosx')
+  );
+};
+
+const walkDirectoryHandle = async (directoryHandle: FileSystemDirectoryHandle, parentPath = ''): Promise<File[]> => {
+  const basePath = parentPath ? `${parentPath}/${directoryHandle.name}` : directoryHandle.name;
+  const files: File[] = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${basePath}/${file.name}`,
+        writable: false,
+      });
+      files.push(file);
+      continue;
+    }
+
+    files.push(...await walkDirectoryHandle(entry, basePath));
+  }
+
+  return files;
+};
+
+
 const getFileIcon = (filename: string) => {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   switch (ext) {
@@ -317,6 +357,10 @@ export function CaseDetailPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState('');
   const [isFolderUploadInProgress, setIsFolderUploadInProgress] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadLabel, setDownloadLabel] = useState('');
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
   const [selectedExpert, setSelectedExpert] = useState<{ id: string; name: string } | null>(null);
@@ -361,6 +405,21 @@ export function CaseDetailPage() {
   const assigned_experts = caseData?.assigned_experts ?? [];
   const documents = caseData?.documents ?? [];
   const folders = caseData?.folders ?? [];
+
+  const buildFolderPathQuery = useCallback((targetFolderId: string) => {
+    const folderById = new Map(folders.map((folder) => [folder.id, folder]));
+    const chain: Array<{ id: string; name: string }> = [];
+
+    let currentId: string | undefined = targetFolderId;
+    while (currentId) {
+      const currentFolder = folderById.get(currentId);
+      if (!currentFolder) break;
+      chain.unshift({ id: currentFolder.id, name: currentFolder.name });
+      currentId = currentFolder.parent_id;
+    }
+
+    return encodeURIComponent(JSON.stringify(chain));
+  }, [folders]);
   const events = caseData?.events ?? [];
 
   const costNum = Number(case_?.cost) || 0;
@@ -371,14 +430,18 @@ export function CaseDetailPage() {
   const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
 
   const uploadFilesAndFolders = useCallback(async (files: File[]) => {
-    if (files.length === 0) return;
+    const validFiles = files.filter((file) => !isSystemOrTempFile(file));
+    if (validFiles.length === 0) {
+      notificationService.warning('Нет подходящих файлов для загрузки');
+      return;
+    }
 
     setIsFolderUploadInProgress(true);
 
     try {
       const folderPaths = new Set<string>();
 
-      files.forEach((file) => {
+      validFiles.forEach((file) => {
         const relativePath = file.webkitRelativePath || file.name;
         const pathParts = relativePath.split('/').slice(0, -1);
 
@@ -405,29 +468,60 @@ export function CaseDetailPage() {
         folderIdByPath.set(folderPath, createdFolder.id);
       }
 
-      for (const file of files) {
-        const relativePath = file.webkitRelativePath || file.name;
-        const folderPath = relativePath.split('/').slice(0, -1).join('/');
-        const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+      const totalFiles = validFiles.length;
+      const maxConcurrency = Math.min(4, totalFiles);
+      const progressByFile = new Map<number, number>();
+      validFiles.forEach((_, index) => progressByFile.set(index, 0));
 
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: folderId,
-          case_id: folderId ? null : caseData?.case?.id,
-          title: uploadTitle || file.name,
-        });
-      }
+      const updateOverallProgress = () => {
+        const total = Array.from(progressByFile.values()).reduce((sum, value) => sum + value, 0);
+        setUploadProgress(Math.round(total / totalFiles));
+      };
 
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < totalFiles) {
+          const fileIndex = nextIndex;
+          nextIndex += 1;
+
+          const file = validFiles[fileIndex];
+          const relativePath = file.webkitRelativePath || file.name;
+          const folderPath = relativePath.split('/').slice(0, -1).join('/');
+          const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : null;
+
+          setUploadingFileName(file.name);
+
+          await uploadDocument.mutateAsync({
+            file,
+            folder_id: folderId,
+            case_id: folderId ? null : caseData?.case?.id,
+            title: uploadTitle || file.name,
+            onUploadProgress: (fileProgress) => {
+              progressByFile.set(fileIndex, fileProgress);
+              updateOverallProgress();
+            },
+          });
+
+          progressByFile.set(fileIndex, 100);
+          updateOverallProgress();
+        }
+      };
+
+      await Promise.all(Array.from({ length: maxConcurrency }, () => worker()));
+
+      setUploadProgress(100);
       setSelectedFiles([]);
       setUploadTitle('');
       setUploadDialogOpen(false);
       await refetch();
-      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${files.length} файлов`);
+      notificationService.success(`Успешно загружено: ${sortedFolders.length} папок и ${validFiles.length} файлов`);
     } catch (error) {
       console.error('Ошибка загрузки файлов и папок:', error);
       notificationService.error('Ошибка загрузки файлов и папок');
     } finally {
       setIsFolderUploadInProgress(false);
+      setUploadingFileName('');
+      setTimeout(() => setUploadProgress(0), 500);
     }
   }, [caseData?.case?.id, createFolder, refetch, uploadDocument, uploadTitle]);
 
@@ -462,7 +556,8 @@ export function CaseDetailPage() {
       setIsDragActive(false);
 
       const droppedFiles = await extractDroppedFiles(event.dataTransfer);
-      await uploadFilesAndFolders(droppedFiles);
+      const filteredDroppedFiles = droppedFiles.filter((file) => !isSystemOrTempFile(file));
+      await uploadFilesAndFolders(filteredDroppedFiles);
     };
 
     window.addEventListener('dragenter', handleDragEnter);
@@ -593,7 +688,8 @@ export function CaseDetailPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
     }
     e.target.value = '';
   };
@@ -601,9 +697,39 @@ export function CaseDetailPage() {
   const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles((prev) => [...prev, ...files]);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
     }
     e.target.value = '';
+  };
+
+  const handleSelectFolders = async () => {
+    const pickerWindow = window as Window & {
+      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
+    };
+
+    if (!pickerWindow.showDirectoryPicker) {
+      folderInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const selected = await pickerWindow.showDirectoryPicker({ mode: 'read', multiple: true });
+      const handles = Array.isArray(selected) ? selected : [selected];
+      const fileGroups = await Promise.all(handles.map((handle) => walkDirectoryHandle(handle)));
+      const files = fileGroups.flat().filter((file) => !isSystemOrTempFile(file));
+
+      if (files.length === 0) {
+        notificationService.warning('Нет подходящих файлов для загрузки');
+        return;
+      }
+
+      setSelectedFiles((prev) => [...prev, ...files]);
+      setUploadDialogOpen(true);
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') return;
+      notificationService.error('Не удалось выбрать папки');
+    }
   };
 
   const readDirectoryEntries = (directoryEntry: FileSystemDirectoryEntryWebkit): Promise<FileSystemEntryWebkit[]> => {
@@ -685,7 +811,20 @@ export function CaseDetailPage() {
   };
 
   const handleDownload = (documentId: string) => {
-    downloadDocument.mutate(documentId);
+    setDownloadLabel('Скачивание файла');
+    setDownloadProgress(0);
+
+    downloadDocument.mutate({
+      documentId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handlePreview = (documentId: string) => {
@@ -1135,7 +1274,21 @@ export function CaseDetailPage() {
                   <Tooltip title="Скачать все документы">
                     <IconButton 
                       size="small"
-                      onClick={() => downloadCaseDocuments.mutate(case_.id)}
+                      onClick={() => {
+                        setDownloadLabel('Скачивание документов дела (ZIP)');
+                        setDownloadProgress(0);
+                        downloadCaseDocuments.mutate({
+                          caseId: case_.id,
+                          onDownloadProgress: (progress) => setDownloadProgress(progress),
+                        }, {
+                          onSettled: () => {
+                            setTimeout(() => {
+                              setDownloadProgress(0);
+                              setDownloadLabel('');
+                            }, 500);
+                          },
+                        });
+                      }}
                     >
                       <FileDownload />
                     </IconButton>
@@ -1145,6 +1298,15 @@ export function CaseDetailPage() {
               sx={{ pb: 0 }}
             />
               <CardContent sx={{ p: 0 }}>
+                {(downloadDocument.isPending || downloadCaseDocuments.isPending) && (
+                  <Box sx={{ px: 2, pt: 1 }}>
+                    <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">{downloadLabel || 'Скачивание'}</Typography>
+                      <Typography variant="caption" fontWeight={700}>{downloadProgress}%</Typography>
+                    </Box>
+                    <LinearProgress variant="determinate" value={downloadProgress} />
+                  </Box>
+                )}
                 {folders.length === 0 && documents.length === 0 ? (
                   <Box sx={{ p: 4, textAlign: 'center' }}>
                     <Description sx={{ fontSize: 48, color: 'action.disabled', mb: 2 }} />
@@ -1171,12 +1333,14 @@ export function CaseDetailPage() {
                         sx={{
                           px: 2,
                           py: 1.5,
+                          cursor: 'pointer',
                           '&:hover': {
                             bgcolor: theme.palette.mode === 'dark'
                               ? 'rgba(255, 255, 255, 0.08)'
                               : 'rgba(0, 0, 0, 0.04)'
                           }
                         }}
+                        onClick={() => navigate(`/crm/documents?folderId=${folder.id}&folderName=${encodeURIComponent(folder.name)}&folderPath=${buildFolderPathQuery(folder.id)}`)}
                       >
                         <ListItemAvatar>
                           <Avatar
@@ -1689,13 +1853,22 @@ export function CaseDetailPage() {
       >
         <DialogTitle>Загрузка файлов и папок</DialogTitle>
         <DialogContent>
+          {isFolderUploadInProgress && (
+            <Box sx={{ mt: 1 }}>
+              <Box sx={{ display: 'flex', justifyContent: 'space-between', mb: 0.5 }}>
+                <Typography variant="body2" color="text.secondary">Загружается: {uploadingFileName || 'файл'}</Typography>
+                <Typography variant="body2" fontWeight={700}>{uploadProgress}%</Typography>
+              </Box>
+              <LinearProgress variant="determinate" value={uploadProgress} sx={{ mb: 2 }} />
+            </Box>
+          )}
           <Box sx={{ mt: 1 }}>
             <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
               <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
                 Выбрать файлы
               </Button>
-              <Button variant="outlined" onClick={() => folderInputRef.current?.click()}>
-                Выбрать папку
+              <Button variant="outlined" onClick={() => void handleSelectFolders()}>
+                Выбрать папку(и)
               </Button>
             </Box>
             {selectedFiles.length > 0 && (

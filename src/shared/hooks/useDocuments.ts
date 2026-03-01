@@ -3,13 +3,19 @@ import { documentsApi } from '../../entities/document/api';
 import { casesApi } from '../../entities/case/api';
 import type {
   DocumentsListParams,
+  PaginatedResponse,
+  FileSystemEntry,
   FolderCreate,
   DocumentUploadData,
   AssetUpdateRequest,
+  DocumentDownloadRequest,
+  FolderDownloadRequest,
+  BulkAssetsDownloadRequest,
 } from '../../entities/document/types';
+import type { CaseSuggestion } from '../../entities/case/types';
 
 export const useDocuments = (params?: DocumentsListParams) => {
-  return useQuery({
+  return useQuery<PaginatedResponse<FileSystemEntry>>({
     queryKey: ['documents', params],
     queryFn: () => documentsApi.getDocuments(params),
   });
@@ -39,10 +45,7 @@ export const useUploadDocument = () => {
 
 export const useDownloadDocument = () => {
   return useMutation({
-    mutationFn: (documentId: string) => documentsApi.getDownloadUrl(documentId),
-    onSuccess: (data) => {
-      window.open(data.download_url, '_blank');
-    },
+    mutationFn: (payload: DocumentDownloadRequest) => documentsApi.downloadDocument(payload),
   });
 };
 
@@ -57,7 +60,7 @@ export const usePreviewDocument = () => {
 
 export const useDownloadFolder = () => {
   return useMutation({
-    mutationFn: (folderId: string) => documentsApi.downloadFolder(folderId),
+    mutationFn: (payload: FolderDownloadRequest) => documentsApi.downloadFolder(payload),
   });
 };
 
@@ -84,7 +87,7 @@ export const useDeleteFolder = () => {
 };
 
 export const useCaseSuggestions = (query: string) => {
-  return useQuery({
+  return useQuery<CaseSuggestion[]>({
     queryKey: ['cases', 'suggest', query],
     queryFn: () => casesApi.getSuggestions(query),
     enabled: query.length > 0,
@@ -105,7 +108,7 @@ export const useUpdateAsset = () => {
 
 export const useDownloadBulkAssets = () => {
   return useMutation({
-    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) => documentsApi.downloadBulk(payload),
+    mutationFn: (payload: BulkAssetsDownloadRequest) => documentsApi.downloadBulk(payload),
   });
 };
 

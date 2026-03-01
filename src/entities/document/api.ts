@@ -6,14 +6,18 @@ import type {
   DocumentResponse,
   DocumentDownloadUrl,
   DocumentsListParams,
+  PaginatedResponse,
   DocumentUploadData,
   AssetUpdateRequest,
+  DocumentDownloadRequest,
+  FolderDownloadRequest,
+  BulkAssetsDownloadRequest,
   BulkAssetsRequest,
 } from './types';
 
 export const documentsApi = {
   // Получить список файлов и папок
-  getDocuments: async (params?: DocumentsListParams): Promise<FileSystemEntry[]> => {
+  getDocuments: async (params?: DocumentsListParams): Promise<PaginatedResponse<FileSystemEntry>> => {
     const { data } = await api.get('/documents', { params });
     return data;
   },
@@ -43,8 +47,39 @@ export const documentsApi = {
       headers: {
         'Content-Type': 'multipart/form-data',
       },
+      onUploadProgress: (progressEvent) => {
+        if (!uploadData.onUploadProgress || !progressEvent.total) return;
+        const progress = Math.min(100, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+        uploadData.onUploadProgress(progress);
+      },
     });
     return data;
+  },
+
+
+  // Скачать документ (blob) с отслеживанием прогресса
+  downloadDocument: async ({ documentId, onDownloadProgress }: DocumentDownloadRequest): Promise<void> => {
+    const response = await api.get(`/documents/${documentId}/download`, {
+      responseType: 'blob',
+      onDownloadProgress: (progressEvent) => {
+        if (!onDownloadProgress || !progressEvent.total) return;
+        const progress = Math.min(100, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+        onDownloadProgress(progress);
+      },
+    });
+
+    const contentDisposition = response.headers?.['content-disposition'] as string | undefined;
+    const fileNameMatch = contentDisposition?.match(/filename\*?=(?:UTF-8''|")?([^";]+)/i);
+    const fileName = fileNameMatch?.[1] ? decodeURIComponent(fileNameMatch[1].replace(/"/g, '')) : `document_${documentId}`;
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
   },
 
   // Получить ссылку на скачивание
@@ -70,9 +105,14 @@ export const documentsApi = {
   },
 
   // Скачать папку как ZIP
-  downloadFolder: async (folderId: string): Promise<void> => {
+  downloadFolder: async ({ folderId, onDownloadProgress }: FolderDownloadRequest): Promise<void> => {
     const response = await api.get(`/documents/folders/${folderId}/download`, {
       responseType: 'blob',
+      onDownloadProgress: (progressEvent) => {
+        if (!onDownloadProgress || !progressEvent.total) return;
+        const progress = Math.min(100, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+        onDownloadProgress(progress);
+      },
     });
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');
@@ -90,9 +130,14 @@ export const documentsApi = {
     return data;
   },
 
-  downloadBulk: async (payload: BulkAssetsRequest): Promise<void> => {
-    const response = await api.post('/documents/download-bulk', payload, {
+  downloadBulk: async ({ folder_ids, document_ids, onDownloadProgress }: BulkAssetsDownloadRequest): Promise<void> => {
+    const response = await api.post('/documents/download-bulk', { folder_ids, document_ids }, {
       responseType: 'blob',
+      onDownloadProgress: (progressEvent) => {
+        if (!onDownloadProgress || !progressEvent.total) return;
+        const progress = Math.min(100, Math.round((progressEvent.loaded * 100) / progressEvent.total));
+        onDownloadProgress(progress);
+      },
     });
     const url = window.URL.createObjectURL(new Blob([response.data]));
     const link = document.createElement('a');

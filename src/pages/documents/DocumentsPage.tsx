@@ -18,6 +18,7 @@ import {
   MenuItem,
   CircularProgress,
   Alert,
+  LinearProgress,
   Chip,
   Menu,
   IconButton,
@@ -42,9 +43,11 @@ import {
   Person,
   Visibility,
   Edit,
+  OpenInNew,
 } from '@mui/icons-material';
 import DOMPurify from 'dompurify';
 import dayjs from 'dayjs';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   useCreateFolder,
   useUploadDocument,
@@ -82,6 +85,46 @@ const fileIcons: Record<string, JSX.Element> = {
 };
 
 const sanitizeAndRender = (str: string) => DOMPurify.sanitize(str);
+
+
+const isSystemOrTempFile = (file: File) => {
+  const relativePath = file.webkitRelativePath || file.name;
+  const fileName = relativePath.split('/').pop() || file.name;
+  const lowerName = fileName.toLowerCase();
+  const pathParts = relativePath.split('/').map((part) => part.toLowerCase());
+
+  return (
+    fileName.startsWith('~$') ||
+    fileName.startsWith('._') ||
+    fileName.startsWith('~') ||
+    lowerName === '.ds_store' ||
+    lowerName === 'thumbs.db' ||
+    lowerName === 'desktop.ini' ||
+    pathParts.includes('__macosx')
+  );
+};
+
+const walkDirectoryHandle = async (directoryHandle: FileSystemDirectoryHandle, parentPath = ''): Promise<File[]> => {
+  const basePath = parentPath ? `${parentPath}/${directoryHandle.name}` : directoryHandle.name;
+  const files: File[] = [];
+
+  for await (const entry of directoryHandle.values()) {
+    if (entry.kind === 'file') {
+      const file = await entry.getFile();
+      Object.defineProperty(file, 'webkitRelativePath', {
+        value: `${basePath}/${file.name}`,
+        writable: false,
+      });
+      files.push(file);
+      continue;
+    }
+
+    files.push(...await walkDirectoryHandle(entry, basePath));
+  }
+
+  return files;
+};
+
 
 const actionButtonSx = {
   textTransform: 'none',
@@ -125,6 +168,11 @@ export function DocumentsPage() {
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [dragOverTable, setDragOverTable] = useState(false);
   const [dragOverUploadDialog, setDragOverUploadDialog] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadingFileName, setUploadingFileName] = useState('');
+  const [isUploading, setIsUploading] = useState(false);
+  const [downloadProgress, setDownloadProgress] = useState(0);
+  const [downloadingLabel, setDownloadingLabel] = useState('');
   const [draggedItemId, setDraggedItemId] = useState<string | null>(null);
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null);
   const [dragOverFolderPathIndex, setDragOverFolderPathIndex] = useState<number | null>(null);
@@ -135,26 +183,59 @@ export function DocumentsPage() {
   const [selectionBox, setSelectionBox] = useState<{ left: number; top: number; width: number; height: number } | null>(null);
   const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
   const tableAreaRef = useRef<HTMLDivElement>(null);
   const selectionStartRef = useRef<{ x: number; y: number } | null>(null);
   const selectionFrameEntriesRef = useRef<Array<{ id: string; left: number; right: number; top: number; bottom: number }>>([]);
   const selectionRafRef = useRef<number | null>(null);
   const rubberBandAdditiveRef = useRef(false);
 
-  const { data: entries, isLoading, error, refetch } = useDocuments({
+  const { data: documentsResponse, isLoading, error, refetch } = useDocuments({
     folder_id: currentFolderId,
     search: searchQuery || undefined,
+    page: page + 1,
     limit: rowsPerPage,
-    offset: page * rowsPerPage,
     sort_by: sortField,
     order: sortOrder,
   });
 
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
 
-  const entriesArray = Array.isArray(entries) ? entries : [];
-  const total = entriesArray.length === rowsPerPage ? (page + 1) * rowsPerPage + 1 : page * rowsPerPage + entriesArray.length;
+  useEffect(() => {
+    const folderIdFromQuery = searchParams.get('folderId');
+    if (!folderIdFromQuery) return;
+
+    const folderNameFromQuery = searchParams.get('folderName') || 'Папка';
+    const folderPathFromQuery = searchParams.get('folderPath');
+
+    let resolvedPath: Array<{ id: string | null; name: string }> = [
+      { id: null, name: 'Корень' },
+      { id: folderIdFromQuery, name: folderNameFromQuery },
+    ];
+
+    if (folderPathFromQuery) {
+      try {
+        const parsedPath = JSON.parse(decodeURIComponent(folderPathFromQuery)) as Array<{ id: string; name: string }>;
+        if (Array.isArray(parsedPath) && parsedPath.length > 0) {
+          resolvedPath = [{ id: null, name: 'Корень' }, ...parsedPath];
+        }
+      } catch {
+        // ignore invalid folderPath query
+      }
+    }
+
+    setCurrentFolderId(folderIdFromQuery);
+    setFolderPath(resolvedPath);
+    setPage(0);
+  }, [searchParams]);
+
+  const entriesArray = documentsResponse?.items ?? [];
+  const paginationMeta = documentsResponse?.meta;
+  const total = paginationMeta?.total_items ?? entriesArray.length;
 
   // Мутации
   const createFolder = useCreateFolder();
@@ -187,6 +268,8 @@ export function DocumentsPage() {
   const selectedFilesCount = selectedEntries.length - selectedFoldersCount;
   const isSelectionMode = selectedEntryIds.length > 0;
 
+  const isCaseBoundFolder = (entry: FileSystemEntry) => entry.type === 'folder' && Boolean(entry.case_id);
+
   const clearSelection = useCallback(() => {
     setSelectedEntryIds([]);
     setSelectionAnchorId(null);
@@ -212,19 +295,35 @@ export function DocumentsPage() {
   const handleBulkDownload = async () => {
     if (!selectedEntries.length) return;
     try {
+      setDownloadingLabel('Массовое скачивание (ZIP)');
+      setDownloadProgress(0);
+
       await downloadBulkAssets.mutateAsync({
         folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
         document_ids: selectedEntries.filter((entry) => entry.type === 'file').map((entry) => entry.id),
+        onDownloadProgress: (progress) => setDownloadProgress(progress),
       });
       notificationService.success(`Подготовлено к скачиванию: ${selectedEntries.length}`);
     } catch (error) {
       console.error('Ошибка массового скачивания:', error);
       notificationService.error('Не удалось скачать выбранные элементы');
+    } finally {
+      setTimeout(() => {
+        setDownloadProgress(0);
+        setDownloadingLabel('');
+      }, 500);
     }
   };
 
   const handleBulkDelete = async () => {
     if (!selectedEntries.length) return;
+
+    const hasCaseBoundFolders = selectedEntries.some(isCaseBoundFolder);
+    if (hasCaseBoundFolders) {
+      notificationService.warning('Папки, привязанные к делу, нельзя удалять');
+      return;
+    }
+
     try {
       await deleteBulkAssets.mutateAsync({
         folder_ids: selectedEntries.filter((entry) => entry.type === 'folder').map((entry) => entry.id),
@@ -419,42 +518,183 @@ export function DocumentsPage() {
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files.length > 0) {
       const files = Array.from(e.target.files);
-      setSelectedFiles(files);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles(filteredFiles);
       setUploadDialogOpen(true);
+    }
+  };
+
+  const handleFolderInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      const files = Array.from(e.target.files);
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+      setSelectedFiles(filteredFiles);
+      setUploadDialogOpen(true);
+    }
+  };
+
+  const handleSelectFolders = async () => {
+    const pickerWindow = window as Window & {
+      showDirectoryPicker?: (options?: { mode?: 'read' | 'readwrite'; multiple?: boolean }) => Promise<FileSystemDirectoryHandle | FileSystemDirectoryHandle[]>;
+    };
+
+    if (!pickerWindow.showDirectoryPicker) {
+      folderInputRef.current?.click();
+      return;
+    }
+
+    try {
+      const selected = await pickerWindow.showDirectoryPicker({ mode: 'read', multiple: true });
+      const handles = Array.isArray(selected) ? selected : [selected];
+      const fileGroups = await Promise.all(handles.map((handle) => walkDirectoryHandle(handle)));
+      const files = fileGroups.flat();
+      const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+
+      if (filteredFiles.length === 0) {
+        notificationService.warning('Нет подходящих файлов для загрузки');
+        return;
+      }
+
+      setSelectedFiles((prev) => [...prev, ...filteredFiles]);
+      setUploadDialogOpen(true);
+    } catch (error) {
+      if ((error as DOMException)?.name === 'AbortError') return;
+      notificationService.error('Не удалось выбрать папки');
     }
   };
 
   const handleUpload = async () => {
     if (selectedFiles.length === 0) return;
+
+    const files = selectedFiles.filter((file) => !isSystemOrTempFile(file));
+    if (files.length === 0) {
+      notificationService.warning('Нет подходящих файлов для загрузки');
+      return;
+    }
+
+    const totalFiles = files.length;
+    const maxConcurrency = Math.min(4, totalFiles);
+    const progressByFile = new Map<number, number>();
+    files.forEach((_, index) => progressByFile.set(index, 0));
+
+    const updateOverallProgress = () => {
+      const total = Array.from(progressByFile.values()).reduce((sum, value) => sum + value, 0);
+      setUploadProgress(Math.round(total / totalFiles));
+    };
+
     try {
-      for (const file of selectedFiles) {
-        await uploadDocument.mutateAsync({
-          file,
-          folder_id: currentFolderId,
-          case_id: selectedCase?.id || null,
-          title: uploadTitle || file.name,
+      setIsUploading(true);
+      setUploadProgress(0);
+
+      const folderPaths = new Set<string>();
+      files.forEach((file) => {
+        if (!file.webkitRelativePath) return;
+        const pathParts = file.webkitRelativePath.split('/').slice(0, -1);
+        for (let i = 1; i <= pathParts.length; i += 1) {
+          folderPaths.add(pathParts.slice(0, i).join('/'));
+        }
+      });
+
+      const folderIdByPath = new Map<string, string>();
+      const sortedFolders = Array.from(folderPaths).sort((a, b) => a.split('/').length - b.split('/').length);
+
+      for (const folderPath of sortedFolders) {
+        const pathParts = folderPath.split('/');
+        const folderName = pathParts[pathParts.length - 1];
+        const parentPath = pathParts.slice(0, -1).join('/');
+        const parentId = parentPath ? (folderIdByPath.get(parentPath) ?? null) : currentFolderId;
+
+        const createdFolder = await createFolder.mutateAsync({
+          name: folderName,
+          parent_id: parentId,
+          case_id: parentId ? null : (selectedCase?.id || null),
         });
+
+        folderIdByPath.set(folderPath, createdFolder.id);
       }
+
+      let nextIndex = 0;
+      const worker = async () => {
+        while (nextIndex < totalFiles) {
+          const fileIndex = nextIndex;
+          nextIndex += 1;
+          const file = files[fileIndex];
+
+          setUploadingFileName(file.name);
+
+          const relativePath = file.webkitRelativePath || file.name;
+          const folderPath = relativePath.split('/').slice(0, -1).join('/');
+          const folderId = folderPath ? (folderIdByPath.get(folderPath) ?? null) : currentFolderId;
+
+          await uploadDocument.mutateAsync({
+            file,
+            folder_id: folderId,
+            case_id: folderId ? null : (selectedCase?.id || null),
+            title: uploadTitle || file.name,
+            onUploadProgress: (fileProgress) => {
+              progressByFile.set(fileIndex, fileProgress);
+              updateOverallProgress();
+            },
+          });
+
+          progressByFile.set(fileIndex, 100);
+          updateOverallProgress();
+        }
+      };
+
+      await Promise.all(Array.from({ length: maxConcurrency }, () => worker()));
+
+      setUploadProgress(100);
       setUploadDialogOpen(false);
       setSelectedFiles([]);
       setUploadCaseId('');
       setUploadTitle('');
       setSelectedCase(null);
       setCaseSearchQuery('');
-      notificationService.success(`Успешно загружено файлов: ${selectedFiles.length}`);
+      notificationService.success(`Успешно загружено файлов: ${files.length}`);
       refetch();
     } catch (error) {
       console.error('Ошибка загрузки файлов:', error);
       notificationService.error('Ошибка загрузки файлов. Проверьте логи для подробностей.');
+    } finally {
+      setIsUploading(false);
+      setUploadingFileName('');
+      setTimeout(() => setUploadProgress(0), 500);
     }
   };
 
   const handleDownload = (documentId: string) => {
-    downloadDocument.mutate(documentId);
+    setDownloadingLabel('Скачивание файла');
+    setDownloadProgress(0);
+
+    downloadDocument.mutate({
+      documentId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadingLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handleDownloadFolder = (folderId: string) => {
-    downloadFolder.mutate(folderId);
+    setDownloadingLabel('Скачивание папки (ZIP)');
+    setDownloadProgress(0);
+
+    downloadFolder.mutate({
+      folderId,
+      onDownloadProgress: (progress) => setDownloadProgress(progress),
+    }, {
+      onSettled: () => {
+        setTimeout(() => {
+          setDownloadProgress(0);
+          setDownloadingLabel('');
+        }, 500);
+      },
+    });
   };
 
   const handlePreview = (documentId: string) => {
@@ -587,6 +827,12 @@ export function DocumentsPage() {
       });
 
       if (entryToDelete.type === 'folder') {
+        if (isCaseBoundFolder(entryToDelete)) {
+          notificationService.warning('Папка привязана к делу и не может быть удалена');
+          setDeleteConfirmOpen(false);
+          setEntryToDelete(null);
+          return;
+        }
         await deleteFolder.mutateAsync(entryToDelete.id);
       } else if (entryToDelete.type === 'file') {
         await deleteDocument.mutateAsync(entryToDelete.id);
@@ -613,6 +859,16 @@ export function DocumentsPage() {
   const handleSaveEdit = async (data: any) => {
     if (!entryToEdit) return;
     try {
+      if (
+        isCaseBoundFolder(entryToEdit) &&
+        entryToEdit.type === 'folder' &&
+        data.parent_id !== undefined &&
+        data.parent_id !== entryToEdit.parent_id
+      ) {
+        notificationService.warning('Папка привязана к делу и не может быть перемещена');
+        return;
+      }
+
       const updateData = {
         asset_id: entryToEdit.id,
         asset_type: entryToEdit.type,
@@ -641,6 +897,11 @@ export function DocumentsPage() {
   ) => {
     try {
       const draggedEntry = entriesArray.find((entry) => entry.id === assetId);
+      if (assetType === 'folder' && draggedEntry && isCaseBoundFolder(draggedEntry)) {
+        notificationService.warning('Папка привязана к делу и не может быть перемещена');
+        return;
+      }
+
       const fallbackName = assetName || draggedEntry?.name;
       const updateData = {
         asset_id: assetId,
@@ -1107,6 +1368,20 @@ export function DocumentsPage() {
           />
         )}
         <Paper sx={{ borderRadius: 2, overflow: 'hidden', position: 'relative' }}>
+          {(downloadFolder.isPending || downloadDocument.isPending || downloadBulkAssets.isPending) && (
+            <Box sx={{ px: 2, pt: 1 }}>
+              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Typography variant="caption" color="text.secondary">
+                  {downloadingLabel || 'Скачивание'}
+                </Typography>
+                <Typography variant="caption" fontWeight={700}>
+                  {downloadProgress}%
+                </Typography>
+              </Stack>
+              <LinearProgress variant="determinate" value={downloadProgress} />
+            </Box>
+          )}
+
           <TableContainer>
             <Table size="small">
               <TableHead sx={{ bgcolor: 'grey.50' }}>
@@ -1179,7 +1454,7 @@ export function DocumentsPage() {
                         </TableCell>
                       </TableRow>
                     ))
-                  : entries?.length === 0
+                  : entriesArray.length === 0
                   ? renderEmptyState()
                   : entriesArray.map((entry, index) => {
                       // Пропускаем искусственные записи
@@ -1275,7 +1550,7 @@ export function DocumentsPage() {
                             </Tooltip>
                           </TableCell>
                           <TableCell>
-                            <Box display="flex" alignItems="center" gap={1}>
+                            <Box display="flex" alignItems="center" gap={1} flexWrap="wrap">
                               <Typography
                                 variant="body2"
                                 fontWeight={entry.type === 'folder' ? 600 : 500}
@@ -1297,6 +1572,29 @@ export function DocumentsPage() {
                                   color="default"
                                   sx={{ fontSize: '0.68rem', height: 18, bgcolor: 'rgba(79,144,255,0.1)', border: 'none' }}
                                 />
+                              )}
+                              {isCaseBoundFolder(entry) && (
+                                <>
+                                  <Chip
+                                    label={`Привязано к делу${entry.case_number ? `: ${entry.case_number}` : ''}`}
+                                    size="small"
+                                    color="warning"
+                                    variant="outlined"
+                                  />
+                                  {entry.case_id && (
+                                    <Button
+                                      size="small"
+                                      variant="text"
+                                      endIcon={<OpenInNew fontSize="small" />}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        navigate(`/crm/cases/${entry.case_id}`);
+                                      }}
+                                    >
+                                      К делу
+                                    </Button>
+                                  )}
+                                </>
                               )}
                             </Box>
                           </TableCell>
@@ -1346,10 +1644,10 @@ export function DocumentsPage() {
           <Box sx={{ borderTop: '1px solid', borderColor: 'divider', px: 2, py: 1.5 }}>
             <PaginationControls
               currentPage={page + 1}
-              totalPages={entriesArray.length === rowsPerPage ? page + 2 : page + 1}
+              totalPages={paginationMeta?.total_pages || 1}
               totalItems={total}
-              hasPrev={page > 0}
-              hasNext={entriesArray.length === rowsPerPage}
+              hasPrev={paginationMeta?.has_prev ?? page > 0}
+              hasNext={paginationMeta?.has_next ?? false}
               limit={rowsPerPage}
               limitOptions={[10, 25, 50, 100]}
               onLimitChange={handleChangeRowsPerPage}
@@ -1443,6 +1741,14 @@ export function DocumentsPage() {
         ref={fileInputRef}
         onChange={handleFileInputChange}
         style={{ display: 'none' }}
+      />
+      <input
+        type="file"
+        multiple
+        ref={folderInputRef}
+        onChange={handleFolderInputChange}
+        style={{ display: 'none' }}
+        {...({ webkitdirectory: '', directory: '' } as Record<string, string>)}
       />
 
       {/* Диалог подтверждения удаления */}
@@ -1572,13 +1878,26 @@ export function DocumentsPage() {
         maxWidth="sm"
         fullWidth
       >
-        <DialogTitle>Загрузить файлы</DialogTitle>
+        <DialogTitle>Загрузить файлы и папки</DialogTitle>
         <DialogContent>
+          {isUploading && (
+            <Box sx={{ mt: 1, mb: 2 }}>
+              <Stack direction="row" justifyContent="space-between" sx={{ mb: 0.5 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Загружается: {uploadingFileName || 'файл'}
+                </Typography>
+                <Typography variant="body2" fontWeight={600}>
+                  {uploadProgress}%
+                </Typography>
+              </Stack>
+              <LinearProgress variant="determinate" value={uploadProgress} />
+            </Box>
+          )}
           <Box sx={{ mb: 3, mt: 1 }}>
             {selectedFiles.length > 0 && (
               <Box sx={{ mb: 3 }}>
                 <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                  Выбранные файлы ({selectedFiles.length}):
+                  Выбранные элементы ({selectedFiles.length}):
                 </Typography>
                 <Box sx={{ maxHeight: 200, overflow: 'auto' }}>
                   {selectedFiles.map((file, index) => (
@@ -1621,6 +1940,14 @@ export function DocumentsPage() {
               noOptionsText={caseSearchQuery.length === 0 ? "Введите номер дела" : "Дела не найдены"}
               sx={{ mb: 3 }}
             />
+            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+              <Button variant="outlined" onClick={() => fileInputRef.current?.click()}>
+                Выбрать файлы
+              </Button>
+              <Button variant="outlined" onClick={() => void handleSelectFolders()}>
+                Выбрать папку(и)
+              </Button>
+            </Stack>
             <Box
               sx={{
                 border: '2px dashed',
@@ -1652,7 +1979,8 @@ export function DocumentsPage() {
                 setDragOverUploadDialog(false);
                 if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
                   const files = Array.from(e.dataTransfer.files);
-                  setSelectedFiles(prev => [...prev, ...files]);
+                  const filteredFiles = files.filter((file) => !isSystemOrTempFile(file));
+                  setSelectedFiles(prev => [...prev, ...filteredFiles]);
                 }
               }}
               onClick={() => fileInputRef.current?.click()}
@@ -1660,8 +1988,8 @@ export function DocumentsPage() {
               <Upload sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
               <Typography variant="body1" fontWeight="medium" mb={1}>
                 {selectedFiles.length > 0
-                  ? `Добавить ещё файлов (${selectedFiles.length} выбрано)`
-                  : 'Перетащите файлы сюда или нажмите для выбора'}
+                  ? `Добавить ещё файлов или папок (${selectedFiles.length} выбрано)`
+                  : 'Перетащите файлы/папки сюда или нажмите для выбора'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Поддерживаются все типы файлов
@@ -1687,10 +2015,10 @@ export function DocumentsPage() {
           <Button
             variant="contained"
             onClick={handleUpload}
-            disabled={selectedFiles.length === 0 || uploadDocument.isPending}
+            disabled={selectedFiles.length === 0 || isUploading || createFolder.isPending}
             sx={actionButtonSx}
           >
-            {uploadDocument.isPending ? (
+            {isUploading ? (
               <CircularProgress size={20} />
             ) : (
               `Загрузить ${selectedFiles.length} файл(ов)`
