@@ -29,6 +29,15 @@ import {
   alpha,
   Checkbox,
   Stack,
+  Tabs,
+  Tab,
+  Drawer,
+  List,
+  ListItem,
+  ListItemText,
+  FormControlLabel,
+  RadioGroup,
+  Radio,
 } from "@mui/material";
 import {
   Delete,
@@ -44,6 +53,9 @@ import {
   Visibility,
   Edit,
   OpenInNew,
+  Share,
+  Group,
+  Link as LinkIcon,
 } from "@mui/icons-material";
 import DOMPurify from "dompurify";
 import dayjs from "dayjs";
@@ -67,6 +79,11 @@ import type { CaseSuggestion } from "../../entities/case/types";
 import { EditAssetDialog } from "../../shared/ui/EditAssetDialog";
 import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
+import { usePermissions } from "../../shared/hooks/usePermissions";
+import { usersApi } from "../../entities/user/api";
+import { useCreateLinkShare, useCreateUserShare, useRevokeShare, useShareResource } from "../../shared/hooks/useShare";
+import { shareApi } from "../../entities/share/api";
+import type { UserRead } from "../../entities/user/types";
 
 type SortField = "name" | "size" | "created_at" | "created_by";
 type SortOrder = "asc" | "desc";
@@ -197,6 +214,19 @@ export function DocumentsPage() {
   } | null>(null);
   const [isRubberBandSelecting, setIsRubberBandSelecting] = useState(false);
 
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [shareInfoOpen, setShareInfoOpen] = useState(false);
+  const [shareEntry, setShareEntry] = useState<FileSystemEntry | null>(null);
+  const [shareTab, setShareTab] = useState(0);
+  const [recipientQuery, setRecipientQuery] = useState("");
+  const [recipientOptions, setRecipientOptions] = useState<UserRead[]>([]);
+  const [selectedRecipients, setSelectedRecipients] = useState<UserRead[]>([]);
+  const [permissionLevel, setPermissionLevel] = useState<"view" | "edit">("view");
+  const [canDownloadShare, setCanDownloadShare] = useState(true);
+  const [expiresAt, setExpiresAt] = useState("");
+  const [shareMessage, setShareMessage] = useState("");
+  const [publicLink, setPublicLink] = useState<string | null>(null);
+  const [shareIndicators, setShareIndicators] = useState<Record<string, { recipients: number; links: number }>>({});
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
@@ -278,6 +308,20 @@ export function DocumentsPage() {
   const downloadBulkAssets = useDownloadBulkAssets();
   const deleteBulkAssets = useDeleteBulkAssets();
 
+  const { user } = usePermissions();
+  const canShare = user?.role !== "expert";
+  const createUserShare = useCreateUserShare();
+  const createLinkShare = useCreateLinkShare();
+  const revokeShare = useRevokeShare();
+  const shareResourceQuery = useShareResource(
+    shareEntry
+      ? shareEntry.type === "folder"
+        ? { folder_id: shareEntry.id }
+        : { document_id: shareEntry.id }
+      : {},
+    Boolean(shareEntry),
+  );
+
   const sanitizedEntries = useMemo(
     () =>
       entriesArray.filter((entry) => entry.id && !entry.id.startsWith("__")),
@@ -309,6 +353,94 @@ export function DocumentsPage() {
     setSelectedEntryIds([]);
     setSelectionAnchorId(null);
   }, []);
+
+  useEffect(() => {
+    const loadUsers = async () => {
+      if (!recipientQuery.trim()) {
+        setRecipientOptions([]);
+        return;
+      }
+      try {
+        const response = await usersApi.getUsers({ search: recipientQuery, limit: 10 });
+        const payload = response.data;
+        setRecipientOptions(Array.isArray(payload) ? payload : payload.items);
+      } catch {
+        setRecipientOptions([]);
+      }
+    };
+
+    const id = window.setTimeout(loadUsers, 250);
+    return () => window.clearTimeout(id);
+  }, [recipientQuery]);
+
+  const openShareDialog = (entry: FileSystemEntry, tabIndex = 0) => {
+    setShareEntry(entry);
+    setShareTab(tabIndex);
+    setShareDialogOpen(true);
+  };
+
+  const handleSubmitUserShare = async () => {
+    if (!shareEntry || selectedRecipients.length === 0) return;
+
+    const resource =
+      shareEntry.type === "folder"
+        ? { folder_id: shareEntry.id, permission_level: permissionLevel, can_download: canDownloadShare }
+        : { document_id: shareEntry.id, permission_level: permissionLevel, can_download: canDownloadShare };
+
+    try {
+      await createUserShare.mutateAsync({
+        shared_with_user_ids: selectedRecipients.map((recipient) => recipient.id),
+        resources: [resource],
+        expires_at: expiresAt ? dayjs(expiresAt).toISOString() : null,
+        message: shareMessage || null,
+      });
+      notificationService.success(`Доступ передан ${selectedRecipients.length} сотрудникам`);
+      setShareDialogOpen(false);
+      setSelectedRecipients([]);
+      shareResourceQuery.refetch();
+    } catch {
+      // handled by interceptor
+    }
+  };
+
+  const handleCreatePublicLink = async () => {
+    if (!shareEntry) return;
+
+    const resource =
+      shareEntry.type === "folder"
+        ? { folder_id: shareEntry.id, can_download: canDownloadShare }
+        : { document_id: shareEntry.id, can_download: canDownloadShare };
+
+    try {
+      const created = await createLinkShare.mutateAsync({
+        resources: [resource],
+        expires_at: expiresAt ? dayjs(expiresAt).toISOString() : null,
+        message: shareMessage || null,
+      });
+      setPublicLink(created?.link_url ?? created?.url ?? null);
+      shareResourceQuery.refetch();
+    } catch {
+      // noop
+    }
+  };
+
+  const loadShareIndicator = async (entry: FileSystemEntry) => {
+    if (shareIndicators[entry.id]) return;
+    try {
+      const data = await (entry.type === "folder"
+        ? shareApi.getResourceShares({ folder_id: entry.id })
+        : shareApi.getResourceShares({ document_id: entry.id }));
+      setShareIndicators((prev) => ({
+        ...prev,
+        [entry.id]: {
+          recipients: data.recipients?.length ?? 0,
+          links: data.public_links?.length ?? 0,
+        },
+      }));
+    } catch {
+      // ignore
+    }
+  };
 
   const buildRangeSelection = useCallback(
     (targetId: string) => {
@@ -1665,7 +1797,10 @@ export function DocumentsPage() {
                             onDragLeave={handleRowDragLeave}
                             onDragOver={handleRowDragOver}
                             onDrop={(e) => handleRowDrop(e, entry)}
-                            onMouseEnter={() => setHoveredEntryId(entry.id)}
+                            onMouseEnter={() => {
+                              setHoveredEntryId(entry.id);
+                              loadShareIndicator(entry);
+                            }}
                             onMouseLeave={() =>
                               setHoveredEntryId((prev) =>
                                 prev === entry.id ? null : prev,
@@ -1876,6 +2011,32 @@ export function DocumentsPage() {
                               </Box>
                             </TableCell>
                             <TableCell align="right" sx={{ pr: 1.5 }}>
+                              {canShare && (
+                                <IconButton
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openShareDialog(entry);
+                                  }}
+                                  size="small"
+                                >
+                                  <Share fontSize="small" />
+                                </IconButton>
+                              )}
+                              {shareIndicators[entry.id] &&
+                                (shareIndicators[entry.id].recipients > 0 || shareIndicators[entry.id].links > 0) && (
+                                  <IconButton
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      setShareEntry(entry);
+                                      setShareInfoOpen(true);
+                                    }}
+                                    size="small"
+                                  >
+                                    <Tooltip title="Уже передан">
+                                      <Group fontSize="small" color="primary" />
+                                    </Tooltip>
+                                  </IconButton>
+                                )}
                               <IconButton
                                 onClick={(e) => {
                                   e.stopPropagation();
@@ -2004,6 +2165,119 @@ export function DocumentsPage() {
           </Box>
         )}
       </Box>
+
+      <Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)} fullWidth maxWidth="sm">
+        <DialogTitle>Передача доступа{shareEntry ? `: ${shareEntry.name}` : ""}</DialogTitle>
+        <DialogContent>
+          <Tabs value={shareTab} onChange={(_, next) => setShareTab(next)} sx={{ mb: 2 }}>
+            <Tab label="Сотрудники" />
+            <Tab label="Публичная ссылка" />
+          </Tabs>
+
+          {shareTab === 0 ? (
+            <Stack spacing={2}>
+              <Autocomplete
+                multiple
+                options={recipientOptions}
+                getOptionLabel={(option) => `${option.full_name} (${option.email})`}
+                value={selectedRecipients}
+                onChange={(_, value) => setSelectedRecipients(value)}
+                onInputChange={(_, value) => setRecipientQuery(value)}
+                renderInput={(params) => <TextField {...params} label="Получатели" placeholder="Введите имя или email" />}
+              />
+              <RadioGroup row value={permissionLevel} onChange={(e) => setPermissionLevel(e.target.value as "view" | "edit")}>
+                <FormControlLabel value="view" control={<Radio />} label="Просмотр" />
+                <FormControlLabel value="edit" control={<Radio />} label="Редактирование" />
+              </RadioGroup>
+              <FormControlLabel
+                control={<Checkbox checked={canDownloadShare} onChange={(e) => setCanDownloadShare(e.target.checked)} />}
+                label="Разрешить скачивание"
+              />
+              <TextField
+                label="Срок действия"
+                type="date"
+                InputLabelProps={{ shrink: true }}
+                value={expiresAt}
+                onChange={(e) => setExpiresAt(e.target.value)}
+              />
+              <TextField
+                label="Сообщение"
+                multiline
+                minRows={3}
+                value={shareMessage}
+                onChange={(e) => setShareMessage(e.target.value)}
+              />
+            </Stack>
+          ) : (
+            <Stack spacing={2}>
+              <Button variant="contained" onClick={handleCreatePublicLink} disabled={createLinkShare.isPending}>
+                Создать ссылку
+              </Button>
+              {(publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url) && (
+                <Paper variant="outlined" sx={{ p: 2 }}>
+                  <Stack direction="row" justifyContent="space-between" alignItems="center" gap={1}>
+                    <Typography variant="body2" sx={{ wordBreak: "break-all" }}>
+                      <LinkIcon sx={{ verticalAlign: "middle", mr: 1, fontSize: 16 }} />
+                      {publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url}
+                    </Typography>
+                    <Button
+                      onClick={() => navigator.clipboard.writeText(publicLink || shareResourceQuery.data?.public_links?.[0]?.link_url || "")}
+                    >
+                      Копировать
+                    </Button>
+                  </Stack>
+                </Paper>
+              )}
+            </Stack>
+          )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShareDialogOpen(false)}>Отмена</Button>
+          {shareTab === 0 && (
+            <Button variant="contained" onClick={handleSubmitUserShare} disabled={selectedRecipients.length === 0 || createUserShare.isPending}>
+              Передать доступ
+            </Button>
+          )}
+        </DialogActions>
+      </Dialog>
+
+      <Drawer anchor="right" open={shareInfoOpen} onClose={() => setShareInfoOpen(false)}>
+        <Box sx={{ width: 420, p: 2 }}>
+          <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
+            Кому передан: {shareEntry?.name}
+          </Typography>
+          <Typography variant="subtitle2" sx={{ mb: 1 }}>Сотрудники</Typography>
+          <List>
+            {(shareResourceQuery.data?.recipients ?? []).map((recipient) => {
+              const expireSoon = recipient.expires_at && dayjs(recipient.expires_at).diff(dayjs(), "day") <= 3;
+              return (
+                <ListItem key={recipient.batch_id} secondaryAction={<Button color="error" onClick={() => revokeShare.mutate(recipient.batch_id)}>Отозвать</Button>}>
+                  <ListItemText
+                    primary={recipient.recipient_name || recipient.recipient_email || "Сотрудник"}
+                    secondary={`${recipient.permission_level === "edit" ? "Редактирование" : "Просмотр"} · Скачивание ${recipient.can_download ? "✓" : "✗"}${expireSoon ? " ⚠️" : ""}`}
+                  />
+                </ListItem>
+              );
+            })}
+          </List>
+          <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Публичные ссылки</Typography>
+          <List>
+            {(shareResourceQuery.data?.public_links ?? []).map((link) => (
+              <ListItem key={link.batch_id} secondaryAction={<Button color="error" onClick={() => revokeShare.mutate(link.batch_id)}>Отозвать</Button>}>
+                <ListItemText
+                  primary={link.link_url || `Ссылка ${link.batch_id.slice(0, 6)}`}
+                  secondary={`👁 ${link.current_views ?? 0} · ⬇️ ${link.current_downloads ?? 0}`}
+                />
+              </ListItem>
+            ))}
+          </List>
+          {canShare && shareEntry && (
+            <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }}>
+              + Добавить получателя
+            </Button>
+          )}
+        </Box>
+      </Drawer>
 
       {/* Скрытый input для выбора файлов */}
       <input

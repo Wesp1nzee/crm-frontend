@@ -8,6 +8,7 @@ import { RoleGuard } from "../shared/components/RoleGuard";
 
 // Публичная страница
 import { PublicHomePage } from "../client/pages/PublicHomePage";
+import { PublicSharePage } from "../client/pages/share/PublicSharePage";
 
 const HomePage = lazy(() =>
   import("../pages/HomePage").then((m) => ({ default: m.HomePage })),
@@ -58,6 +59,11 @@ const SettingsPage = lazy(() =>
     default: m.SettingsPage,
   })),
 );
+const ShareInboxPage = lazy(() =>
+  import("../pages/share/ShareInboxPage").then((m) => ({
+    default: m.ShareInboxPage,
+  })),
+);
 // const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
 // const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
 // const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
@@ -85,6 +91,11 @@ export const router = createBrowserRouter([
   {
     path: "/login",
     element: <LoginPage />,
+  },
+
+  {
+    path: "/share/:token",
+    element: <PublicSharePage />,
   },
 
   // ВСЕ CRM-маршруты теперь под /crm
@@ -175,6 +186,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <DocumentsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "share/inbox",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <ShareInboxPage />
           </Suspense>
         ),
       },
