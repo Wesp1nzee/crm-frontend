@@ -349,11 +349,17 @@ export function DocumentsPage() {
     entry.type === "folder" && Boolean(entry.case_id);
 
 
-  const isOwnedResource = (entry: FileSystemEntry) => entry.share_info !== null;
+  const isOwnedResource = (entry: FileSystemEntry) => {
+    if (!user?.id || !entry.created_by_id) return true;
+    return entry.created_by_id === user.id;
+  };
 
   const hasShareInfo = (entry: FileSystemEntry) =>
     (entry.share_info?.recipient_count ?? 0) > 0 ||
     (entry.share_info?.public_link_count ?? 0) > 0;
+
+  const isSharedWithCurrentUser = (entry: FileSystemEntry) =>
+    !isOwnedResource(entry);
 
   const clearSelection = useCallback(() => {
     setSelectedEntryIds([]);
@@ -1966,7 +1972,7 @@ export function DocumentsPage() {
                               </Box>
                             </TableCell>
                             <TableCell>
-                              {!isOwnedResource(entry) ? (
+                              {isSharedWithCurrentUser(entry) ? (
                                 <Chip
                                   size="small"
                                   color="info"
@@ -2267,7 +2273,17 @@ export function DocumentsPage() {
         </DialogActions>
       </Dialog>
 
-      <Drawer anchor="right" open={shareInfoOpen} onClose={() => setShareInfoOpen(false)}>
+      <Drawer
+        anchor="right"
+        open={shareInfoOpen}
+        onClose={() => setShareInfoOpen(false)}
+        PaperProps={{
+          sx: {
+            mt: { xs: 64, sm: 72 },
+            height: { xs: "calc(100% - 64px)", sm: "calc(100% - 72px)" },
+          },
+        }}
+      >
         <Box sx={{ width: 420, p: 2 }}>
           <Typography variant="h6" fontWeight={700} sx={{ mb: 2 }}>
             Кому передан: {shareEntry?.name}
@@ -2288,14 +2304,27 @@ export function DocumentsPage() {
           </List>
           <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Публичные ссылки</Typography>
           <List>
-            {(shareResourceQuery.data?.public_links ?? []).map((link) => (
-              <ListItem key={link.batch_id} secondaryAction={<Button color="error" onClick={() => revokeShare.mutate(link.batch_id)}>Отозвать</Button>}>
-                <ListItemText
-                  primary={link.link_url || `Ссылка ${link.batch_id.slice(0, 6)}`}
-                  secondary={`👁 ${link.current_views ?? 0} · ⬇️ ${link.current_downloads ?? 0}`}
-                />
-              </ListItem>
-            ))}
+            {(shareResourceQuery.data?.public_links ?? []).map((link, index) => {
+              const linkBatchId = typeof link.batch_id === "string" ? link.batch_id : "";
+              const linkLabel =
+                link.link_url ||
+                `Ссылка ${linkBatchId.length > 0 ? linkBatchId.slice(0, 6) : index + 1}`;
+              return (
+                <ListItem
+                  key={linkBatchId || link.link_url || `public-link-${index}`}
+                  secondaryAction={
+                    <Button color="error" disabled={!linkBatchId} onClick={() => linkBatchId && revokeShare.mutate(linkBatchId)}>
+                      Отозвать
+                    </Button>
+                  }
+                >
+                  <ListItemText
+                    primary={linkLabel}
+                    secondary={`👁 ${link.current_views ?? 0} · ⬇️ ${link.current_downloads ?? 0}`}
+                  />
+                </ListItem>
+              );
+            })}
           </List>
           {canShare && shareEntry && (
             <Button variant="contained" fullWidth sx={{ mt: 2 }} onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }}>
