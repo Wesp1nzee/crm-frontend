@@ -33,7 +33,6 @@ import {
   Tab,
   List,
   ListItem,
-  ListItemText,
   FormControlLabel,
   RadioGroup,
   Radio,
@@ -56,6 +55,7 @@ import {
   Group,
   Link as LinkIcon,
   MoveToInbox,
+  Close,
 } from "@mui/icons-material";
 import DOMPurify from "dompurify";
 import dayjs from "dayjs";
@@ -330,6 +330,12 @@ export function DocumentsPage() {
     if (link.url) return link.url;
     if (link.share_token) return `${window.location.origin}/share/${link.share_token}`;
     return "";
+  };
+
+  const getCompactShareLink = (url: string) => {
+    if (!url) return "";
+    if (url.length <= 60) return url;
+    return `${url.slice(0, 35)}...${url.slice(-15)}`;
   };
 
   const sanitizedEntries = useMemo(
@@ -2284,67 +2290,107 @@ export function DocumentsPage() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={shareInfoOpen} onClose={() => setShareInfoOpen(false)} fullWidth maxWidth="sm">
-        <DialogTitle>Кому передан: {shareEntry?.name}</DialogTitle>
-        <DialogContent dividers>
+      <Dialog
+        open={shareInfoOpen}
+        onClose={() => setShareInfoOpen(false)}
+        fullWidth
+        maxWidth="md"
+        PaperProps={{ sx: { minHeight: 520 } }}
+      >
+        <DialogTitle sx={{ pr: 6 }}>Кому передан: {shareEntry?.name}</DialogTitle>
+        <IconButton
+          aria-label="Закрыть"
+          onClick={() => setShareInfoOpen(false)}
+          sx={{ position: "absolute", right: 12, top: 12 }}
+        >
+          <Close />
+        </IconButton>
+
+        <DialogContent dividers sx={{ overflowX: "hidden", px: 3 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>Сотрудники</Typography>
-          <List>
+          <List disablePadding>
             {(shareResourceQuery.data?.recipients ?? []).map((recipient, index) => {
               const recipientBatchId = getShareBatchId(recipient);
               const expireSoon = recipient.expires_at && dayjs(recipient.expires_at).diff(dayjs(), "day") <= 3;
               return (
-                <ListItem
-                  key={recipientBatchId || recipient.user_id || `recipient-${index}`}
-                  secondaryAction={
+                <ListItem key={recipientBatchId || recipient.user_id || `recipient-${index}`} disableGutters sx={{ py: 1.25 }}>
+                  <Box sx={{ width: "100%", display: "grid", gridTemplateColumns: "1fr auto", gap: 2, alignItems: "start" }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" fontWeight={600} noWrap>
+                        {recipient.full_name || recipient.recipient_name || recipient.email || recipient.recipient_email || "Сотрудник"}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {`${recipient.permission_level === "edit" ? "Редактирование" : "Просмотр"} · Скачивание ${recipient.can_download ? "✓" : "✗"}${expireSoon ? " ⚠️" : ""}`}
+                      </Typography>
+                    </Box>
                     <Button
-                      color="error"
+                      size="small"
+                      variant="text"
+                      color="inherit"
+                      sx={{ textTransform: "none", color: "text.secondary", minWidth: 92, justifySelf: "end" }}
                       disabled={!recipientBatchId}
                       onClick={() => recipientBatchId && revokeShare.mutate(recipientBatchId)}
                     >
                       Отозвать
                     </Button>
-                  }
-                >
-                  <ListItemText
-                    primary={recipient.full_name || recipient.recipient_name || recipient.email || recipient.recipient_email || "Сотрудник"}
-                    secondary={`${recipient.permission_level === "edit" ? "Редактирование" : "Просмотр"} · Скачивание ${recipient.can_download ? "✓" : "✗"}${expireSoon ? " ⚠️" : ""}`}
-                  />
+                  </Box>
                 </ListItem>
               );
             })}
           </List>
 
           <Typography variant="subtitle2" sx={{ mb: 1, mt: 2 }}>Публичные ссылки</Typography>
-          <List>
+          <List disablePadding>
             {(shareResourceQuery.data?.public_links ?? []).map((link, index) => {
               const linkBatchId = getShareBatchId(link);
               const linkUrl = getShareLinkUrl(link);
               const linkLabel = linkUrl || `Ссылка ${linkBatchId.length > 0 ? linkBatchId.slice(0, 6) : index + 1}`;
               return (
-                <ListItem
-                  key={linkBatchId || linkUrl || `public-link-${index}`}
-                  secondaryAction={
-                    <Button color="error" disabled={!linkBatchId} onClick={() => linkBatchId && revokeShare.mutate(linkBatchId)}>
+                <ListItem key={linkBatchId || linkUrl || `public-link-${index}`} disableGutters sx={{ py: 1.25 }}>
+                  <Box sx={{ width: "100%", display: "grid", gridTemplateColumns: "1fr auto", gap: 2, alignItems: "start" }}>
+                    <Box sx={{ minWidth: 0 }}>
+                      <Typography variant="body2" sx={{ wordBreak: "break-all" }} title={linkLabel}>
+                        {getCompactShareLink(linkLabel)}
+                      </Typography>
+                      <Stack direction="row" spacing={1.5} sx={{ mt: 0.5 }}>
+                        <Typography variant="caption" color="text.secondary">👁 {link.current_views ?? 0}</Typography>
+                        <Typography variant="caption" color="text.secondary">⬇ {link.current_downloads ?? 0}</Typography>
+                        {linkUrl && (
+                          <Button
+                            size="small"
+                            sx={{ textTransform: "none", p: 0, minWidth: "unset" }}
+                            onClick={() => navigator.clipboard.writeText(linkUrl)}
+                          >
+                            Копировать
+                          </Button>
+                        )}
+                      </Stack>
+                    </Box>
+                    <Button
+                      size="small"
+                      variant="text"
+                      color="inherit"
+                      sx={{ textTransform: "none", color: "text.secondary", minWidth: 92, justifySelf: "end" }}
+                      disabled={!linkBatchId}
+                      onClick={() => linkBatchId && revokeShare.mutate(linkBatchId)}
+                    >
                       Отозвать
                     </Button>
-                  }
-                >
-                  <ListItemText
-                    primary={linkLabel}
-                    secondary={`👁 ${link.current_views ?? 0} · ⬇️ ${link.current_downloads ?? 0}`}
-                  />
+                  </Box>
                 </ListItem>
               );
             })}
           </List>
         </DialogContent>
-        <DialogActions>
+        <DialogActions sx={{ px: 3, py: 2, gap: 1 }}>
+          <Button variant="outlined" onClick={() => setShareInfoOpen(false)} sx={{ textTransform: "none" }}>
+            Закрыть
+          </Button>
           {canShare && shareEntry && (
-            <Button variant="contained" onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }}>
+            <Button variant="contained" onClick={() => { setShareInfoOpen(false); openShareDialog(shareEntry, 0); }} sx={{ textTransform: "none" }}>
               + Добавить получателя
             </Button>
           )}
-          <Button onClick={() => setShareInfoOpen(false)}>Закрыть</Button>
         </DialogActions>
       </Dialog>
 
