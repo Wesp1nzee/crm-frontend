@@ -47,6 +47,14 @@ import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
 import { usePermissions } from "../../shared/hooks/usePermissions";
 
+const STATUSES_WITHOUT_OVERDUE_WARNING: CaseStatus[] = [
+  "debt",
+  "executed",
+  "fssp",
+  "archive",
+  "withdrawn",
+];
+
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
   archive: "Архив",
   in_work: "В работе",
@@ -244,171 +252,176 @@ export function CaseListPage() {
               </TableRow>
             </TableHead>
             <TableBody>
-              {cases.map((case_, index) => (
-                <TableRow
-                  key={case_.id}
-                  hover
-                  onClick={() => handleOpenDetail(case_.id)}
-                  sx={{
-                    cursor: "pointer",
-                    "&:hover": { backgroundColor: "action.hover" },
-                    transition: "background-color 0.15s ease",
-                    backgroundColor:
-                      index % 2 ? "rgba(0,0,0,0.02)" : "transparent",
-                  }}
-                >
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {case_.number}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Stack direction="column" spacing={0.5}>
+              {cases.map((case_, index) => {
+                const showOverdueWarning =
+                  dayjs(case_.deadline).isBefore(dayjs(), "day") &&
+                  !STATUSES_WITHOUT_OVERDUE_WARNING.includes(case_.status);
+
+                return (
+                  <TableRow
+                    key={case_.id}
+                    hover
+                    onClick={() => handleOpenDetail(case_.id)}
+                    sx={{
+                      cursor: "pointer",
+                      "&:hover": { backgroundColor: "action.hover" },
+                      transition: "background-color 0.15s ease",
+                      backgroundColor:
+                        index % 2 ? "rgba(0,0,0,0.02)" : "transparent",
+                    }}
+                  >
+                    <TableCell>
                       <Typography variant="body2" fontWeight="medium">
-                        {case_.case_number}
+                        {case_.number}
                       </Typography>
-                      <Typography variant="caption" color="text.secondary">
-                        {case_.case_type}
-                      </Typography>
-                    </Stack>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2">{case_.authority}</Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Tooltip title={case_.object_address}>
+                    </TableCell>
+                    <TableCell>
+                      <Stack direction="column" spacing={0.5}>
+                        <Typography variant="body2" fontWeight="medium">
+                          {case_.case_number}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {case_.case_type}
+                        </Typography>
+                      </Stack>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2">{case_.authority}</Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Tooltip title={case_.object_address}>
+                        <Typography
+                          variant="body2"
+                          noWrap
+                          sx={{
+                            maxWidth: "200px",
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          }}
+                        >
+                          {case_.object_address}
+                        </Typography>
+                      </Tooltip>
+                    </TableCell>
+                    <TableCell>
+                      <Chip
+                        label={CASE_STATUS_LABELS[case_.status]}
+                        size="small"
+                        variant="filled"
+                        sx={{
+                          fontWeight: 600,
+                          fontSize: "0.75rem",
+                          height: 24,
+                          bgcolor:
+                            case_.status === "executed"
+                              ? "rgba(34,197,94,0.14)"
+                              : case_.status === "debt"
+                                ? "rgba(245,158,11,0.14)"
+                                : case_.status === "cancelled"
+                                  ? "rgba(239,68,68,0.14)"
+                                  : case_.status === "in_work"
+                                    ? "rgba(79,144,255,0.14)"
+                                    : "rgba(120,120,120,0.12)",
+                          color:
+                            case_.status === "executed"
+                              ? "success.dark"
+                              : case_.status === "debt"
+                                ? "warning.dark"
+                                : case_.status === "cancelled"
+                                  ? "error.dark"
+                                  : case_.status === "in_work"
+                                    ? "primary.dark"
+                                    : "text.secondary",
+                        }}
+                      />
+                    </TableCell>
+                    <TableCell>
                       <Typography
                         variant="body2"
-                        noWrap
                         sx={{
-                          maxWidth: "200px",
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                          color: showOverdueWarning
+                            ? "error.main"
+                            : "text.primary",
+                          fontWeight: showOverdueWarning ? "medium" : "regular",
                         }}
                       >
-                        {case_.object_address}
+                        {dayjs(case_.deadline).format("DD.MM.YYYY")}
                       </Typography>
-                    </Tooltip>
-                  </TableCell>
-                  <TableCell>
-                    <Chip
-                      label={CASE_STATUS_LABELS[case_.status]}
-                      size="small"
-                      variant="filled"
-                      sx={{
-                        fontWeight: 600,
-                        fontSize: "0.75rem",
-                        height: 24,
-                        bgcolor:
-                          case_.status === "executed"
-                            ? "rgba(34,197,94,0.14)"
-                            : case_.status === "debt"
-                              ? "rgba(245,158,11,0.14)"
-                              : case_.status === "cancelled"
-                                ? "rgba(239,68,68,0.14)"
-                                : case_.status === "in_work"
-                                  ? "rgba(79,144,255,0.14)"
-                                  : "rgba(120,120,120,0.12)",
-                        color:
-                          case_.status === "executed"
-                            ? "success.dark"
-                            : case_.status === "debt"
-                              ? "warning.dark"
-                              : case_.status === "cancelled"
-                                ? "error.dark"
-                                : case_.status === "in_work"
-                                  ? "primary.dark"
-                                  : "text.secondary",
-                      }}
-                    />
-                  </TableCell>
-                  <TableCell>
-                    <Typography
-                      variant="body2"
-                      sx={{
-                        color: dayjs(case_.deadline).isBefore(dayjs(), "day")
-                          ? "error.main"
-                          : "text.primary",
-                        fontWeight: dayjs(case_.deadline).isBefore(
-                          dayjs(),
-                          "day",
-                        )
-                          ? "medium"
-                          : "regular",
-                      }}
-                    >
-                      {dayjs(case_.deadline).format("DD.MM.YYYY")}
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    <Typography variant="body2" fontWeight="medium">
-                      {new Intl.NumberFormat("ru-RU").format(
-                        Number(case_.cost),
-                      )}{" "}
-                      ₽
-                    </Typography>
-                  </TableCell>
-                  <TableCell>
-                    {case_.assigned_expert ? (
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <Avatar
-                          sx={{ width: 24, height: 24, fontSize: "0.75rem" }}
-                        >
-                          {case_.assigned_expert.full_name.charAt(0)}
-                        </Avatar>
-                        <Typography variant="body2" noWrap>
-                          {case_.assigned_expert.full_name}
-                        </Typography>
-                      </Box>
-                    ) : (
-                      <Box display="flex" alignItems="center" gap={1}>
-                        <PersonIcon fontSize="small" color="disabled" />
-                        <Typography variant="body2" color="text.secondary">
-                          Не назначен
-                        </Typography>
-                      </Box>
-                    )}
-                  </TableCell>
-                  <TableCell align="center">
-                    <Stack direction="row" spacing={1} justifyContent="center">
-                      <Tooltip title="Просмотр" arrow>
-                        <IconButton
-                          size="small"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            handleOpenDetail(case_.id);
-                          }}
-                          sx={{
-                            "&:hover": { backgroundColor: "action.hover" },
-                          }}
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      {!isExpert && (
-                        <Tooltip title="Удалить" arrow>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {new Intl.NumberFormat("ru-RU").format(
+                          Number(case_.cost),
+                        )}{" "}
+                        ₽
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      {case_.assigned_expert ? (
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <Avatar
+                            sx={{ width: 24, height: 24, fontSize: "0.75rem" }}
+                          >
+                            {case_.assigned_expert.full_name.charAt(0)}
+                          </Avatar>
+                          <Typography variant="body2" noWrap>
+                            {case_.assigned_expert.full_name}
+                          </Typography>
+                        </Box>
+                      ) : (
+                        <Box display="flex" alignItems="center" gap={1}>
+                          <PersonIcon fontSize="small" color="disabled" />
+                          <Typography variant="body2" color="text.secondary">
+                            Не назначен
+                          </Typography>
+                        </Box>
+                      )}
+                    </TableCell>
+                    <TableCell align="center">
+                      <Stack
+                        direction="row"
+                        spacing={1}
+                        justifyContent="center"
+                      >
+                        <Tooltip title="Просмотр" arrow>
                           <IconButton
                             size="small"
                             onClick={(e) => {
                               e.stopPropagation();
-                              handleOpenDelete(case_.id);
+                              handleOpenDetail(case_.id);
                             }}
                             sx={{
-                              color: "text.secondary",
-                              "&:hover": {
-                                backgroundColor: "action.hover",
-                                color: "text.primary",
-                              },
+                              "&:hover": { backgroundColor: "action.hover" },
                             }}
                           >
-                            <DeleteIcon fontSize="small" />
+                            <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                      )}
-                    </Stack>
-                  </TableCell>
-                </TableRow>
-              ))}
+                        {!isExpert && (
+                          <Tooltip title="Удалить" arrow>
+                            <IconButton
+                              size="small"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleOpenDelete(case_.id);
+                              }}
+                              sx={{
+                                color: "text.secondary",
+                                "&:hover": {
+                                  backgroundColor: "action.hover",
+                                  color: "text.primary",
+                                },
+                              }}
+                            >
+                              <DeleteIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </Stack>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
               {cases.length === 0 && (
                 <TableRow>
                   <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
@@ -472,84 +485,84 @@ export function CaseListPage() {
 
       {/* ── Delete confirmation dialog ── */}
       {!isExpert && (
-      <Dialog
-        open={deleteDialogOpen}
-        onClose={handleCloseDeleteDialog}
-        maxWidth="sm"
-        fullWidth
-        TransitionComponent={Fade}
-        transitionDuration={200}
-        PaperProps={{
-          sx: {
-            borderRadius: "16px",
-            boxShadow: "0 24px 48px -12px rgba(0,0,0,0.18)",
-            overflow: "hidden",
-          },
-        }}
-      >
-        <DialogTitle
-          sx={{
-            pb: 2,
-            display: "flex",
-            alignItems: "center",
-            gap: 1,
-            bgcolor: "error.light",
-            color: "error.contrastText",
+        <Dialog
+          open={deleteDialogOpen}
+          onClose={handleCloseDeleteDialog}
+          maxWidth="sm"
+          fullWidth
+          TransitionComponent={Fade}
+          transitionDuration={200}
+          PaperProps={{
+            sx: {
+              borderRadius: "16px",
+              boxShadow: "0 24px 48px -12px rgba(0,0,0,0.18)",
+              overflow: "hidden",
+            },
           }}
         >
-          <WarningIcon />
-          Подтверждение удаления
-        </DialogTitle>
-        <DialogContent sx={{ p: 3 }}>
-          <Stack spacing={2}>
-            <Alert
-              severity="warning"
-              icon={<WarningIcon />}
-              sx={{
-                bgcolor: "warning.light",
-                color: "warning.contrastText",
-                border: "none",
-              }}
+          <DialogTitle
+            sx={{
+              pb: 2,
+              display: "flex",
+              alignItems: "center",
+              gap: 1,
+              bgcolor: "error.light",
+              color: "error.contrastText",
+            }}
+          >
+            <WarningIcon />
+            Подтверждение удаления
+          </DialogTitle>
+          <DialogContent sx={{ p: 3 }}>
+            <Stack spacing={2}>
+              <Alert
+                severity="warning"
+                icon={<WarningIcon />}
+                sx={{
+                  bgcolor: "warning.light",
+                  color: "warning.contrastText",
+                  border: "none",
+                }}
+              >
+                Вы уверены, что хотите удалить это дело? Это действие нельзя
+                отменить.
+              </Alert>
+              <Typography variant="body2" color="text.secondary">
+                После удаления все связанные данные будут безвозвратно потеряны.
+                Убедитесь, что вы сохранили все необходимые документы.
+              </Typography>
+            </Stack>
+          </DialogContent>
+          <DialogActions
+            sx={{ p: 3, pt: 2, borderTop: 1, borderColor: "divider" }}
+          >
+            <Button
+              onClick={handleCloseDeleteDialog}
+              variant="outlined"
+              size="large"
+              disabled={deleteCase.isPending}
             >
-              Вы уверены, что хотите удалить это дело? Это действие нельзя
-              отменить.
-            </Alert>
-            <Typography variant="body2" color="text.secondary">
-              После удаления все связанные данные будут безвозвратно потеряны.
-              Убедитесь, что вы сохранили все необходимые документы.
-            </Typography>
-          </Stack>
-        </DialogContent>
-        <DialogActions
-          sx={{ p: 3, pt: 2, borderTop: 1, borderColor: "divider" }}
-        >
-          <Button
-            onClick={handleCloseDeleteDialog}
-            variant="outlined"
-            size="large"
-            disabled={deleteCase.isPending}
-          >
-            Отмена
-          </Button>
-          <Button
-            onClick={handleDelete}
-            variant="contained"
-            color="error"
-            size="large"
-            startIcon={<DeleteIcon />}
-            disabled={deleteCase.isPending}
-          >
-            {deleteCase.isPending ? (
-              <>
-                <CircularProgress size={20} sx={{ mr: 1 }} />
-                Удаление...
-              </>
-            ) : (
-              "Удалить"
-            )}
-          </Button>
-        </DialogActions>
-      </Dialog>
+              Отмена
+            </Button>
+            <Button
+              onClick={handleDelete}
+              variant="contained"
+              color="error"
+              size="large"
+              startIcon={<DeleteIcon />}
+              disabled={deleteCase.isPending}
+            >
+              {deleteCase.isPending ? (
+                <>
+                  <CircularProgress size={20} sx={{ mr: 1 }} />
+                  Удаление...
+                </>
+              ) : (
+                "Удалить"
+              )}
+            </Button>
+          </DialogActions>
+        </Dialog>
       )}
     </Box>
   );

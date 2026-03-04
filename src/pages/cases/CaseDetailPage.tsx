@@ -247,6 +247,7 @@ interface DataTransferItemWithEntry extends DataTransferItem {
 interface EditableFieldProps {
   field: string;
   value: string;
+  displayValue?: string;
   label: string;
   editingField: string | null;
   editValues: Record<string, string>;
@@ -263,6 +264,7 @@ interface EditableFieldProps {
 const EditableField = ({
   field,
   value,
+  displayValue,
   label,
   editingField,
   editValues,
@@ -277,6 +279,7 @@ const EditableField = ({
 }: EditableFieldProps) => {
   const isEditing = canEdit && editingField === field;
   const currentValue = isEditing ? (editValues[field] ?? value) : value;
+  const renderedValue = displayValue ?? value;
   const theme = useTheme();
 
   return (
@@ -380,11 +383,11 @@ const EditableField = ({
             variant="body1"
             sx={{
               flexGrow: 1,
-              color: value ? "text.primary" : "text.disabled",
+              color: renderedValue ? "text.primary" : "text.disabled",
               minHeight: 24,
             }}
           >
-            {value || "—"}
+            {renderedValue || "—"}
           </Typography>
           {canEdit && (
             <Tooltip title="Редактировать">
@@ -726,10 +729,19 @@ export function CaseDetailPage() {
   }
 
   const isOverdue = dayjs(case_.deadline).isBefore(dayjs(), "day");
-  const isCompleted = case_.status === "executed" || case_.status === "archive";
+  const statusesWithoutOverdueWarning: CaseStatus[] = [
+    "debt",
+    "executed",
+    "fssp",
+    "archive",
+    "withdrawn",
+  ];
+  const isCompleted = statusesWithoutOverdueWarning.includes(case_.status);
   const hasCompletionDate = !!case_.completion_date;
-  const statusVariant =
-    isOverdue && !isCompleted ? "error" : statusSeverity[case_.status];
+  const hasOverdueWarning = isOverdue && !isCompleted;
+  const statusVariant = hasOverdueWarning
+    ? "error"
+    : statusSeverity[case_.status];
   const bannerAccentColor = theme.palette[statusVariant].main;
 
   const handleStatusUpdate = () => {
@@ -1039,7 +1051,7 @@ export function CaseDetailPage() {
       {/* Status Banner */}
       <Alert
         severity={statusVariant}
-        icon={isOverdue && !isCompleted ? <Warning /> : <CheckCircle />}
+        icon={hasOverdueWarning ? <Warning /> : <CheckCircle />}
         sx={{
           mb: 3,
           borderRadius: 2,
@@ -1062,12 +1074,12 @@ export function CaseDetailPage() {
       >
         <Box>
           <Typography variant="h6" fontWeight="bold">
-            {isOverdue && !isCompleted
+            {hasOverdueWarning
               ? "⚠️ Срок исполнения просрочен"
               : statusLabels[case_.status]}
           </Typography>
           <Typography variant="body2">
-            {isOverdue && !isCompleted
+            {hasOverdueWarning
               ? `Срок был ${dayjs(case_.deadline).format("DD.MM.YYYY")}`
               : hasCompletionDate
                 ? `Завершено: ${dayjs(case_.completion_date).format("DD.MM.YYYY")}`
@@ -1139,7 +1151,7 @@ export function CaseDetailPage() {
               <Grid container spacing={2.5}>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
-                  canEdit={canEditCase}
+                    canEdit={canEditCase}
                     field="number"
                     value={case_.number}
                     label="№ п/п"
@@ -1152,7 +1164,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
-                  canEdit={canEditCase}
+                    canEdit={canEditCase}
                     field="case_number"
                     value={case_.case_number}
                     label="Номер дела"
@@ -1165,7 +1177,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
-                  canEdit={canEditCase}
+                    canEdit={canEditCase}
                     field="authority"
                     value={case_.authority}
                     label="Суд/Орган"
@@ -1178,7 +1190,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12 }}>
                   <EditableField
-                  canEdit={canEditCase}
+                    canEdit={canEditCase}
                     field="object_address"
                     value={case_.object_address}
                     label="Адрес объекта"
@@ -1191,7 +1203,7 @@ export function CaseDetailPage() {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <EditableField
-                  canEdit={canEditCase}
+                    canEdit={canEditCase}
                     field="judge_name"
                     value={case_.judge_name || ""}
                     label="ФИО судьи"
@@ -1205,7 +1217,7 @@ export function CaseDetailPage() {
                 {case_.plaintiff && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <EditableField
-                  canEdit={canEditCase}
+                      canEdit={canEditCase}
                       field="plaintiff"
                       value={case_.plaintiff}
                       label="Истец"
@@ -1220,7 +1232,7 @@ export function CaseDetailPage() {
                 {case_.defendant && (
                   <Grid size={{ xs: 12, sm: 6 }}>
                     <EditableField
-                  canEdit={canEditCase}
+                      canEdit={canEditCase}
                       field="defendant"
                       value={case_.defendant}
                       label="Ответчик"
@@ -1235,7 +1247,7 @@ export function CaseDetailPage() {
                 {case_.remarks && (
                   <Grid size={{ xs: 12 }}>
                     <EditableField
-                  canEdit={canEditCase}
+                      canEdit={canEditCase}
                       field="remarks"
                       value={case_.remarks}
                       label="Примечания"
@@ -1920,20 +1932,19 @@ export function CaseDetailPage() {
                   borderRadius: 2,
                 }}
               >
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 0.5, fontWeight: 500 }}
-                >
-                  Дата начала
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <CalendarToday fontSize="small" color="action" />
-                  {dayjs(case_.start_date).format("DD.MM.YYYY")}
-                </Typography>
+                <EditableField
+                  canEdit={canEditCase}
+                  field="start_date"
+                  value={dayjs(case_.start_date).format("YYYY-MM-DD")}
+                  displayValue={dayjs(case_.start_date).format("DD.MM.YYYY")}
+                  label="Дата начала"
+                  editingField={editingField}
+                  editValues={editValues}
+                  onEdit={handleFieldEdit}
+                  onSave={handleFieldSave}
+                  onCancel={handleFieldCancel}
+                  type="date"
+                />
               </Box>
 
               <Box
@@ -1944,25 +1955,21 @@ export function CaseDetailPage() {
                   borderRadius: 2,
                 }}
               >
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 0.5, fontWeight: 500 }}
-                >
-                  {isOverdue && !isCompleted
-                    ? "Срок просрочен"
-                    : "Срок исполнения"}
-                </Typography>
-                <Typography
-                  variant="body1"
-                  sx={{ display: "flex", alignItems: "center", gap: 1 }}
-                >
-                  <CalendarToday
-                    fontSize="small"
-                    color={isOverdue && !isCompleted ? "error" : "action"}
-                  />
-                  {dayjs(case_.deadline).format("DD.MM.YYYY")}
-                </Typography>
+                <EditableField
+                  canEdit={canEditCase}
+                  field="deadline"
+                  value={dayjs(case_.deadline).format("YYYY-MM-DD")}
+                  displayValue={dayjs(case_.deadline).format("DD.MM.YYYY")}
+                  label={
+                    hasOverdueWarning ? "Срок просрочен" : "Срок исполнения"
+                  }
+                  editingField={editingField}
+                  editValues={editValues}
+                  onEdit={handleFieldEdit}
+                  onSave={handleFieldSave}
+                  onCancel={handleFieldCancel}
+                  type="date"
+                />
               </Box>
 
               {costNum > 0 && (
