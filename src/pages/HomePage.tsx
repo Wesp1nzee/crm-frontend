@@ -185,7 +185,7 @@ function AdminHomePage() {
             variant="h6"
             sx={{ color: alpha(palette.softChalk, 0.7) }}
           >
-            {dayjs().format("DD MMMM YYYY")} • Премиальный обзор бизнеса
+            {dayjs().format("DD MMMM YYYY")}
           </Typography>
         </Box>
 
@@ -345,12 +345,6 @@ function AdminHomePage() {
             <CardContent>
               <Typography variant="h6" fontWeight={700} gutterBottom>
                 Быстрые действия
-              </Typography>
-              <Typography
-                variant="body2"
-                sx={{ color: alpha(palette.softChalk, 0.68), mb: 2 }}
-              >
-                Контролируйте pipeline в пару кликов
               </Typography>
               <Box display="flex" flexDirection="column" gap={1.5}>
                 <Button
