@@ -53,7 +53,7 @@ interface RecentCaseItem {
   id: string;
   number: string;
   case_number: string;
-  status: "new" | "in_work" | "paused" | "done" | "cancelled";
+  status: string;
   cost: number;
   created_at: string;
   client_id: string;
@@ -110,18 +110,28 @@ function formatCompactCurrency(value: number): string {
   return `${value}`;
 }
 
-const CASE_STATUS_LABELS: Record<RecentCaseItem["status"], string> = {
+type RecentCaseVisualStyle = { color: string; background: string; border: string };
+
+const DEFAULT_CASE_STATUS_STYLE: RecentCaseVisualStyle = {
+  color: "#5A6782",
+  background: alpha("#A1AEC6", 0.22),
+  border: alpha("#8A98B2", 0.38),
+};
+
+const CASE_STATUS_LABELS: Record<string, string> = {
   new: "Новое",
   in_work: "В работе",
   paused: "Пауза",
   done: "Завершено",
+  executed: "Исполнено",
+  archive: "В архиве",
+  debt: "Долг",
+  fssp: "ФССП",
+  withdrawn: "Отозвано",
   cancelled: "Отменено",
 };
 
-const CASE_STATUS_STYLES: Record<
-  RecentCaseItem["status"],
-  { color: string; background: string; border: string }
-> = {
+const CASE_STATUS_STYLES: Record<string, RecentCaseVisualStyle> = {
   new: {
     color: "#3152D7",
     background: alpha("#80A6FF", 0.2),
@@ -141,6 +151,31 @@ const CASE_STATUS_STYLES: Record<
     color: "#1B7A42",
     background: alpha("#6FD49F", 0.24),
     border: alpha("#49B47F", 0.4),
+  },
+  executed: {
+    color: "#1B7A42",
+    background: alpha("#6FD49F", 0.24),
+    border: alpha("#49B47F", 0.4),
+  },
+  archive: {
+    color: "#5A6782",
+    background: alpha("#A1AEC6", 0.22),
+    border: alpha("#8A98B2", 0.38),
+  },
+  debt: {
+    color: "#9A5A12",
+    background: alpha("#F6B37E", 0.24),
+    border: alpha("#DD8C4D", 0.4),
+  },
+  fssp: {
+    color: "#4B48A8",
+    background: alpha("#9FA2FF", 0.22),
+    border: alpha("#7F83E3", 0.4),
+  },
+  withdrawn: {
+    color: "#7A628A",
+    background: alpha("#C5ABD8", 0.2),
+    border: alpha("#A889C0", 0.38),
   },
   cancelled: {
     color: "#A34D4D",
@@ -180,7 +215,7 @@ function AdminHomePage() {
           id: caseItem.id,
           number: caseItem.number,
           case_number: caseItem.case_number,
-          status: caseItem.status as RecentCaseItem["status"],
+          status: caseItem.status,
           cost: caseItem.cost,
           created_at: caseItem.created_at,
           client_id: caseItem.client_id,
@@ -689,7 +724,11 @@ function AdminHomePage() {
                   }}
                 >
                   {recentCases.map((caseItem) => {
-                    const statusStyle = CASE_STATUS_STYLES[caseItem.status];
+                    const statusStyle =
+                      CASE_STATUS_STYLES[caseItem.status] ??
+                      DEFAULT_CASE_STATUS_STYLE;
+                    const statusLabel =
+                      CASE_STATUS_LABELS[caseItem.status] ?? caseItem.status ?? "Неизвестно";
 
                     return (
                       <Box
@@ -735,7 +774,7 @@ function AdminHomePage() {
                           </Box>
                           <Chip
                             size="small"
-                            label={CASE_STATUS_LABELS[caseItem.status]}
+                            label={statusLabel}
                             sx={{
                               color: statusStyle.color,
                               bgcolor: statusStyle.background,
