@@ -6,10 +6,6 @@ import {
   Button,
   LinearProgress,
   Avatar,
-  List,
-  ListItem,
-  ListItemAvatar,
-  ListItemText,
   Chip,
   IconButton,
   Divider,
@@ -50,6 +46,17 @@ interface FinancialSummary {
     conversion_trend: number;
     throughput: number;
   };
+  recent_cases: RecentCaseItem[];
+}
+
+interface RecentCaseItem {
+  id: string;
+  number: string;
+  case_number: string;
+  status: string;
+  cost: number;
+  created_at: string;
+  client_id: string;
 }
 
 const palette = {
@@ -103,6 +110,80 @@ function formatCompactCurrency(value: number): string {
   return `${value}`;
 }
 
+type RecentCaseVisualStyle = { color: string; background: string; border: string };
+
+const DEFAULT_CASE_STATUS_STYLE: RecentCaseVisualStyle = {
+  color: "#5A6782",
+  background: alpha("#A1AEC6", 0.22),
+  border: alpha("#8A98B2", 0.38),
+};
+
+const CASE_STATUS_LABELS: Record<string, string> = {
+  new: "Новое",
+  in_work: "В работе",
+  paused: "Пауза",
+  done: "Завершено",
+  executed: "Исполнено",
+  archive: "В архиве",
+  debt: "Долг",
+  fssp: "ФССП",
+  withdrawn: "Отозвано",
+  cancelled: "Отменено",
+};
+
+const CASE_STATUS_STYLES: Record<string, RecentCaseVisualStyle> = {
+  new: {
+    color: "#3152D7",
+    background: alpha("#80A6FF", 0.2),
+    border: alpha("#5F85FF", 0.4),
+  },
+  in_work: {
+    color: "#0C678B",
+    background: alpha("#4DB4E0", 0.22),
+    border: alpha("#3D99C2", 0.4),
+  },
+  paused: {
+    color: "#8D6A17",
+    background: alpha("#F7CD6B", 0.28),
+    border: alpha("#DFA833", 0.4),
+  },
+  done: {
+    color: "#1B7A42",
+    background: alpha("#6FD49F", 0.24),
+    border: alpha("#49B47F", 0.4),
+  },
+  executed: {
+    color: "#1B7A42",
+    background: alpha("#6FD49F", 0.24),
+    border: alpha("#49B47F", 0.4),
+  },
+  archive: {
+    color: "#5A6782",
+    background: alpha("#A1AEC6", 0.22),
+    border: alpha("#8A98B2", 0.38),
+  },
+  debt: {
+    color: "#9A5A12",
+    background: alpha("#F6B37E", 0.24),
+    border: alpha("#DD8C4D", 0.4),
+  },
+  fssp: {
+    color: "#4B48A8",
+    background: alpha("#9FA2FF", 0.22),
+    border: alpha("#7F83E3", 0.4),
+  },
+  withdrawn: {
+    color: "#7A628A",
+    background: alpha("#C5ABD8", 0.2),
+    border: alpha("#A889C0", 0.38),
+  },
+  cancelled: {
+    color: "#A34D4D",
+    background: alpha("#ED9FA3", 0.22),
+    border: alpha("#D98087", 0.4),
+  },
+};
+
 export function HomePage() {
   const { isExpert } = usePermissions();
 
@@ -126,7 +207,19 @@ function AdminHomePage() {
   const overdueCases = activeCases.filter((caseItem) =>
     dayjs(caseItem.deadline).isBefore(dayjs(), "day"),
   );
-  const recentCases = cases.slice(0, 5);
+  const recentCasesFromSummary = financialSummary?.recent_cases ?? [];
+  const recentCases =
+    recentCasesFromSummary.length > 0
+      ? recentCasesFromSummary
+      : cases.slice(0, 5).map((caseItem) => ({
+          id: caseItem.id,
+          number: caseItem.number,
+          case_number: caseItem.case_number,
+          status: caseItem.status,
+          cost: caseItem.cost,
+          created_at: caseItem.created_at,
+          client_id: caseItem.client_id,
+        }));
 
   const totalRevenue = financialSummary?.total_revenue || 0;
   const pendingPayments = financialSummary?.pending_payments || 0;
@@ -589,91 +682,139 @@ function AdminHomePage() {
                   <ArrowForward />
                 </IconButton>
               </Box>
-              <List sx={{ py: 0 }}>
-                {recentCases.length === 0 && (
-                  <Box sx={{ py: 5, textAlign: "center" }}>
-                    <Box
-                      sx={{
-                        width: 94,
-                        height: 94,
-                        mx: "auto",
-                        borderRadius: 7,
-                        background:
-                          "linear-gradient(160deg, rgba(79,144,255,0.32), rgba(255,255,255,0.8))",
-                        border: "1px solid rgba(255,255,255,0.9)",
-                        backdropFilter: "blur(14px)",
-                        boxShadow: "0 18px 36px rgba(79,144,255,0.22)",
-                        display: "grid",
-                        placeItems: "center",
-                        mb: 2,
-                      }}
-                    >
-                      <Gavel sx={{ fontSize: 42, color: palette.cyberBlue }} />
-                    </Box>
-                    <Typography
-                      variant="h6"
-                      color={alpha(palette.softChalk, 0.8)}
-                    >
-                      Пока нет дел
-                    </Typography>
-                    <Typography
-                      variant="body2"
-                      color={alpha(palette.softChalk, 0.6)}
-                    >
-                      Добавьте первое дело, чтобы начать работу
-                    </Typography>
-                  </Box>
-                )}
-                {recentCases.map((caseItem) => (
-                  <ListItem
-                    key={caseItem.id}
+              {recentCases.length === 0 && (
+                <Box sx={{ py: 5, textAlign: "center" }}>
+                  <Box
                     sx={{
-                      px: 1,
-                      borderRadius: 3,
-                      "&:hover": { bgcolor: alpha("#FFFFFF", 0.05) },
-                      cursor: "pointer",
+                      width: 94,
+                      height: 94,
+                      mx: "auto",
+                      borderRadius: 7,
+                      background:
+                        "linear-gradient(160deg, rgba(79,144,255,0.32), rgba(255,255,255,0.8))",
+                      border: "1px solid rgba(255,255,255,0.9)",
+                      backdropFilter: "blur(14px)",
+                      boxShadow: "0 18px 36px rgba(79,144,255,0.22)",
+                      display: "grid",
+                      placeItems: "center",
+                      mb: 2,
                     }}
-                    onClick={() => navigate(`/crm/cases/${caseItem.id}`)}
                   >
-                    <ListItemAvatar>
-                      <Avatar
+                    <Gavel sx={{ fontSize: 42, color: palette.cyberBlue }} />
+                  </Box>
+                  <Typography variant="h6" color={alpha(palette.softChalk, 0.8)}>
+                    Пока нет дел
+                  </Typography>
+                  <Typography variant="body2" color={alpha(palette.softChalk, 0.6)}>
+                    Добавьте первое дело, чтобы начать работу
+                  </Typography>
+                </Box>
+              )}
+
+              {recentCases.length > 0 && (
+                <Box
+                  sx={{
+                    display: "grid",
+                    gridTemplateColumns: {
+                      xs: "1fr",
+                      md: "repeat(2, minmax(0, 1fr))",
+                      xl: "repeat(3, minmax(0, 1fr))",
+                    },
+                    gap: 1.5,
+                  }}
+                >
+                  {recentCases.map((caseItem) => {
+                    const statusStyle =
+                      CASE_STATUS_STYLES[caseItem.status] ??
+                      DEFAULT_CASE_STATUS_STYLE;
+                    const statusLabel =
+                      CASE_STATUS_LABELS[caseItem.status] ?? caseItem.status ?? "Неизвестно";
+
+                    return (
+                      <Box
+                        key={caseItem.id}
+                        onClick={() => navigate(`/crm/cases/${caseItem.id}`)}
                         sx={{
-                          bgcolor: alpha(palette.cyberBlue, 0.28),
-                          border: `1px solid ${alpha("#FFFFFF", 0.2)}`,
-                          color: palette.softChalk,
+                          borderRadius: 3,
+                          p: 2,
+                          background: `linear-gradient(145deg, ${alpha("#FFFFFF", 0.78)} 0%, ${alpha("#EEF4FF", 0.5)} 100%)`,
+                          border: `1px solid ${alpha("#95AED8", 0.35)}`,
+                          boxShadow: `0 12px 24px ${alpha("#7893BE", 0.16)}`,
+                          cursor: "pointer",
+                          transition: "all .2s ease",
+                          "&:hover": {
+                            transform: "translateY(-2px)",
+                            boxShadow: `0 16px 28px ${alpha("#5D7EA8", 0.24)}`,
+                            borderColor: alpha("#7F9ED2", 0.55),
+                          },
                         }}
                       >
-                        <Gavel />
-                      </Avatar>
-                    </ListItemAvatar>
-                    <ListItemText
-                      primary={caseItem.case_number}
-                      secondary={caseItem.object_address}
-                      primaryTypographyProps={{
-                        fontWeight: 600,
-                        color: palette.softChalk,
-                      }}
-                      secondaryTypographyProps={{
-                        color: alpha(palette.softChalk, 0.65),
-                      }}
-                    />
-                    <Chip
-                      size="small"
-                      label={dayjs(caseItem.deadline).format("DD.MM")}
-                      sx={{
-                        color: palette.softChalk,
-                        bgcolor: dayjs(caseItem.deadline).isBefore(
-                          dayjs(),
-                          "day",
-                        )
-                          ? alpha("#FF8D8D", 0.2)
-                          : alpha("#89CBFF", 0.2),
-                        border: `1px solid ${alpha("#7EA2D8", 0.3)}`,
-                      }}
-                    />
-                  </ListItem>
-                ))}
-              </List>
+                        <Box display="flex" justifyContent="space-between" gap={1.5}>
+                          <Box display="flex" gap={1.3}>
+                            <Avatar
+                              sx={{
+                                bgcolor: alpha(palette.cyberBlue, 0.2),
+                                color: palette.cyberBlue,
+                                width: 40,
+                                height: 40,
+                                border: `1px solid ${alpha("#7CA8EB", 0.45)}`,
+                              }}
+                            >
+                              <Gavel fontSize="small" />
+                            </Avatar>
+                            <Box>
+                              <Typography fontWeight={700}>{caseItem.case_number}</Typography>
+                              <Typography
+                                variant="body2"
+                                sx={{ color: alpha(palette.softChalk, 0.66) }}
+                              >
+                                #{caseItem.number}
+                              </Typography>
+                            </Box>
+                          </Box>
+                          <Chip
+                            size="small"
+                            label={statusLabel}
+                            sx={{
+                              color: statusStyle.color,
+                              bgcolor: statusStyle.background,
+                              border: `1px solid ${statusStyle.border}`,
+                              fontWeight: 600,
+                            }}
+                          />
+                        </Box>
+
+                        <Divider sx={{ my: 1.4, borderColor: alpha("#91A8D6", 0.22) }} />
+
+                        <Box display="flex" justifyContent="space-between" alignItems="center">
+                          <Box>
+                            <Typography
+                              variant="caption"
+                              sx={{ color: alpha(palette.softChalk, 0.58) }}
+                            >
+                              Стоимость
+                            </Typography>
+                            <Typography fontWeight={700}>
+                              {Number(caseItem.cost || 0).toLocaleString()} ₽
+                            </Typography>
+                          </Box>
+                          <Box textAlign="right">
+                            <Typography
+                              variant="caption"
+                              sx={{ color: alpha(palette.softChalk, 0.58) }}
+                            >
+                              Создано
+                            </Typography>
+                            <Typography fontWeight={600}>
+                              {dayjs(caseItem.created_at).format("DD MMM YYYY")}
+                            </Typography>
+                          </Box>
+                        </Box>
+                      </Box>
+                    );
+                  })}
+                </Box>
+              )}
             </CardContent>
           </Card>
         </Box>

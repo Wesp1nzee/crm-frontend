@@ -7,13 +7,19 @@ import {
 } from "@mui/material";
 import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { ArrowBack, NavigateNext } from "@mui/icons-material";
-import { useCases } from "../hooks/useCases";
+import { useCase, useCases } from "../hooks/useCases";
 import { useClient } from "../hooks/useClients";
 export function Breadcrumbs() {
   const location = useLocation();
   const navigate = useNavigate();
   const { data: cases } = useCases();
   const pathnames = location.pathname.split("/").filter((x) => x);
+
+  const caseIdIndex = pathnames.findIndex(
+    (segment, index) => segment === "cases" && index < pathnames.length - 1,
+  );
+  const caseId = caseIdIndex >= 0 ? pathnames[caseIdIndex + 1] : "";
+  const { data: caseDetails } = useCase(caseId);
 
   const clientIdIndex = pathnames.findIndex(
     (segment, index) => segment === "clients" && index < pathnames.length - 1,
@@ -34,8 +40,12 @@ export function Breadcrumbs() {
 
     const originalIndex = index + (pathnames[0] === "crm" ? 1 : 0);
     if (originalIndex > 0 && pathnames[originalIndex - 1] === "cases") {
+      if (segment === caseId && caseDetails?.case?.case_number) {
+        return `Дело ${caseDetails.case.case_number}`;
+      }
+
       const case_ = cases?.data?.find((c) => c.id === segment);
-      return case_ ? `Дело ${case_.case_number}` : `Дело ${segment}`;
+      return case_ ? `Дело ${case_.case_number}` : `Дело`;
     }
 
     if (originalIndex > 0 && pathnames[originalIndex - 1] === "clients") {
