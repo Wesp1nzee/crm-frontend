@@ -54,7 +54,7 @@ import {
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { useCase, usePatchCase } from "../../shared/hooks/useCases";
+import { useCase, usePatchCase, useUpdateCaseExperts } from "../../shared/hooks/useCases";
 import {
   useUploadDocument,
   useDownloadDocument,
@@ -407,14 +407,16 @@ export function CaseDetailPage() {
   const navigate = useNavigate();
   const { data: caseData, isLoading, error, refetch } = useCase(id!);
   const patchCase = usePatchCase();
+  const updateCaseExperts = useUpdateCaseExperts();
   const uploadDocument = useUploadDocument();
   const createFolder = useCreateFolder();
   const downloadDocument = useDownloadDocument();
   const previewDocument = usePreviewDocument();
   const downloadCaseDocuments = useDownloadCaseDocuments();
   const theme = useTheme();
-  const { isExpert } = usePermissions();
+  const { isExpert, isAdmin, isCEO, isAccountant } = usePermissions();
   const canEditCase = !isExpert;
+  const canManageExperts = isAdmin || isCEO || isAccountant;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -432,15 +434,13 @@ export function CaseDetailPage() {
   const [downloadLabel, setDownloadLabel] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
-  const [selectedExpert, setSelectedExpert] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [selectedExperts, setSelectedExperts] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [isEditingExpert, setIsEditingExpert] = useState(false);
-  const [draftExpert, setDraftExpert] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [draftExperts, setDraftExperts] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [draftExpertInput, setDraftExpertInput] = useState("");
   const {
     suggestions: expertSuggestions,
@@ -456,27 +456,14 @@ export function CaseDetailPage() {
       prev !== caseData.case.status ? caseData.case.status : prev,
     );
 
-    const currentExpert = caseData.assigned_experts?.[0];
-    if (currentExpert) {
-      const expertOption = {
-        id: currentExpert.id,
-        name: currentExpert.full_name,
-      };
+    const currentExperts = (caseData.experts ?? []).map((expert) => ({
+      id: expert.id,
+      name: expert.full_name,
+    }));
 
-      setSelectedExpert((prev) =>
-        prev?.id !== expertOption.id ? expertOption : prev,
-      );
-      setDraftExpert((prev) =>
-        prev?.id !== expertOption.id ? expertOption : prev,
-      );
-      setDraftExpertInput((prev) =>
-        prev !== currentExpert.full_name ? currentExpert.full_name : prev,
-      );
-    } else {
-      setSelectedExpert((prev) => (prev !== null ? null : prev));
-      setDraftExpert((prev) => (prev !== null ? null : prev));
-      setDraftExpertInput((prev) => (prev !== "" ? "" : prev));
-    }
+    setSelectedExperts(currentExperts);
+    setDraftExperts(currentExperts);
+    setDraftExpertInput("");
   }, [caseData]);
 
   useEffect(() => {
@@ -493,7 +480,7 @@ export function CaseDetailPage() {
 
   const case_ = caseData?.case;
   const client = caseData?.client;
-  const assigned_experts = caseData?.assigned_experts ?? [];
+  const assignedExperts = caseData?.experts ?? [];
   const documents = caseData?.documents ?? [];
   const folders = caseData?.folders ?? [];
 
@@ -752,36 +739,47 @@ export function CaseDetailPage() {
   };
 
   const handleExpertEditStart = () => {
-    if (!canEditCase) return;
+    if (!canManageExperts) return;
     setIsEditingExpert(true);
-    setDraftExpert(selectedExpert);
-    setDraftExpertInput(selectedExpert?.name ?? "");
+    setDraftExperts(selectedExperts);
+    setDraftExpertInput("");
   };
 
   const handleExpertEditCancel = () => {
     setIsEditingExpert(false);
-    setDraftExpert(selectedExpert);
-    setDraftExpertInput(selectedExpert?.name ?? "");
+    setDraftExperts(selectedExperts);
+    setDraftExpertInput("");
     clearExpertSuggestions();
   };
 
   const handleExpertSave = () => {
-    if (!canEditCase) return;
-    const nextExpertId = draftExpert?.id ?? null;
-    const currentExpertId = case_.assigned_user_id ?? null;
+    if (!canManageExperts) return;
 
-    if (nextExpertId === currentExpertId) {
+    const currentIds = [...selectedExperts.map((expert) => expert.id)].sort();
+    const nextIds = [...draftExperts.map((expert) => expert.id)].sort();
+
+    if (JSON.stringify(currentIds) === JSON.stringify(nextIds)) {
       handleExpertEditCancel();
       return;
     }
 
-    setSelectedExpert(draftExpert);
-    setDraftExpertInput(draftExpert?.name ?? "");
-    setIsEditingExpert(false);
-    patchCase.mutate({
-      id: case_.id,
-      data: { assigned_user_id: nextExpertId },
-    });
+    updateCaseExperts.mutate(
+      {
+        id: case_.id,
+        data: { expert_ids: draftExperts.map((expert) => expert.id) },
+      },
+      {
+        onSuccess: () => {
+          setSelectedExperts(draftExperts);
+          setIsEditingExpert(false);
+          clearExpertSuggestions();
+          notificationService.success("Список экспертов обновлен");
+        },
+        onError: () => {
+          notificationService.error("Не удалось обновить список экспертов");
+        },
+      },
+    );
   };
 
   const handleFieldEdit = (field: string, value: string) => {
@@ -2091,12 +2089,12 @@ export function CaseDetailPage() {
             <CardHeader
               title={
                 <Typography variant="h6" fontWeight="bold">
-                  Назначенные эксперты ({assigned_experts.length})
+                  Назначенные эксперты ({assignedExperts.length})
                 </Typography>
               }
             />
             <CardContent sx={{ pt: 0 }}>
-              {!isEditingExpert || !canEditCase ? (
+              {!isEditingExpert || !canManageExperts ? (
                 <Box
                   display="flex"
                   alignItems="center"
@@ -2113,12 +2111,14 @@ export function CaseDetailPage() {
                     variant="body1"
                     sx={{
                       flexGrow: 1,
-                      color: selectedExpert ? "text.primary" : "text.disabled",
+                      color: selectedExperts.length > 0 ? "text.primary" : "text.disabled",
                     }}
                   >
-                    {selectedExpert?.name || "—"}
+                    {selectedExperts.length > 0
+                      ? selectedExperts.map((expert) => expert.name).join(", ")
+                      : "—"}
                   </Typography>
-                  {canEditCase && (
+                  {canManageExperts && (
                     <Tooltip title="Редактировать">
                       <IconButton
                         size="small"
@@ -2150,7 +2150,8 @@ export function CaseDetailPage() {
                     fullWidth
                     options={expertSuggestions}
                     getOptionLabel={(option) => option.name || ""}
-                    value={draftExpert}
+                    multiple
+                    value={draftExperts}
                     inputValue={draftExpertInput}
                     loading={isExpertSuggestLoading}
                     filterOptions={(options) => options}
@@ -2170,8 +2171,7 @@ export function CaseDetailPage() {
                       }
                     }}
                     onChange={(_e, value) => {
-                      setDraftExpert(value);
-                      setDraftExpertInput(value?.name ?? "");
+                      setDraftExperts(value ?? []);
                     }}
                     isOptionEqualToValue={(option, value) =>
                       option.id === value?.id
@@ -2187,7 +2187,7 @@ export function CaseDetailPage() {
                       <TextField
                         {...params}
                         size="small"
-                        label="Назначенный эксперт"
+                        label="Назначенные эксперты"
                         placeholder="Введите имя эксперта..."
                         InputProps={{
                           ...params.InputProps,
@@ -2225,9 +2225,9 @@ export function CaseDetailPage() {
                 </Box>
               )}
 
-              {!selectedExpert && (
+              {selectedExperts.length === 0 && (
                 <Typography variant="body2" color="text.secondary">
-                  Эксперт пока не назначен.
+                  Эксперты пока не назначены.
                 </Typography>
               )}
             </CardContent>

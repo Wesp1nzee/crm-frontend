@@ -7,6 +7,7 @@ import type {
   GetCasesResponse,
   CaseDetailResponse,
   CaseSuggestion,
+  CaseExpertsUpdateRequest,
 } from "./types";
 
 export const casesApi = {
@@ -29,6 +30,9 @@ export const casesApi = {
 
   patchCase: (id: string, data: CasePatchRequest) =>
     api.patch<Case>(`/cases/${id}`, data),
+
+  updateCaseExperts: (id: string, data: CaseExpertsUpdateRequest) =>
+    api.put<Case>(`/cases/${id}/experts`, data),
 
   deleteCase: (caseId: string) => api.delete(`/cases/${caseId}`),
 

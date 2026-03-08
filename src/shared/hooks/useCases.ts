@@ -8,6 +8,7 @@ import type {
   CaseCreateRequest,
   CaseDetailResponse,
   CasePatchRequest,
+  CaseExpertsUpdateRequest,
 } from "../../entities/case/types";
 
 export const useCases = (params: GetCasesQuery = {}) => {
@@ -64,6 +65,24 @@ export const usePatchCase = () => {
   return useMutation({
     mutationFn: ({ id, data }: { id: string; data: CasePatchRequest }) =>
       casesApi.patchCase(id, data).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
+      queryClient.invalidateQueries({ queryKey: ["case"] });
+    },
+  });
+};
+
+
+export const useUpdateCaseExperts = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: CaseExpertsUpdateRequest;
+    }) => casesApi.updateCaseExperts(id, data).then((res) => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["cases"] });
       queryClient.invalidateQueries({ queryKey: ["case"] });

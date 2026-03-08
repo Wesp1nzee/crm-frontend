@@ -105,7 +105,7 @@ export function createInitialFormData(): CaseCreateRequest {
     plaintiff: "",
     defendant: "",
     remarks: "",
-    assigned_user_id: "",
+    expert_ids: [],
   };
 }
 
@@ -129,7 +129,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     plaintiff: formData.plaintiff?.trim() || null,
     defendant: formData.defendant?.trim() || null,
     remarks: formData.remarks?.trim() || null,
-    assigned_user_id: formData.assigned_user_id?.trim() || null,
+    expert_ids: formData.expert_ids?.length ? formData.expert_ids : [],
   };
 }
 
@@ -362,10 +362,9 @@ export const CreateCaseDialog = memo(
       id: string;
       name: string;
     } | null>(null);
-    const [selectedExpert, setSelectedExpert] = useState<{
-      id: string;
-      name: string;
-    } | null>(null);
+    const [selectedExperts, setSelectedExperts] = useState<
+      Array<{ id: string; name: string }>
+    >([]);
     const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
     const [clientCreatedFromDialog, setClientCreatedFromDialog] =
       useState(false);
@@ -430,7 +429,7 @@ export const CreateCaseDialog = memo(
       setClientInputValue("");
       setExpertInputValue("");
       setSelectedClient(null);
-      setSelectedExpert(null);
+      setSelectedExperts([]);
       setClientCreatedFromDialog(false);
       clearSuggestions();
       clearExpertSuggestions();
@@ -560,18 +559,15 @@ export const CreateCaseDialog = memo(
     );
 
     const handleExpertChange = useCallback(
-      (_e: any, value: any, reason: string) => {
-        if (reason === "clear") {
-          setFormData((prev) => ({ ...prev, assigned_user_id: "" }));
-          setSelectedExpert(null);
-          setExpertInputValue("");
-          clearExpertSuggestions();
-        } else if (value) {
-          setFormData((prev) => ({ ...prev, assigned_user_id: value.id }));
-          setSelectedExpert(value);
-        }
+      (_e: any, value: Array<{ id: string; name: string }>) => {
+        const nextExperts = value ?? [];
+        setFormData((prev) => ({
+          ...prev,
+          expert_ids: nextExperts.map((expert) => expert.id),
+        }));
+        setSelectedExperts(nextExperts);
       },
-      [clearExpertSuggestions],
+      [],
     );
 
     const handleCreateClient = useCallback(
@@ -789,11 +785,12 @@ export const CreateCaseDialog = memo(
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
-                    key={`expert-${selectedExpert?.id || "none"}`}
+                    key={`expert-${selectedExperts.map((expert) => expert.id).join("-") || "none"}`}
                     fullWidth
                     options={expertSuggestions}
                     getOptionLabel={(option) => option.name || ""}
-                    value={selectedExpert}
+                    multiple
+                    value={selectedExperts}
                     inputValue={expertInputValue}
                     loading={isExpertSuggestLoading}
                     filterOptions={(options) => options}
@@ -809,7 +806,6 @@ export const CreateCaseDialog = memo(
                     isOptionEqualToValue={(option, value) =>
                       option.id === value?.id
                     }
-                    disableClearable
                     renderOption={(props, option) => (
                       <li {...props} key={option.id}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -826,7 +822,7 @@ export const CreateCaseDialog = memo(
                       <TextField
                         {...params}
                         fullWidth
-                        label="Назначить эксперта"
+                        label="Назначить экспертов"
                         placeholder="Введите имя эксперта..."
                         sx={singleLineInputSx}
                         InputProps={{
