@@ -18,7 +18,7 @@ export interface Case {
   object_address: string;
   judge_name?: string;
   status: CaseStatus;
-  assigned_user_id?: string;
+  expert_ids?: string[];
   start_date: string;
   deadline: string;
   completion_date?: string;
@@ -33,11 +33,11 @@ export interface Case {
   remarks?: string;
   created_at: string;
   updated_at: string;
-  assigned_expert?: {
+  experts: {
     id: string;
     email: string;
     full_name: string;
-  };
+  }[];
 }
 
 export interface CaseDetailResponse {
@@ -62,7 +62,7 @@ export interface CaseDetailResponse {
       contact_type: "legal_representative" | "court_officer" | "individual";
     }[];
   };
-  assigned_experts: {
+  experts: {
     id: string;
     email: string;
     full_name: string;
@@ -115,7 +115,7 @@ export interface CaseCreateRequest {
   object_address: string;
   judge_name?: string;
   status?: CaseStatus;
-  assigned_user_id?: string;
+  expert_ids?: string[];
   start_date: string;
   deadline: string;
   completion_date?: string;
@@ -149,9 +149,12 @@ export interface CasePatchRequest {
   cash_amount?: string;
   remaining_debt?: string;
   completion_date?: string;
-  assigned_user_id?: string | null;
   archive_status?: string;
   remarks?: string;
+}
+
+export interface CaseExpertsUpdateRequest {
+  expert_ids: string[];
 }
 
 export interface GetCasesQuery {

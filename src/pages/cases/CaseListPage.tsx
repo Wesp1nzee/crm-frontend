@@ -357,22 +357,22 @@ export function CaseListPage() {
                       </Typography>
                     </TableCell>
                     <TableCell>
-                      {case_.assigned_expert ? (
+                      {(case_.experts ?? []).length > 0 ? (
                         <Box display="flex" alignItems="center" gap={1}>
                           <Avatar
                             sx={{ width: 24, height: 24, fontSize: "0.75rem" }}
                           >
-                            {case_.assigned_expert.full_name.charAt(0)}
+                            {case_.experts[0]?.full_name?.charAt(0) ?? "?"}
                           </Avatar>
                           <Typography variant="body2" noWrap>
-                            {case_.assigned_expert.full_name}
+                            {(case_.experts ?? []).map((expert) => expert.full_name).join(", ")}
                           </Typography>
                         </Box>
                       ) : (
                         <Box display="flex" alignItems="center" gap={1}>
                           <PersonIcon fontSize="small" color="disabled" />
                           <Typography variant="body2" color="text.secondary">
-                            Не назначен
+                            Не назначены
                           </Typography>
                         </Box>
                       )}

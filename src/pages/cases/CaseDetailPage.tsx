@@ -54,7 +54,7 @@ import {
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { useCase, usePatchCase } from "../../shared/hooks/useCases";
+import { useCase, usePatchCase, useUpdateCaseExperts } from "../../shared/hooks/useCases";
 import {
   useUploadDocument,
   useDownloadDocument,
@@ -407,14 +407,16 @@ export function CaseDetailPage() {
   const navigate = useNavigate();
   const { data: caseData, isLoading, error, refetch } = useCase(id!);
   const patchCase = usePatchCase();
+  const updateCaseExperts = useUpdateCaseExperts();
   const uploadDocument = useUploadDocument();
   const createFolder = useCreateFolder();
   const downloadDocument = useDownloadDocument();
   const previewDocument = usePreviewDocument();
   const downloadCaseDocuments = useDownloadCaseDocuments();
   const theme = useTheme();
-  const { isExpert } = usePermissions();
+  const { isExpert, isAdmin, isCEO, isAccountant } = usePermissions();
   const canEditCase = !isExpert;
+  const canManageExperts = isAdmin || isCEO || isAccountant;
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
 
@@ -432,15 +434,13 @@ export function CaseDetailPage() {
   const [downloadLabel, setDownloadLabel] = useState("");
   const [isDragActive, setIsDragActive] = useState(false);
   const dragDepthRef = useRef(0);
-  const [selectedExpert, setSelectedExpert] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [selectedExperts, setSelectedExperts] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [isEditingExpert, setIsEditingExpert] = useState(false);
-  const [draftExpert, setDraftExpert] = useState<{
-    id: string;
-    name: string;
-  } | null>(null);
+  const [draftExperts, setDraftExperts] = useState<
+    Array<{ id: string; name: string }>
+  >([]);
   const [draftExpertInput, setDraftExpertInput] = useState("");
   const {
     suggestions: expertSuggestions,
@@ -456,27 +456,14 @@ export function CaseDetailPage() {
       prev !== caseData.case.status ? caseData.case.status : prev,
     );
 
-    const currentExpert = caseData.assigned_experts?.[0];
-    if (currentExpert) {
-      const expertOption = {
-        id: currentExpert.id,
-        name: currentExpert.full_name,
-      };
+    const currentExperts = (caseData.experts ?? []).map((expert) => ({
+      id: expert.id,
+      name: expert.full_name,
+    }));
 
-      setSelectedExpert((prev) =>
-        prev?.id !== expertOption.id ? expertOption : prev,
-      );
-      setDraftExpert((prev) =>
-        prev?.id !== expertOption.id ? expertOption : prev,
-      );
-      setDraftExpertInput((prev) =>
-        prev !== currentExpert.full_name ? currentExpert.full_name : prev,
-      );
-    } else {
-      setSelectedExpert((prev) => (prev !== null ? null : prev));
-      setDraftExpert((prev) => (prev !== null ? null : prev));
-      setDraftExpertInput((prev) => (prev !== "" ? "" : prev));
-    }
+    setSelectedExperts(currentExperts);
+    setDraftExperts(currentExperts);
+    setDraftExpertInput("");
   }, [caseData]);
 
   useEffect(() => {
@@ -493,7 +480,7 @@ export function CaseDetailPage() {
 
   const case_ = caseData?.case;
   const client = caseData?.client;
-  const assigned_experts = caseData?.assigned_experts ?? [];
+  const assignedExperts = caseData?.experts ?? [];
   const documents = caseData?.documents ?? [];
   const folders = caseData?.folders ?? [];
 
@@ -752,36 +739,47 @@ export function CaseDetailPage() {
   };
 
   const handleExpertEditStart = () => {
-    if (!canEditCase) return;
+    if (!canManageExperts) return;
     setIsEditingExpert(true);
-    setDraftExpert(selectedExpert);
-    setDraftExpertInput(selectedExpert?.name ?? "");
+    setDraftExperts(selectedExperts);
+    setDraftExpertInput("");
   };
 
   const handleExpertEditCancel = () => {
     setIsEditingExpert(false);
-    setDraftExpert(selectedExpert);
-    setDraftExpertInput(selectedExpert?.name ?? "");
+    setDraftExperts(selectedExperts);
+    setDraftExpertInput("");
     clearExpertSuggestions();
   };
 
   const handleExpertSave = () => {
-    if (!canEditCase) return;
-    const nextExpertId = draftExpert?.id ?? null;
-    const currentExpertId = case_.assigned_user_id ?? null;
+    if (!canManageExperts) return;
 
-    if (nextExpertId === currentExpertId) {
+    const currentIds = [...selectedExperts.map((expert) => expert.id)].sort();
+    const nextIds = [...draftExperts.map((expert) => expert.id)].sort();
+
+    if (JSON.stringify(currentIds) === JSON.stringify(nextIds)) {
       handleExpertEditCancel();
       return;
     }
 
-    setSelectedExpert(draftExpert);
-    setDraftExpertInput(draftExpert?.name ?? "");
-    setIsEditingExpert(false);
-    patchCase.mutate({
-      id: case_.id,
-      data: { assigned_user_id: nextExpertId },
-    });
+    updateCaseExperts.mutate(
+      {
+        id: case_.id,
+        data: { expert_ids: draftExperts.map((expert) => expert.id) },
+      },
+      {
+        onSuccess: () => {
+          setSelectedExperts(draftExperts);
+          setIsEditingExpert(false);
+          clearExpertSuggestions();
+          notificationService.success("Список экспертов обновлен");
+        },
+        onError: () => {
+          notificationService.error("Не удалось обновить список экспертов");
+        },
+      },
+    );
   };
 
   const handleFieldEdit = (field: string, value: string) => {
@@ -2087,79 +2085,102 @@ export function CaseDetailPage() {
           </Card>
 
           {/* Assigned Experts Card */}
-          <Card sx={{ borderRadius: 2, boxShadow: 2 }}>
+          <Card
+            sx={{
+              borderRadius: 3,
+              boxShadow: "0 18px 40px rgba(15, 23, 42, 0.06)",
+              border: "1px solid",
+              borderColor: "rgba(15, 23, 42, 0.08)",
+              bgcolor: "#FFFFFF",
+              transition: "box-shadow 0.2s ease, border-color 0.2s ease",
+              "&:hover": {
+                boxShadow: "0 24px 50px rgba(15, 23, 42, 0.08)",
+                borderColor: "rgba(79, 144, 255, 0.3)",
+              },
+            }}
+          >
             <CardHeader
               title={
-                <Typography variant="h6" fontWeight="bold">
-                  Назначенные эксперты ({assigned_experts.length})
+                <Typography variant="h6" fontWeight="bold" sx={{ color: "#1A1C1E" }}>
+                  Назначенные эксперты ({assignedExperts.length})
                 </Typography>
               }
+              sx={{ pb: 0.5 }}
             />
-            <CardContent sx={{ pt: 0 }}>
-              {!isEditingExpert || !canEditCase ? (
-                <Box
-                  display="flex"
-                  alignItems="center"
-                  gap={1.5}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor: "background.default",
-                    minHeight: 48,
-                    mb: 2,
-                  }}
-                >
-                  <Typography
-                    variant="body1"
-                    sx={{
-                      flexGrow: 1,
-                      color: selectedExpert ? "text.primary" : "text.disabled",
-                    }}
-                  >
-                    {selectedExpert?.name || "—"}
-                  </Typography>
-                  {canEditCase && (
-                    <Tooltip title="Редактировать">
-                      <IconButton
-                        size="small"
-                        color="primary"
-                        onClick={handleExpertEditStart}
-                      >
-                        <Edit fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+            <CardContent sx={{ px: 2.5, pb: 2.5, pt: 1.5 }}>
+              {!isEditingExpert || !canManageExperts ? (
+                <>
+                  {selectedExperts.length > 0 ? (
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexWrap: "wrap",
+                        gap: 1,
+                        mb: canManageExperts ? 2 : 0,
+                      }}
+                    >
+                      {selectedExperts.map((expert) => (
+                        <Chip
+                          key={expert.id}
+                          label={expert.name}
+                          size="small"
+                          sx={{
+                            bgcolor: "#EEF3FF",
+                            color: "#1A1C1E",
+                            borderRadius: 1,
+                            border: "1px solid #DCE7FF",
+                            "& .MuiChip-label": { px: 1.25, lineHeight: 1.45 },
+                          }}
+                        />
+                      ))}
+                    </Box>
+                  ) : (
+                    <Box
+                      sx={{
+                        border: "1px dashed rgba(108, 117, 125, 0.35)",
+                        borderRadius: 2,
+                        px: 2,
+                        py: 1.75,
+                        mb: canManageExperts ? 2 : 0,
+                        bgcolor: "#FFFFFF",
+                      }}
+                    >
+                      <Typography variant="body2" sx={{ color: "#6C757D", lineHeight: 1.5 }}>
+                        Эксперты пока не назначены. Добавьте экспертов, чтобы распределить дело.
+                      </Typography>
+                    </Box>
                   )}
-                </Box>
+
+                  {canManageExperts && (
+                    <Button
+                      variant="outlined"
+                      size="small"
+                      onClick={handleExpertEditStart}
+                      startIcon={<Edit fontSize="small" />}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      {selectedExperts.length > 0 ? "Изменить список" : "Добавить экспертов"}
+                    </Button>
+                  )}
+                </>
               ) : (
-                <Box
-                  display="flex"
-                  alignItems="flex-start"
-                  gap={1.5}
-                  sx={{
-                    p: 1.5,
-                    borderRadius: 1,
-                    bgcolor:
-                      theme.palette.mode === "dark"
-                        ? "rgba(79, 144, 255, 0.1)"
-                        : "rgba(79, 144, 255, 0.04)",
-                    border: `1px solid ${theme.palette.mode === "dark" ? "rgba(79, 144, 255, 0.3)" : "rgba(79, 144, 255, 0.2)"}`,
-                    mb: 2,
-                  }}
-                >
+                <Box>
                   <Autocomplete
                     fullWidth
                     options={expertSuggestions}
                     getOptionLabel={(option) => option.name || ""}
-                    value={draftExpert}
+                    multiple
+                    value={draftExperts}
                     inputValue={draftExpertInput}
                     loading={isExpertSuggestLoading}
                     filterOptions={(options) => options}
+                    disablePortal
                     noOptionsText={
                       draftExpertInput.trim().length === 0
-                        ? "Начните ввод для поиска..."
+                        ? "Начните вводить имя эксперта..."
                         : isExpertSuggestLoading
                           ? "Поиск..."
-                          : "Эксперты не найдены"
+                          : "Ничего не найдено"
                     }
                     onInputChange={(_e, newInputValue, reason) => {
                       setDraftExpertInput(newInputValue);
@@ -2170,15 +2191,56 @@ export function CaseDetailPage() {
                       }
                     }}
                     onChange={(_e, value) => {
-                      setDraftExpert(value);
-                      setDraftExpertInput(value?.name ?? "");
+                      setDraftExperts(value ?? []);
                     }}
                     isOptionEqualToValue={(option, value) =>
                       option.id === value?.id
                     }
+                    slotProps={{
+                      paper: {
+                        sx: {
+                          mt: 0.5,
+                          borderRadius: 1,
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          overflow: "hidden",
+                          zIndex: 50,
+                          opacity: 1,
+                          transform: "scale(1)",
+                          transformOrigin: "top center",
+                          transition: "all 0.2s ease",
+                        },
+                      },
+                      popper: {
+                        sx: { zIndex: 50 },
+                      },
+                      listbox: {
+                        sx: {
+                          py: 0.5,
+                          "& .MuiAutocomplete-option": {
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            "&:hover": { bgcolor: "#EAF4FF" },
+                          },
+                        },
+                      },
+                      chip: {
+                        sx: {
+                          borderRadius: 1,
+                          px: 0.5,
+                          bgcolor: "#EEF3FF",
+                          border: "1px solid #DCE7FF",
+                          color: "#1A1C1E",
+                          transition: "all 0.2s ease",
+                          "& .MuiChip-label": { px: 1.25, lineHeight: 1.45 },
+                        },
+                      },
+                      popupIndicator: {
+                        sx: { "& .MuiSvgIcon-root": { fontSize: 20 } },
+                      },
+                    }}
                     renderOption={(props, option) => (
-                      <li {...props} key={option.id}>
-                        <Typography variant="body2" fontWeight={500}>
+                      <li {...props} key={option.id} style={{ cursor: "pointer" }}>
+                        <Typography variant="body2" fontWeight={500} sx={{ color: "#1A1C1E" }}>
                           {option.name}
                         </Typography>
                       </li>
@@ -2187,8 +2249,25 @@ export function CaseDetailPage() {
                       <TextField
                         {...params}
                         size="small"
-                        label="Назначенный эксперт"
-                        placeholder="Введите имя эксперта..."
+                        placeholder="Добавить эксперта..."
+                        sx={{
+                          "& .MuiOutlinedInput-root": {
+                            borderRadius: 1,
+                            bgcolor: "#FFFFFF",
+                            color: "#1A1C1E",
+                            alignItems: "center",
+                            minHeight: 52,
+                            py: 0.5,
+                            transition: "border-color 0.2s ease, box-shadow 0.2s ease",
+                            "&:hover": {
+                              boxShadow: "0 10px 28px rgba(15, 23, 42, 0.08)",
+                            },
+                          },
+                          "& .MuiInputBase-input::placeholder": {
+                            color: "#6C757D",
+                            opacity: 1,
+                          },
+                        }}
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -2202,33 +2281,28 @@ export function CaseDetailPage() {
                         }}
                       />
                     )}
-                    sx={{ flexGrow: 1 }}
                   />
-                  <Tooltip title="Сохранить">
-                    <IconButton
-                      size="small"
-                      color="success"
-                      onClick={handleExpertSave}
-                    >
-                      <Save fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Отменить">
-                    <IconButton
-                      size="small"
-                      color="error"
-                      onClick={handleExpertEditCancel}
-                    >
-                      <Cancel fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </Box>
-              )}
 
-              {!selectedExpert && (
-                <Typography variant="body2" color="text.secondary">
-                  Эксперт пока не назначен.
-                </Typography>
+                  <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, mt: 1.5 }}>
+                    <Button
+                      size="small"
+                      variant="outlined"
+                      onClick={handleExpertEditCancel}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Отмена
+                    </Button>
+                    <Button
+                      size="small"
+                      variant="contained"
+                      onClick={handleExpertSave}
+                      disabled={updateCaseExperts.isPending}
+                      sx={{ borderRadius: 2 }}
+                    >
+                      Сохранить
+                    </Button>
+                  </Box>
+                </Box>
               )}
             </CardContent>
           </Card>
