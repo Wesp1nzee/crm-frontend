@@ -66,6 +66,7 @@ const CASE_STATUS_COLORS: Record<
   cancelled: "error",
   fssp: "info",
 };
+
 const singleLineInputSx = {
   "& .MuiInputBase-root": {
     height: INPUT_HEIGHT,
@@ -81,8 +82,6 @@ const singleLineInputSx = {
     width: "100%",
   },
 } as const;
-
-// ... остальные стили ...
 
 // ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 export function createInitialFormData(): CaseCreateRequest {
@@ -260,7 +259,6 @@ const FormField = memo(
 
 FormField.displayName = "FormField";
 
-// ✅ ИСПРАВЛЕННОЕ финансовое поле
 interface FinancialFieldProps {
   field: string;
   label: string;
@@ -365,14 +363,11 @@ export const CreateCaseDialog = memo(
     const [selectedExperts, setSelectedExperts] = useState<
       Array<{ id: string; name: string }>
     >([]);
-    const [isExpertAutocompleteOpen, setIsExpertAutocompleteOpen] =
-      useState(false);
     const expertInputRef = useRef<HTMLInputElement | null>(null);
     const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
     const [clientCreatedFromDialog, setClientCreatedFromDialog] =
       useState(false);
 
-    // ✅ НОВОЕ: Отдельный state для финансовых полей (строки для редактирования)
     const [financialValues, setFinancialValues] = useState({
       cost: "0",
       bank_transfer_amount: "0",
@@ -433,7 +428,6 @@ export const CreateCaseDialog = memo(
       setExpertInputValue("");
       setSelectedClient(null);
       setSelectedExperts([]);
-      setIsExpertAutocompleteOpen(false);
       setClientCreatedFromDialog(false);
       clearSuggestions();
       clearExpertSuggestions();
@@ -467,7 +461,6 @@ export const CreateCaseDialog = memo(
       [errors, clearError],
     );
 
-    // ✅ ИСПРАВЛЕНО: Обработка финансовых полей
     const handleFinancialChange = useCallback(
       (
         field:
@@ -477,10 +470,8 @@ export const CreateCaseDialog = memo(
           | "remaining_debt",
         value: string,
       ) => {
-        // Разрешаем пустую строку и цифры с точкой
         if (value === "" || /^\d*\.?\d*$/.test(value)) {
           setFinancialValues((prev) => ({ ...prev, [field]: value }));
-          // Обновляем formData для отправки (пустая строка = 0)
           setFormData((prev) => ({
             ...prev,
             [field]: value === "" ? 0 : Number(value),
@@ -558,9 +549,6 @@ export const CreateCaseDialog = memo(
         } else if (reason === "input" && newInputValue.trim().length >= 2) {
           fetchExpertSuggestions(newInputValue);
         }
-        if (reason !== "reset") {
-          setIsExpertAutocompleteOpen(true);
-        }
       },
       [fetchExpertSuggestions, clearExpertSuggestions],
     );
@@ -587,7 +575,6 @@ export const CreateCaseDialog = memo(
         return nextExperts;
       });
 
-      setIsExpertAutocompleteOpen(true);
       requestAnimationFrame(() => {
         expertInputRef.current?.focus();
       });
@@ -806,6 +793,8 @@ export const CreateCaseDialog = memo(
                     </Tooltip>
                   </Box>
                 </Grid>
+
+                {/* ===== EXPERT AUTOCOMPLETE ===== */}
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
                     fullWidth
@@ -815,18 +804,11 @@ export const CreateCaseDialog = memo(
                     value={selectedExperts}
                     inputValue={expertInputValue}
                     loading={isExpertSuggestLoading}
-                    open={isExpertAutocompleteOpen}
-                    onOpen={() => setIsExpertAutocompleteOpen(true)}
-                    onClose={(_event, reason) => {
-                      if (reason !== "toggleInput") {
-                        setIsExpertAutocompleteOpen(false);
-                      }
-                    }}
-                    disableCloseOnSelect
+                    // Убрали ручное управление open — MUI сам знает когда показывать список
                     filterOptions={(options) => options}
                     noOptionsText={
-                      expertInputValue.trim().length === 0
-                        ? "Начните вводить имя эксперта..."
+                      expertInputValue.trim().length < 2
+                        ? "Введите минимум 2 символа..."
                         : isExpertSuggestLoading
                           ? "Поиск..."
                           : "Ничего не найдено"
@@ -842,31 +824,16 @@ export const CreateCaseDialog = memo(
                           mt: 0.5,
                           borderRadius: 1,
                           boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
-                          overflow: "hidden",
-                          zIndex: 50,
-                          opacity: 1,
-                          transform: "scale(1)",
-                          transformOrigin: "top center",
-                          transition: "all 0.2s ease",
                         },
                       },
-                      popper: {
-                        sx: { zIndex: 50 },
-                      },
+                      popper: { sx: { zIndex: 1500 } },
                       listbox: {
                         sx: {
                           py: 0.5,
                           "& .MuiAutocomplete-option": {
                             cursor: "pointer",
-                            transition: "all 0.2s ease",
                             "&:hover": { bgcolor: "#EAF4FF" },
                           },
-                        },
-                      },
-                      popupIndicator: {
-                        sx: {
-                          mr: 0.25,
-                          "& .MuiSvgIcon-root": { fontSize: 20 },
                         },
                       },
                     }}
@@ -885,8 +852,6 @@ export const CreateCaseDialog = memo(
                                 sx={{
                                   fontSize: 16,
                                   color: "#6C757D",
-                                  cursor: "pointer",
-                                  transition: "all 0.2s ease",
                                   "&:hover": { color: "#1D4ED8" },
                                 }}
                               />
@@ -897,15 +862,8 @@ export const CreateCaseDialog = memo(
                               bgcolor: "#EEF3FF",
                               border: "1px solid #DCE7FF",
                               color: "#1A1C1E",
-                              "& .MuiChip-label": {
-                                px: 1,
-                                py: 0.125,
-                                lineHeight: 1.35,
-                              },
-                              "& .MuiChip-deleteIcon": {
-                                mr: 0.25,
-                                ml: 0.5,
-                              },
+                              "& .MuiChip-label": { px: 1, lineHeight: 1.35 },
+                              "& .MuiChip-deleteIcon": { mr: 0.25, ml: 0.5 },
                             }}
                           />
                         );
@@ -927,21 +885,9 @@ export const CreateCaseDialog = memo(
                       <TextField
                         {...params}
                         fullWidth
-                        label=""
-                        placeholder="Добавить эксперта..."
-                        sx={{
-                          ...singleLineInputSx,
-                          "& .MuiInputBase-root": {
-                            ...singleLineInputSx["& .MuiInputBase-root"],
-                            alignItems: "center",
-                            py: 0.5,
-                          },
-                          "& .MuiAutocomplete-input": {
-                            lineHeight: 1.45,
-                          },
-                        }}
+                        label="Эксперты"
+                        placeholder={selectedExperts.length === 0 ? "Добавить эксперта..." : ""}
                         inputRef={expertInputRef}
-                        onFocus={() => setIsExpertAutocompleteOpen(true)}
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -952,22 +898,32 @@ export const CreateCaseDialog = memo(
                               {params.InputProps.endAdornment}
                             </>
                           ),
+                          // Иконка идёт ДО chips (startAdornment от params)
                           startAdornment: (
-                            <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
-                              <Box
-                                sx={{
-                                  display: "inline-flex",
-                                  alignItems: "center",
-                                  mr: 1,
-                                  color: "text.secondary",
-                                  flexShrink: 0,
-                                }}
-                              >
-                                <PersonIcon sx={{ fontSize: 18 }} />
-                              </Box>
+                            <>
+                              <InputAdornment position="start" sx={{ mr: 0.5, flexShrink: 0 }}>
+                                <PersonIcon sx={{ color: "text.disabled", fontSize: 20 }} />
+                              </InputAdornment>
                               {params.InputProps.startAdornment}
-                            </Box>
+                            </>
                           ),
+                        }}
+                        sx={{
+                          // Минимальная высота как у других полей, но auto — чтобы chips влезали
+                          "& .MuiInputBase-root": {
+                            minHeight: INPUT_HEIGHT,
+                            boxSizing: "border-box",
+                            px: 1.5,
+                            py: "6px",
+                            display: "flex",
+                            alignItems: "center",
+                            flexWrap: "wrap",
+                            gap: "4px",
+                          },
+                          "& .MuiAutocomplete-input": {
+                            py: 0,
+                            minWidth: 80,
+                          },
                         }}
                       />
                     )}
@@ -1224,7 +1180,7 @@ export const CreateCaseDialog = memo(
               </Grid>
             </FormSection>
 
-            {/* Финансы - ✅ ИСПРАВЛЕНО */}
+            {/* Финансы */}
             <FormSection>
               <SectionHeader
                 icon={<AttachMoneyIcon sx={{ fontSize: 18 }} />}
