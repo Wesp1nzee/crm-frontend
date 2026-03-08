@@ -1,5 +1,5 @@
 // src/pages/cases/CreateCaseDialog.tsx
-import React, { useState, useCallback, memo, useMemo } from "react";
+import React, { useState, useCallback, memo, useMemo, useRef } from "react";
 import {
   Box,
   Typography,
@@ -365,6 +365,9 @@ export const CreateCaseDialog = memo(
     const [selectedExperts, setSelectedExperts] = useState<
       Array<{ id: string; name: string }>
     >([]);
+    const [isExpertAutocompleteOpen, setIsExpertAutocompleteOpen] =
+      useState(false);
+    const expertInputRef = useRef<HTMLInputElement | null>(null);
     const [createClientDialogOpen, setCreateClientDialogOpen] = useState(false);
     const [clientCreatedFromDialog, setClientCreatedFromDialog] =
       useState(false);
@@ -430,6 +433,7 @@ export const CreateCaseDialog = memo(
       setExpertInputValue("");
       setSelectedClient(null);
       setSelectedExperts([]);
+      setIsExpertAutocompleteOpen(false);
       setClientCreatedFromDialog(false);
       clearSuggestions();
       clearExpertSuggestions();
@@ -554,6 +558,9 @@ export const CreateCaseDialog = memo(
         } else if (reason === "input" && newInputValue.trim().length >= 2) {
           fetchExpertSuggestions(newInputValue);
         }
+        if (reason !== "reset") {
+          setIsExpertAutocompleteOpen(true);
+        }
       },
       [fetchExpertSuggestions, clearExpertSuggestions],
     );
@@ -569,6 +576,22 @@ export const CreateCaseDialog = memo(
       },
       [],
     );
+
+    const handleRemoveExpertTag = useCallback((expertId: string) => {
+      setSelectedExperts((prev) => {
+        const nextExperts = prev.filter((expert) => expert.id !== expertId);
+        setFormData((current) => ({
+          ...current,
+          expert_ids: nextExperts.map((expert) => expert.id),
+        }));
+        return nextExperts;
+      });
+
+      setIsExpertAutocompleteOpen(true);
+      requestAnimationFrame(() => {
+        expertInputRef.current?.focus();
+      });
+    }, []);
 
     const handleCreateClient = useCallback(
       async (clientData: ClientCreateRequestType) => {
@@ -708,7 +731,7 @@ export const CreateCaseDialog = memo(
                       }
                       disableClearable
                       renderOption={(props, option) => (
-                        <li {...props} key={option.id}>
+                        <li {...props} key={option.id} style={{ cursor: "pointer" }}>
                           <Box
                             sx={{ display: "flex", flexDirection: "column" }}
                           >
@@ -792,13 +815,21 @@ export const CreateCaseDialog = memo(
                     value={selectedExperts}
                     inputValue={expertInputValue}
                     loading={isExpertSuggestLoading}
+                    open={isExpertAutocompleteOpen}
+                    onOpen={() => setIsExpertAutocompleteOpen(true)}
+                    onClose={(_event, reason) => {
+                      if (reason !== "toggleInput") {
+                        setIsExpertAutocompleteOpen(false);
+                      }
+                    }}
+                    disableCloseOnSelect
                     filterOptions={(options) => options}
                     noOptionsText={
                       expertInputValue.trim().length === 0
-                        ? "Начните ввод для поиска..."
+                        ? "Начните вводить имя эксперта..."
                         : isExpertSuggestLoading
                           ? "Поиск..."
-                          : "Эксперты не найдены"
+                          : "Ничего не найдено"
                     }
                     onInputChange={handleExpertInputChange}
                     onChange={handleExpertChange}
@@ -806,22 +837,82 @@ export const CreateCaseDialog = memo(
                       option.id === value?.id
                     }
                     slotProps={{
-                      chip: {
+                      paper: {
                         sx: {
+                          mt: 0.5,
                           borderRadius: 1,
-                          px: 0.5,
-                          bgcolor: "#EEF3FF",
-                          border: "1px solid #DCE7FF",
-                          color: "#1A1C1E",
-                          "& .MuiChip-label": { px: 1, lineHeight: 1.45 },
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          overflow: "hidden",
+                          zIndex: 50,
+                          opacity: 1,
+                          transform: "scale(1)",
+                          transformOrigin: "top center",
+                          transition: "all 0.2s ease",
+                        },
+                      },
+                      popper: {
+                        sx: { zIndex: 50 },
+                      },
+                      listbox: {
+                        sx: {
+                          py: 0.5,
+                          "& .MuiAutocomplete-option": {
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            "&:hover": { bgcolor: "#EAF4FF" },
+                          },
                         },
                       },
                       popupIndicator: {
-                        sx: { mr: 0.25, "& .MuiSvgIcon-root": { fontSize: 20 } },
+                        sx: {
+                          mr: 0.25,
+                          "& .MuiSvgIcon-root": { fontSize: 20 },
+                        },
                       },
                     }}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => {
+                        const tagProps = getTagProps({ index });
+                        return (
+                          <Chip
+                            {...tagProps}
+                            key={option.id}
+                            label={option.name}
+                            size="small"
+                            onDelete={() => handleRemoveExpertTag(option.id)}
+                            deleteIcon={
+                              <CloseIcon
+                                sx={{
+                                  fontSize: 16,
+                                  color: "#6C757D",
+                                  cursor: "pointer",
+                                  transition: "all 0.2s ease",
+                                  "&:hover": { color: "#1D4ED8" },
+                                }}
+                              />
+                            }
+                            sx={{
+                              borderRadius: 1,
+                              px: 0.25,
+                              bgcolor: "#EEF3FF",
+                              border: "1px solid #DCE7FF",
+                              color: "#1A1C1E",
+                              "& .MuiChip-label": {
+                                px: 1,
+                                py: 0.125,
+                                lineHeight: 1.35,
+                              },
+                              "& .MuiChip-deleteIcon": {
+                                mr: 0.25,
+                                ml: 0.5,
+                              },
+                            }}
+                          />
+                        );
+                      })
+                    }
                     renderOption={(props, option) => (
-                      <li {...props} key={option.id}>
+                      <li {...props} key={option.id} style={{ cursor: "pointer" }}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
                           <Typography variant="body2" fontWeight={500}>
                             {option.name}
@@ -849,6 +940,8 @@ export const CreateCaseDialog = memo(
                             lineHeight: 1.45,
                           },
                         }}
+                        inputRef={expertInputRef}
+                        onFocus={() => setIsExpertAutocompleteOpen(true)}
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (

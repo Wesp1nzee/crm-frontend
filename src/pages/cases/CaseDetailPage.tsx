@@ -2174,12 +2174,13 @@ export function CaseDetailPage() {
                     inputValue={draftExpertInput}
                     loading={isExpertSuggestLoading}
                     filterOptions={(options) => options}
+                    disablePortal
                     noOptionsText={
                       draftExpertInput.trim().length === 0
-                        ? "Начните ввод для поиска..."
+                        ? "Начните вводить имя эксперта..."
                         : isExpertSuggestLoading
                           ? "Поиск..."
-                          : "Эксперты не найдены"
+                          : "Ничего не найдено"
                     }
                     onInputChange={(_e, newInputValue, reason) => {
                       setDraftExpertInput(newInputValue);
@@ -2196,6 +2197,32 @@ export function CaseDetailPage() {
                       option.id === value?.id
                     }
                     slotProps={{
+                      paper: {
+                        sx: {
+                          mt: 0.5,
+                          borderRadius: 1,
+                          boxShadow: "0 10px 15px -3px rgba(0, 0, 0, 0.1)",
+                          overflow: "hidden",
+                          zIndex: 50,
+                          opacity: 1,
+                          transform: "scale(1)",
+                          transformOrigin: "top center",
+                          transition: "all 0.2s ease",
+                        },
+                      },
+                      popper: {
+                        sx: { zIndex: 50 },
+                      },
+                      listbox: {
+                        sx: {
+                          py: 0.5,
+                          "& .MuiAutocomplete-option": {
+                            cursor: "pointer",
+                            transition: "all 0.2s ease",
+                            "&:hover": { bgcolor: "#EAF4FF" },
+                          },
+                        },
+                      },
                       chip: {
                         sx: {
                           borderRadius: 1,
@@ -2212,7 +2239,7 @@ export function CaseDetailPage() {
                       },
                     }}
                     renderOption={(props, option) => (
-                      <li {...props} key={option.id}>
+                      <li {...props} key={option.id} style={{ cursor: "pointer" }}>
                         <Typography variant="body2" fontWeight={500} sx={{ color: "#1A1C1E" }}>
                           {option.name}
                         </Typography>
