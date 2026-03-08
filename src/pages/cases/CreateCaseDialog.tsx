@@ -785,7 +785,6 @@ export const CreateCaseDialog = memo(
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6 }}>
                   <Autocomplete
-                    key={`expert-${selectedExperts.map((expert) => expert.id).join("-") || "none"}`}
                     fullWidth
                     options={expertSuggestions}
                     getOptionLabel={(option) => option.name || ""}
@@ -806,6 +805,21 @@ export const CreateCaseDialog = memo(
                     isOptionEqualToValue={(option, value) =>
                       option.id === value?.id
                     }
+                    slotProps={{
+                      chip: {
+                        sx: {
+                          borderRadius: 1,
+                          px: 0.5,
+                          bgcolor: "#EEF3FF",
+                          border: "1px solid #DCE7FF",
+                          color: "#1A1C1E",
+                          "& .MuiChip-label": { px: 1, lineHeight: 1.45 },
+                        },
+                      },
+                      popupIndicator: {
+                        sx: { mr: 0.25, "& .MuiSvgIcon-root": { fontSize: 20 } },
+                      },
+                    }}
                     renderOption={(props, option) => (
                       <li {...props} key={option.id}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
@@ -822,9 +836,19 @@ export const CreateCaseDialog = memo(
                       <TextField
                         {...params}
                         fullWidth
-                        label="Назначить экспертов"
-                        placeholder="Введите имя эксперта..."
-                        sx={singleLineInputSx}
+                        label=""
+                        placeholder="Добавить эксперта..."
+                        sx={{
+                          ...singleLineInputSx,
+                          "& .MuiInputBase-root": {
+                            ...singleLineInputSx["& .MuiInputBase-root"],
+                            alignItems: "center",
+                            py: 0.5,
+                          },
+                          "& .MuiAutocomplete-input": {
+                            lineHeight: 1.45,
+                          },
+                        }}
                         InputProps={{
                           ...params.InputProps,
                           endAdornment: (
@@ -836,11 +860,20 @@ export const CreateCaseDialog = memo(
                             </>
                           ),
                           startAdornment: (
-                            <InputAdornment position="start" sx={{ mr: 1 }}>
-                              <PersonIcon
-                                sx={{ color: "text.disabled", fontSize: 20 }}
-                              />
-                            </InputAdornment>
+                            <Box sx={{ display: "flex", alignItems: "center", width: "100%" }}>
+                              <Box
+                                sx={{
+                                  display: "inline-flex",
+                                  alignItems: "center",
+                                  mr: 1,
+                                  color: "text.secondary",
+                                  flexShrink: 0,
+                                }}
+                              >
+                                <PersonIcon sx={{ fontSize: 18 }} />
+                              </Box>
+                              {params.InputProps.startAdornment}
+                            </Box>
                           ),
                         }}
                       />
