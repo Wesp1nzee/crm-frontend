@@ -42,7 +42,7 @@ import {
   useMailSearch,
   useMailStats,
   usePatchMailMessage,
-  useSyncMailFolder,
+  useSyncMailMessages,
 } from "../../shared/hooks/useMail";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import { MailComposer } from "./MailComposer";
@@ -53,13 +53,15 @@ const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "drafts", label: "Черновики" },
   { id: "spam", label: "Спам" },
   { id: "trash", label: "Корзина" },
+  { id: "archive", label: "Архив" },
 ];
 
 const folderIcon = (folder: MailFolder) => {
   if (folder === "inbox") return <Inbox fontSize="small" />;
   if (folder === "sent") return <Send fontSize="small" />;
   if (folder === "drafts") return <Drafts fontSize="small" />;
-  if (folder === "spam") return <Archive fontSize="small" />;
+  if (folder === "spam") return <Delete fontSize="small" />;
+  if (folder === "archive") return <Archive fontSize="small" />;
   return <Delete fontSize="small" />;
 };
 
@@ -100,8 +102,9 @@ export function MailPage() {
 
   const { data: selectedMessage } = useMailMessage(selectedMessageId ?? "");
   const patchMessage = usePatchMailMessage();
-  const syncFolder = useSyncMailFolder();
+  const syncMessages = useSyncMailMessages();
   const bulkAction = useBulkMailAction();
+  const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
 
   const baseMessages = useMemo(() => messagesData?.items ?? [], [messagesData]);
 
@@ -148,8 +151,15 @@ export function MailPage() {
   };
 
   const handleRefresh = async () => {
-    await syncFolder.mutateAsync(selectedFolder);
+    const now = Date.now();
+    if (now - lastSyncedAt < 30_000) {
+      return;
+    }
+    await syncMessages.mutateAsync();
+    setLastSyncedAt(now);
   };
+
+  const isSyncBlocked = Date.now() - lastSyncedAt < 30_000;
 
   const drawer = (
     <Box
@@ -281,7 +291,10 @@ export function MailPage() {
           <Typography variant="h6" sx={{ flexGrow: 1, fontWeight: 700 }}>
             {folderMeta.find((folder) => folder.id === selectedFolder)?.label}
           </Typography>
-          <IconButton onClick={handleRefresh} disabled={syncFolder.isPending}>
+          <IconButton
+            onClick={handleRefresh}
+            disabled={syncMessages.isPending || isSyncBlocked}
+          >
             <Refresh />
           </IconButton>
         </Box>

@@ -1,4 +1,4 @@
-export type MailFolder = "inbox" | "sent" | "drafts" | "spam" | "trash";
+export type MailFolder = "inbox" | "sent" | "drafts" | "spam" | "trash" | "archive";
 
 export type MailStatus =
   | "draft"
@@ -182,6 +182,10 @@ export interface MailSearchQuery {
   q: string;
   page?: number;
   page_size?: number;
+}
+
+export interface MailMessagesSyncPayload {
+  days_history?: number;
 }
 
 // Legacy UI types used by mock mail screens (to be removed after full UI migration).

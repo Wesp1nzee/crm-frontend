@@ -101,6 +101,20 @@ export const useSyncMailFolder = () => {
   });
 };
 
+export const useSyncMailMessages = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (daysHistory?: number) =>
+      mailApi
+        .syncMessages(daysHistory ? { days_history: daysHistory } : undefined)
+        .then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mail"] });
+    },
+  });
+};
+
 // Temporary mock for UI block that expects realtime collaboration data.
 export const useCollaborationStatus = (_threadId: string) =>
   useQuery({

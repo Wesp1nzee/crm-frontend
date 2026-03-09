@@ -7,6 +7,7 @@ import type {
   MailMessagePatch,
   MailMessageRead,
   MailMessagesQuery,
+  MailMessagesSyncPayload,
   MailSearchQuery,
   MailSendPayload,
   MailSendResult,
@@ -74,9 +75,15 @@ export const mailApi = {
   getDownloadAttachmentUrl: (messageId: string, attachmentId: string) =>
     `/api/mail/messages/${messageId}/attachments/${attachmentId}/download`,
 
+  getDownloadAttachmentUrlForDownload: (messageId: string, attachmentId: string) =>
+    `/api/mail/messages/${messageId}/attachments/${attachmentId}/download?download=true`,
+
   syncAllFolders: () => api.post<MailSyncResult[]>("/mail/sync"),
 
   syncFolder: (folder: MailFolder) => api.post<MailSyncResult>(`/mail/sync/${folder}`),
+
+  syncMessages: (payload?: MailMessagesSyncPayload) =>
+    api.post<MailSyncResult>("/mail/messages/sync", payload),
 
   getStats: () => api.get<MailStats>("/mail/stats"),
 };
