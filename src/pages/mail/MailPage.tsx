@@ -164,7 +164,7 @@ export function MailPage() {
     >
       <Box sx={{ px: 1, pt: 0.5, pb: 1 }}>
         <Typography variant="h6" sx={{ fontWeight: 700 }}>
-          Mail / Inbox
+          Почта / Входящие
         </Typography>
       </Box>
 
@@ -180,7 +180,7 @@ export function MailPage() {
           background: "linear-gradient(120deg, #2563EB 0%, #3B82F6 100%)",
         }}
       >
-        Compose
+        Написать
       </Button>
 
       <List sx={{ pt: 0.5, display: "flex", flexDirection: "column", gap: 0.5 }}>
@@ -245,14 +245,13 @@ export function MailPage() {
     <Box
       sx={{
         display: "flex",
+        fontFamily: "Inter, Roboto, system-ui, sans-serif",
         height: "calc(100vh - 120px)",
         minHeight: 620,
         borderRadius: 6,
         p: 1.5,
         gap: 1.5,
-        background: `radial-gradient(circle at 12% 18%, ${alpha("#B7C8FF", 0.4)} 0%, transparent 38%),
-          radial-gradient(circle at 84% 82%, ${alpha("#A8D4FF", 0.32)} 0%, transparent 42%),
-          linear-gradient(150deg, #EFF2FF 0%, #E7F0FF 58%, #E4EDFF 100%)`,
+        background: "linear-gradient(115deg, #EAF3FF 0%, #EDF1FF 48%, #F4EAF8 100%)",
       }}
     >
       {!isMobile && <Box sx={{ ...glassSurface }}>{drawer}</Box>}
@@ -325,12 +324,12 @@ export function MailPage() {
                   border: `1px solid ${alpha("#8DA8DD", 0.5)}`,
                 }}
               >
-                <Chip label={`${selectedIds.length} selected`} size="small" color="primary" />
-                <Button size="small" onClick={() => void handleBulkAction("archive")}>Archive</Button>
-                <Button size="small" onClick={() => void handleBulkAction("star")}>Star</Button>
-                <Button size="small" onClick={() => void handleBulkAction("read")}>Read</Button>
+                <Chip label={`${selectedIds.length} выбрано`} size="small" color="primary" />
+                <Button size="small" onClick={() => void handleBulkAction("archive")}>Архив</Button>
+                <Button size="small" onClick={() => void handleBulkAction("star")}>В избранное</Button>
+                <Button size="small" onClick={() => void handleBulkAction("read")}>Прочитано</Button>
                 <Button size="small" color="error" onClick={() => void handleBulkAction("delete")}>
-                  Delete
+                  Удалить
                 </Button>
               </Paper>
             )}
@@ -396,7 +395,7 @@ export function MailPage() {
 
                     <Stack direction="row" spacing={0.8} alignItems="center">
                       {message.has_attachments && (
-                        <Chip label="Files" size="small" sx={{ height: 20, borderRadius: 99 }} />
+                        <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
                       )}
                       <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
                         {new Date(message.processed_at).toLocaleString("ru-RU")}
@@ -413,7 +412,7 @@ export function MailPage() {
                         transition: "all 0.18s ease",
                       }}
                     >
-                      <Tooltip title="Star">
+                      <Tooltip title="В избранное">
                         <IconButton
                           size="small"
                           onClick={(event) =>
@@ -423,7 +422,7 @@ export function MailPage() {
                           <Star fontSize="small" sx={{ color: message.is_starred ? "#2563EB" : undefined }} />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Archive">
+                      <Tooltip title="Архивировать">
                         <IconButton
                           size="small"
                           onClick={(event) => void handleQuickAction(event, message.id, { is_archived: true })}
@@ -431,7 +430,7 @@ export function MailPage() {
                           <Archive fontSize="small" />
                         </IconButton>
                       </Tooltip>
-                      <Tooltip title="Trash">
+                      <Tooltip title="В корзину">
                         <IconButton
                           size="small"
                           onClick={(event) => void handleQuickAction(event, message.id, { is_deleted: true })}
