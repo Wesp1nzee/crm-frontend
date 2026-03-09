@@ -62,7 +62,9 @@ const SettingsPage = lazy(() =>
 // const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
 // const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
 // const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
-// const MailPage = lazy(() => import('../pages/mail/MailPage').then(m => ({ default: m.MailPage })));
+const MailPage = lazy(() =>
+  import("../pages/mail/MailPage").then((m) => ({ default: m.MailPage })),
+);
 
 const PageLoader = () => (
   <Box
@@ -198,7 +200,16 @@ export const router = createBrowserRouter([
       // { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
       // { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
       // { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
-      // { path: 'mail', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><MailPage /></RoleGuard></Suspense> },
+            {
+        path: "mail",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <RoleGuard allowedRoles={["admin", "ceo", "accountant"]}>
+              <MailPage />
+            </RoleGuard>
+          </Suspense>
+        ),
+      },
     ],
   },
 ]);

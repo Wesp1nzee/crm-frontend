@@ -1,98 +1,110 @@
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { mailApi } from "../../entities/mail/api";
-import type { MailDraft } from "../../entities/mail/types";
+import type {
+  MailBulkAction,
+  MailFolder,
+  MailMessagePatch,
+  MailMessagesQuery,
+  MailSearchQuery,
+  MailSendPayload,
+} from "../../entities/mail/types";
 
-// Folders
-export const useMailFolders = () => {
-  return useQuery({
-    queryKey: ["mail-folders"],
-    queryFn: () => mailApi.getFolders().then((res) => res.data),
-  });
+const mailQueryKeys = {
+  messages: (params?: MailMessagesQuery) => ["mail", "messages", params] as const,
+  message: (messageId: string) => ["mail", "message", messageId] as const,
+  thread: (threadId: string) => ["mail", "thread", threadId] as const,
+  stats: () => ["mail", "stats"] as const,
 };
 
-// Threads
-export const useMailThreads = (folderId?: string) => {
-  return useQuery({
-    queryKey: ["mail-threads", folderId],
-    queryFn: () => mailApi.getThreads(folderId).then((res) => res.data),
-    enabled: !!folderId,
+export const useMailMessages = (params?: MailMessagesQuery) =>
+  useQuery({
+    queryKey: mailQueryKeys.messages(params),
+    queryFn: () => mailApi.getMessages(params).then((res) => res.data),
   });
-};
 
-export const useMailThread = (id: string) => {
-  return useQuery({
-    queryKey: ["mail-thread", id],
-    queryFn: () => mailApi.getThread(id).then((res) => res.data),
-    enabled: !!id,
+export const useMailSearch = (params: MailSearchQuery, enabled = true) =>
+  useQuery({
+    queryKey: ["mail", "search", params],
+    queryFn: () => mailApi.searchMessages(params).then((res) => res.data),
+    enabled,
   });
-};
 
-// Mail actions with optimistic updates
-export const useMarkAsRead = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (ids: string[]) => mailApi.markAsRead(ids),
-    onMutate: async (ids) => {
-      await queryClient.cancelQueries({ queryKey: ["mail-threads"] });
-
-      const previousThreads = queryClient.getQueryData(["mail-threads"]);
-
-      queryClient.setQueriesData({ queryKey: ["mail-threads"] }, (old: any) => {
-        if (!old) return old;
-        return old.map((thread: any) =>
-          ids.includes(thread.id) ? { ...thread, isRead: true } : thread,
-        );
-      });
-
-      return { previousThreads };
-    },
-    onError: (err, ids, context) => {
-      queryClient.setQueryData(["mail-threads"], context?.previousThreads);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["mail-threads"] });
-      queryClient.invalidateQueries({ queryKey: ["mail-folders"] });
-    },
+export const useMailMessage = (messageId: string) =>
+  useQuery({
+    queryKey: mailQueryKeys.message(messageId),
+    queryFn: () => mailApi.getMessage(messageId).then((res) => res.data),
+    enabled: Boolean(messageId),
   });
-};
 
-export const useArchiveMail = () => {
-  const queryClient = useQueryClient();
-
-  return useMutation({
-    mutationFn: (ids: string[]) => mailApi.archive(ids),
-    onMutate: async (ids) => {
-      await queryClient.cancelQueries({ queryKey: ["mail-threads"] });
-
-      const previousThreads = queryClient.getQueryData(["mail-threads"]);
-
-      queryClient.setQueriesData({ queryKey: ["mail-threads"] }, (old: any) => {
-        if (!old) return old;
-        return old.filter((thread: any) => !ids.includes(thread.id));
-      });
-
-      return { previousThreads };
-    },
-    onError: (err, ids, context) => {
-      queryClient.setQueryData(["mail-threads"], context?.previousThreads);
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: ["mail-threads"] });
-      queryClient.invalidateQueries({ queryKey: ["mail-folders"] });
-    },
+export const useMailThread = (threadId: string) =>
+  useQuery({
+    queryKey: mailQueryKeys.thread(threadId),
+    queryFn: () => mailApi.getThread(threadId).then((res) => res.data),
+    enabled: Boolean(threadId),
   });
-};
+
+export const useMailStats = () =>
+  useQuery({
+    queryKey: mailQueryKeys.stats(),
+    queryFn: () => mailApi.getStats().then((res) => res.data),
+  });
 
 export const useSendMail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (draft: MailDraft) =>
-      mailApi.sendMail(draft).then((res) => res.data),
+    mutationFn: (payload: MailSendPayload) =>
+      mailApi.sendMessage(payload).then((res) => res.data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["mail-threads"] });
-      queryClient.invalidateQueries({ queryKey: ["mail-folders"] });
+      queryClient.invalidateQueries({ queryKey: ["mail"] });
     },
   });
 };
+
+export const usePatchMailMessage = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, payload }: { messageId: string; payload: MailMessagePatch }) =>
+      mailApi.patchMessage(messageId, payload).then((res) => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["mail"] });
+      queryClient.invalidateQueries({
+        queryKey: mailQueryKeys.message(variables.messageId),
+      });
+    },
+  });
+};
+
+export const useBulkMailAction = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageIds, action }: { messageIds: string[]; action: MailBulkAction }) =>
+      mailApi
+        .bulkAction({ message_ids: messageIds, action })
+        .then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mail"] });
+    },
+  });
+};
+
+export const useSyncMailFolder = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (folder: MailFolder) => mailApi.syncFolder(folder).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["mail"] });
+    },
+  });
+};
+
+// Temporary mock for UI block that expects realtime collaboration data.
+export const useCollaborationStatus = (_threadId: string) =>
+  useQuery({
+    queryKey: ["mail", "collaboration", _threadId],
+    queryFn: async () => [],
+    staleTime: 30_000,
+  });

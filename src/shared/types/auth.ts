@@ -35,4 +35,5 @@ export const RESTRICTED_ROUTES_FOR_EXPERT = [
   "/finance",
   "/reports",
   "/mail",
+  "/crm/mail",
 ];
