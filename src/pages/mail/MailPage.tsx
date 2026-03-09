@@ -34,6 +34,7 @@ import {
   useMediaQuery,
   useTheme,
 } from "@mui/material";
+import DOMPurify from "dompurify";
 import type { MailFolder, MailMessageListItem } from "../../entities/mail/types";
 import {
   useBulkMailAction,
@@ -114,6 +115,13 @@ export function MailPage() {
     }
     return (searchData?.items ?? []).filter((message) => message.folder === selectedFolder);
   }, [baseMessages, debouncedSearch, searchData?.items, selectedFolder]);
+
+  const sanitizedHtmlBody = useMemo(() => {
+    const rawHtml = selectedMessage?.content?.body_html;
+    if (!rawHtml) return null;
+
+    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
+  }, [selectedMessage?.content?.body_html]);
 
   const resetSelection = () => setSelectedIds([]);
 
@@ -471,9 +479,23 @@ export function MailPage() {
                 От: {selectedMessage?.sender_name || selectedMessage?.sender_email}
               </Typography>
               <Divider sx={{ mb: 2 }} />
-              <Typography sx={{ whiteSpace: "pre-line" }}>
-                {selectedMessage?.content?.body_text || "Нет текстового содержимого"}
-              </Typography>
+              {selectedMessage?.content?.body_text ? (
+                <Typography sx={{ whiteSpace: "pre-line" }}>
+                  {selectedMessage.content.body_text}
+                </Typography>
+              ) : sanitizedHtmlBody ? (
+                <Box
+                  sx={{
+                    "& img": { maxWidth: "100%", height: "auto" },
+                    "& table": { maxWidth: "100%", display: "block", overflowX: "auto" },
+                  }}
+                  dangerouslySetInnerHTML={{ __html: sanitizedHtmlBody }}
+                />
+              ) : (
+                <Typography sx={{ whiteSpace: "pre-line" }}>
+                  Нет содержимого письма
+                </Typography>
+              )}
             </Paper>
           </Box>
         )}

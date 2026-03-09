@@ -11,6 +11,7 @@ import type {
 
 const mailQueryKeys = {
   messages: (params?: MailMessagesQuery) => ["mail", "messages", params] as const,
+  search: (params: MailSearchQuery) => ["mail", "search", params] as const,
   message: (messageId: string) => ["mail", "message", messageId] as const,
   thread: (threadId: string) => ["mail", "thread", threadId] as const,
   stats: () => ["mail", "stats"] as const,
@@ -24,7 +25,7 @@ export const useMailMessages = (params?: MailMessagesQuery) =>
 
 export const useMailSearch = (params: MailSearchQuery, enabled = true) =>
   useQuery({
-    queryKey: ["mail", "search", params],
+    queryKey: mailQueryKeys.search(params),
     queryFn: () => mailApi.searchMessages(params).then((res) => res.data),
     enabled,
   });
@@ -34,6 +35,8 @@ export const useMailMessage = (messageId: string) =>
     queryKey: mailQueryKeys.message(messageId),
     queryFn: () => mailApi.getMessage(messageId).then((res) => res.data),
     enabled: Boolean(messageId),
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
 export const useMailThread = (threadId: string) =>
@@ -68,10 +71,14 @@ export const usePatchMailMessage = () => {
     mutationFn: ({ messageId, payload }: { messageId: string; payload: MailMessagePatch }) =>
       mailApi.patchMessage(messageId, payload).then((res) => res.data),
     onSuccess: (_, variables) => {
-      queryClient.invalidateQueries({ queryKey: ["mail"] });
-      queryClient.invalidateQueries({
-        queryKey: mailQueryKeys.message(variables.messageId),
-      });
+      queryClient.invalidateQueries({ queryKey: ["mail", "messages"] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "search"] });
+      queryClient.invalidateQueries({ queryKey: mailQueryKeys.stats() });
+      queryClient.setQueryData(mailQueryKeys.message(variables.messageId), (current: unknown) =>
+        current && typeof current === "object"
+          ? { ...current, ...variables.payload }
+          : current,
+      );
     },
   });
 };
