@@ -1,229 +1,136 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
-  Button,
   Box,
-  Chip,
+  Button,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   IconButton,
+  TextField,
   Typography,
 } from "@mui/material";
-import { Close, Send, AttachFile, Save } from "@mui/icons-material";
+import { Close, Send } from "@mui/icons-material";
+import { useAuth } from "../../shared/hooks/useAuth";
 import { useSendMail } from "../../shared/hooks/useMail";
-import { FileUpload } from "../../shared/ui/FileUpload";
-import type { MailDraft, MailAttachment } from "../../entities/mail/types";
+import type { MailRecipientType, MailSendPayload } from "../../entities/mail/types";
 
 interface MailComposerProps {
   open: boolean;
   onClose: () => void;
-  replyTo?: string;
-  draft?: MailDraft;
 }
 
-export function MailComposer({
-  open,
-  onClose,
-  replyTo,
-  draft,
-}: MailComposerProps) {
-  const [formData, setFormData] = useState<MailDraft>({
-    to: draft?.to || [],
-    cc: draft?.cc || [],
-    bcc: draft?.bcc || [],
-    subject: draft?.subject || "",
-    body: draft?.body || "",
-    attachments: draft?.attachments || [],
-  });
-  const [showCc, setShowCc] = useState(false);
-  const [showBcc, setShowBcc] = useState(false);
+const splitEmails = (value: string) =>
+  value
+    .split(",")
+    .map((email) => email.trim())
+    .filter(Boolean);
+
+export function MailComposer({ open, onClose }: MailComposerProps) {
+  const { data: user } = useAuth();
   const sendMail = useSendMail();
 
+  const [to, setTo] = useState("");
+  const [cc, setCc] = useState("");
+  const [bcc, setBcc] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+
+  const canSend = useMemo(() => splitEmails(to).length > 0 && body.trim().length > 0, [to, body]);
+
+  const buildRecipients = (emails: string, type: MailRecipientType) =>
+    splitEmails(emails).map((email_address) => ({ email_address, recipient_type: type }));
+
+  const handleClose = () => {
+    if (!sendMail.isPending) {
+      onClose();
+    }
+  };
+
   const handleSend = async () => {
-    await sendMail.mutateAsync(formData);
+    const payload: MailSendPayload = {
+      sender_email: user?.email || "",
+      sender_name: user?.full_name,
+      subject: subject.trim() || undefined,
+      recipients: [
+        ...buildRecipients(to, "to"),
+        ...buildRecipients(cc, "cc"),
+        ...buildRecipients(bcc, "bcc"),
+      ],
+      content: {
+        body_text: body,
+      },
+    };
+
+    await sendMail.mutateAsync(payload);
     onClose();
   };
 
-  const handleFileUpload = async (files: File[]) => {
-    const newAttachments: MailAttachment[] = files.map((file) => ({
-      id: Date.now().toString(),
-      name: file.name,
-      size: file.size,
-      type: file.type,
-      url: URL.createObjectURL(file), // Note: This URL should be handled carefully for cleanup
-    }));
-    setFormData({
-      ...formData,
-      attachments: [...formData.attachments, ...newAttachments],
-    });
-  };
-
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
       <DialogTitle>
-        <Box display="flex" alignItems="center" justifyContent="space-between">
-          <Typography variant="h6">
-            {replyTo ? "Ответить" : "Новое письмо"}
-          </Typography>
-          <IconButton onClick={onClose}>
+        <Box display="flex" justifyContent="space-between" alignItems="center">
+          <Typography variant="h6">Новое письмо</Typography>
+          <IconButton onClick={handleClose}>
             <Close />
           </IconButton>
         </Box>
       </DialogTitle>
+
       <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {/* Поле "Кому" */}
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
           <TextField
             label="Кому"
-            placeholder="Введите email получателя (например: user@example.com)"
+            value={to}
+            onChange={(event) => setTo(event.target.value)}
+            placeholder="user@example.com, user2@example.com"
+            required
             fullWidth
-            value={formData.to.join(", ")}
-            onChange={(e) =>
-              setFormData({
-                ...formData,
-                to: e.target.value
-                  .split(", ")
-                  .map((email) => email.trim())
-                  .filter((email) => email.length > 0),
-              })
-            }
-            helperText="Основные получатели письма. Все они увидят друг друга в списке."
           />
-
-          {/* Кнопки для показа CC и BCC */}
-          <Box display="flex" gap={1}>
-            <Button
-              size="small"
-              onClick={() => setShowCc(!showCc)}
-              sx={{ textTransform: "none" }}
-            >
-              Копия (CC)
-            </Button>
-            <Button
-              size="small"
-              onClick={() => setShowBcc(!showBcc)}
-              sx={{ textTransform: "none" }}
-            >
-              Скрытая копия (BCC)
-            </Button>
-          </Box>
-
-          {/* Поле "Копия" (CC) */}
-          {showCc && (
-            <TextField
-              label="Копия (CC)"
-              placeholder="Введите email получателей копии (через запятую)"
-              fullWidth
-              value={formData.cc?.join(", ") || ""}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  cc: e.target.value
-                    .split(", ")
-                    .map((email) => email.trim())
-                    .filter((email) => email.length > 0),
-                })
-              }
-              helperText="Получатели копии увидят основных получателей и других получателей копии."
-            />
-          )}
-
-          {/* Поле "Скрытая копия" (BCC) */}
-          {showBcc && (
-            <TextField
-              label="Скрытая копия (BCC)"
-              placeholder="Введите email получателей скрытой копии (через запятую)"
-              fullWidth
-              value={formData.bcc?.join(", ") || ""}
-              onChange={(e) =>
-                setFormData({
-                  ...formData,
-                  bcc: e.target.value
-                    .split(", ")
-                    .map((email) => email.trim())
-                    .filter((email) => email.length > 0),
-                })
-              }
-              helperText="Получатели скрытой копии не будут видны никому, кроме отправителя."
-            />
-          )}
-
-          {/* Тема письма */}
+          <TextField
+            label="Копия (CC)"
+            value={cc}
+            onChange={(event) => setCc(event.target.value)}
+            placeholder="cc@example.com"
+            fullWidth
+          />
+          <TextField
+            label="Скрытая копия (BCC)"
+            value={bcc}
+            onChange={(event) => setBcc(event.target.value)}
+            placeholder="bcc@example.com"
+            fullWidth
+          />
           <TextField
             label="Тема"
-            placeholder="Введите тему письма"
+            value={subject}
+            onChange={(event) => setSubject(event.target.value)}
             fullWidth
-            value={formData.subject}
-            onChange={(e) =>
-              setFormData({ ...formData, subject: e.target.value })
-            }
-            helperText="Краткое описание содержания письма."
           />
-
-          {/* Текст сообщения */}
           <TextField
             label="Сообщение"
-            placeholder="Введите текст вашего письма здесь..."
+            value={body}
+            onChange={(event) => setBody(event.target.value)}
             multiline
-            rows={12}
+            minRows={8}
             fullWidth
-            value={formData.body}
-            onChange={(e) => setFormData({ ...formData, body: e.target.value })}
-            helperText="Основное содержание письма."
+            required
           />
-
-          {/* Вложения */}
-          {formData.attachments.length > 0 && (
-            <Box>
-              <Typography variant="subtitle2" gutterBottom>
-                Вложения ({formData.attachments.length})
-              </Typography>
-              <Box display="flex" gap={1} flexWrap="wrap">
-                {formData.attachments.map((attachment) => (
-                  <Chip
-                    key={attachment.id}
-                    label={`${attachment.name} (${Math.round(attachment.size / 1024)} KB)`}
-                    onDelete={() => {
-                      setFormData({
-                        ...formData,
-                        attachments: formData.attachments.filter(
-                          (a) => a.id !== attachment.id,
-                        ),
-                      });
-                    }}
-                    deleteIcon={<Close />}
-                  />
-                ))}
-              </Box>
-            </Box>
-          )}
-
-          {/* Компонент загрузки файлов */}
-          <FileUpload onUpload={handleFileUpload} />
         </Box>
       </DialogContent>
+
       <DialogActions>
-        <Box display="flex" gap={1} width="100%" justifyContent="space-between">
-          <Button startIcon={<AttachFile />}>Выбрать файлы</Button>
-          <Box display="flex" gap={1}>
-            <Button startIcon={<Save />} disabled={sendMail.isPending}>
-              Сохранить черновик
-            </Button>
-            <Button onClick={onClose} disabled={sendMail.isPending}>
-              Отмена
-            </Button>
-            <Button
-              variant="contained"
-              startIcon={<Send />}
-              onClick={handleSend}
-              disabled={sendMail.isPending}
-            >
-              {sendMail.isPending ? "Отправка..." : "Отправить"}
-            </Button>
-          </Box>
-        </Box>
+        <Button onClick={handleClose} disabled={sendMail.isPending}>
+          Отмена
+        </Button>
+        <Button
+          variant="contained"
+          startIcon={<Send />}
+          onClick={() => void handleSend()}
+          disabled={!canSend || sendMail.isPending || !user?.email}
+        >
+          {sendMail.isPending ? "Отправка..." : "Отправить"}
+        </Button>
       </DialogActions>
     </Dialog>
   );
