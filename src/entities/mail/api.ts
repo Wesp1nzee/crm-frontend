@@ -1,24 +1,82 @@
 import { api } from "../../shared/api/axios";
-import type { Mail, MailThread, MailFolder, MailDraft } from "./types";
+import type {
+  MailAttachment,
+  MailBulkPayload,
+  MailBulkResult,
+  MailFolder,
+  MailMessagePatch,
+  MailMessageRead,
+  MailMessagesQuery,
+  MailSearchQuery,
+  MailSendPayload,
+  MailSendResult,
+  MailStats,
+  MailSyncResult,
+  MailThreadRead,
+  PaginatedMailMessages,
+} from "./types";
 
 export const mailApi = {
-  // Folders
-  getFolders: () => api.get<MailFolder[]>("/mail/folders"),
+  getMessages: (params?: MailMessagesQuery) =>
+    api.get<PaginatedMailMessages>("/mail/messages", { params }),
 
-  // Threads
-  getThreads: (folderId?: string) =>
-    api.get<MailThread[]>("/mail/threads", { params: { folderId } }),
-  getThread: (id: string) => api.get<MailThread>(`/mail/threads/${id}`),
+  searchMessages: (params: MailSearchQuery) =>
+    api.get<PaginatedMailMessages>("/mail/messages/search", { params }),
 
-  // Mails
-  getMail: (id: string) => api.get<Mail>(`/mail/${id}`),
-  sendMail: (draft: MailDraft) => api.post<Mail>("/mail/send", draft),
-  saveDraft: (draft: MailDraft) => api.post<Mail>("/mail/drafts", draft),
+  getMessage: (messageId: string) =>
+    api.get<MailMessageRead>(`/mail/messages/${messageId}`),
 
-  // Actions
-  markAsRead: (ids: string[]) => api.patch("/mail/mark-read", { ids }),
-  markAsUnread: (ids: string[]) => api.patch("/mail/mark-unread", { ids }),
-  archive: (ids: string[]) => api.patch("/mail/archive", { ids }),
-  star: (ids: string[]) => api.patch("/mail/star", { ids }),
-  delete: (ids: string[]) => api.delete("/mail", { data: { ids } }),
+  sendMessage: (payload: MailSendPayload) =>
+    api.post<MailSendResult>("/mail/messages", payload),
+
+  patchMessage: (messageId: string, payload: MailMessagePatch) =>
+    api.patch<MailMessageRead>(`/mail/messages/${messageId}`, payload),
+
+  deleteMessage: (messageId: string, permanent = false) =>
+    api.delete<void>(`/mail/messages/${messageId}`, {
+      params: { permanent },
+    }),
+
+  bulkAction: (payload: MailBulkPayload) =>
+    api.post<MailBulkResult>("/mail/messages/bulk", payload),
+
+  moveMessage: (messageId: string, folder: MailFolder) =>
+    api.post<MailMessageRead>(`/mail/messages/${messageId}/move`, null, {
+      params: { folder },
+    }),
+
+  replyToMessage: (
+    messageId: string,
+    payload: MailSendPayload,
+    replyAll = false,
+  ) =>
+    api.post<MailSendResult>(`/mail/messages/${messageId}/reply`, payload, {
+      params: { reply_all: replyAll },
+    }),
+
+  forwardMessage: (messageId: string, payload: MailSendPayload) =>
+    api.post<MailSendResult>(`/mail/messages/${messageId}/forward`, payload),
+
+  createDraft: (payload: MailSendPayload) =>
+    api.post<MailMessageRead>("/mail/drafts", payload),
+
+  updateDraft: (messageId: string, payload: MailSendPayload) =>
+    api.patch<MailMessageRead>(`/mail/drafts/${messageId}`, payload),
+
+  sendDraft: (messageId: string) =>
+    api.post<MailSendResult>(`/mail/drafts/${messageId}/send`),
+
+  getThread: (threadId: string) => api.get<MailThreadRead>(`/mail/threads/${threadId}`),
+
+  getAttachments: (messageId: string) =>
+    api.get<MailAttachment[]>(`/mail/messages/${messageId}/attachments`),
+
+  getDownloadAttachmentUrl: (messageId: string, attachmentId: string) =>
+    `/api/mail/messages/${messageId}/attachments/${attachmentId}/download`,
+
+  syncAllFolders: () => api.post<MailSyncResult[]>("/mail/sync"),
+
+  syncFolder: (folder: MailFolder) => api.post<MailSyncResult>(`/mail/sync/${folder}`),
+
+  getStats: () => api.get<MailStats>("/mail/stats"),
 };
