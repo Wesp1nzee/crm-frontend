@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -18,6 +18,13 @@ import type { MailRecipientType, MailSendPayload } from "../../entities/mail/typ
 interface MailComposerProps {
   open: boolean;
   onClose: () => void;
+  initialValues?: {
+    to?: string;
+    cc?: string;
+    bcc?: string;
+    subject?: string;
+    body?: string;
+  };
 }
 
 const splitEmails = (value: string) =>
@@ -26,7 +33,7 @@ const splitEmails = (value: string) =>
     .map((email) => email.trim())
     .filter(Boolean);
 
-export function MailComposer({ open, onClose }: MailComposerProps) {
+export function MailComposer({ open, onClose, initialValues }: MailComposerProps) {
   const { data: user } = useAuth();
   const sendMail = useSendMail();
 
@@ -35,6 +42,15 @@ export function MailComposer({ open, onClose }: MailComposerProps) {
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+
+  useEffect(() => {
+    if (!open) return;
+    setTo(initialValues?.to ?? "");
+    setCc(initialValues?.cc ?? "");
+    setBcc(initialValues?.bcc ?? "");
+    setSubject(initialValues?.subject ?? "");
+    setBody(initialValues?.body ?? "");
+  }, [initialValues, open]);
 
   const canSend = useMemo(() => splitEmails(to).length > 0 && body.trim().length > 0, [to, body]);
 

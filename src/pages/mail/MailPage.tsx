@@ -6,11 +6,16 @@ import {
   Delete,
   Drafts,
   Inbox,
+  MarkEmailRead,
+  MarkEmailUnread,
   Menu,
   Refresh,
+  Reply,
+  ReplyAll,
   Search,
   Send,
   Star,
+  AttachFile,
 } from "@mui/icons-material";
 import {
   alpha,
@@ -33,9 +38,12 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Pagination,
 } from "@mui/material";
 import DOMPurify from "dompurify";
-import type { MailFolder, MailMessageListItem } from "../../entities/mail/types";
+import { useNavigate, useParams } from "react-router-dom";
+import { mailApi } from "../../entities/mail/api";
+import type { MailFolder, MailMessageListItem, MailRecipient } from "../../entities/mail/types";
 import {
   useBulkMailAction,
   useMailMessage,
@@ -57,6 +65,9 @@ const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "archive", label: "Архив" },
 ];
 
+const folderSet = new Set<MailFolder>(folderMeta.map((folder) => folder.id));
+const PAGE_SIZE = 20;
+
 const folderIcon = (folder: MailFolder) => {
   if (folder === "inbox") return <Inbox fontSize="small" />;
   if (folder === "sent") return <Send fontSize="small" />;
@@ -74,17 +85,36 @@ const glassSurface = {
   boxShadow: `0 16px 32px ${alpha("#5D74A1", 0.14)}`,
 };
 
+const getReplySubject = (subject?: string | null) => {
+  if (!subject) return "Re:";
+  return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
+};
+
+const toRecipientEmailList = (recipients: MailRecipient[], type: "to" | "cc") =>
+  recipients.filter((recipient) => recipient.recipient_type === type).map((recipient) => recipient.email_address);
+
 export function MailPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
+  const navigate = useNavigate();
+  const { folder: folderParam, messageId: messageIdParam } = useParams();
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
-  const [selectedFolder, setSelectedFolder] = useState<MailFolder>("inbox");
+  const [composerDefaults, setComposerDefaults] = useState<{
+    to?: string;
+    cc?: string;
+    subject?: string;
+    body?: string;
+  }>({});
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
-  const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
+  const [page, setPage] = useState(1);
+
+  const selectedFolder: MailFolder =
+    folderParam && folderSet.has(folderParam as MailFolder) ? (folderParam as MailFolder) : "inbox";
+  const selectedMessageId = messageIdParam ?? null;
 
   const debouncedSearch = useDebounce(searchTerm.trim(), 300);
 
@@ -92,12 +122,12 @@ export function MailPage() {
   const { data: messagesData, isLoading } = useMailMessages({
     folder: selectedFolder,
     is_read: showUnreadOnly ? false : undefined,
-    page: 1,
-    page_size: 50,
+    page,
+    page_size: PAGE_SIZE,
   });
 
   const { data: searchData, isFetching: isSearchFetching } = useMailSearch(
-    { q: debouncedSearch, page: 1, page_size: 50 },
+    { q: debouncedSearch, page, page_size: PAGE_SIZE },
     debouncedSearch.length > 1,
   );
 
@@ -116,6 +146,9 @@ export function MailPage() {
     return (searchData?.items ?? []).filter((message) => message.folder === selectedFolder);
   }, [baseMessages, debouncedSearch, searchData?.items, selectedFolder]);
 
+  const totalCount = debouncedSearch ? (searchData?.total ?? 0) : (messagesData?.total ?? 0);
+  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+
   const sanitizedHtmlBody = useMemo(() => {
     const rawHtml = selectedMessage?.content?.body_html;
     if (!rawHtml) return null;
@@ -125,8 +158,14 @@ export function MailPage() {
 
   const resetSelection = () => setSelectedIds([]);
 
+  const goToFolder = (folder: MailFolder) => {
+    navigate(`/crm/mail/${folder}`);
+    resetSelection();
+    setPage(1);
+  };
+
   const selectMessage = async (message: MailMessageListItem) => {
-    setSelectedMessageId(message.id);
+    navigate(`/crm/mail/${selectedFolder}/${message.id}`);
     if (!message.is_read) {
       await patchMessage.mutateAsync({
         messageId: message.id,
@@ -156,6 +195,24 @@ export function MailPage() {
   ) => {
     event.stopPropagation();
     await patchMessage.mutateAsync({ messageId, payload });
+  };
+
+  const openReplyComposer = (replyAll: boolean) => {
+    if (!selectedMessage) return;
+    const toList = replyAll
+      ? [selectedMessage.sender_email, ...toRecipientEmailList(selectedMessage.recipients, "to")]
+      : [selectedMessage.sender_email];
+
+    const uniqueTo = Array.from(new Set(toList.filter(Boolean))).join(", ");
+    const cc = replyAll ? toRecipientEmailList(selectedMessage.recipients, "cc").join(", ") : "";
+
+    setComposerDefaults({
+      to: uniqueTo,
+      cc,
+      subject: getReplySubject(selectedMessage.subject),
+      body: `\n\n---\n${selectedMessage.content?.body_text ?? ""}`,
+    });
+    setComposerOpen(true);
   };
 
   const handleRefresh = async () => {
@@ -189,7 +246,10 @@ export function MailPage() {
       <Button
         startIcon={<Add />}
         variant="contained"
-        onClick={() => setComposerOpen(true)}
+        onClick={() => {
+          setComposerDefaults({});
+          setComposerOpen(true);
+        }}
         sx={{
           borderRadius: 99,
           mx: 1,
@@ -209,9 +269,7 @@ export function MailPage() {
               <Button
                 fullWidth
                 onClick={() => {
-                  setSelectedFolder(folder.id);
-                  setSelectedMessageId(null);
-                  resetSelection();
+                  goToFolder(folder.id);
                   if (isMobile) setMobileOpen(false);
                 }}
                 sx={{
@@ -250,7 +308,10 @@ export function MailPage() {
         <Switch
           size="small"
           checked={showUnreadOnly}
-          onChange={(event) => setShowUnreadOnly(event.target.checked)}
+          onChange={(event) => {
+            setShowUnreadOnly(event.target.checked);
+            setPage(1);
+          }}
         />
         <Typography variant="body2" sx={{ color: "#50607E" }}>
           Только непрочитанные
@@ -311,7 +372,10 @@ export function MailPage() {
           <Box sx={{ p: 1.25, overflow: "auto" }}>
             <OutlinedInput
               value={searchTerm}
-              onChange={(event) => setSearchTerm(event.target.value)}
+              onChange={(event) => {
+                setSearchTerm(event.target.value);
+                setPage(1);
+              }}
               fullWidth
               size="small"
               placeholder="Поиск писем..."
@@ -398,6 +462,28 @@ export function MailPage() {
                       onChange={() => toggleSelection(message.id)}
                     />
 
+                    <Tooltip title={message.is_read ? "Пометить как непрочитанное" : "Пометить как прочитанное"}>
+                      <IconButton
+                        size="small"
+                        onClick={(event) =>
+                          void handleQuickAction(event, message.id, {
+                            is_read: !message.is_read,
+                          })
+                        }
+                        sx={{ p: 0.25 }}
+                      >
+                        <Box
+                          sx={{
+                            width: 11,
+                            height: 11,
+                            borderRadius: "50%",
+                            border: `1px solid ${alpha("#2563EB", 0.55)}`,
+                            backgroundColor: message.is_read ? "transparent" : "#2563EB",
+                          }}
+                        />
+                      </IconButton>
+                    </Tooltip>
+
                     <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                       <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
                         {message.sender_name || message.sender_email}
@@ -433,6 +519,18 @@ export function MailPage() {
                         transition: "all 0.18s ease",
                       }}
                     >
+                      <Tooltip title={message.is_read ? "Пометить непрочитанным" : "Пометить прочитанным"}>
+                        <IconButton
+                          size="small"
+                          onClick={(event) =>
+                            void handleQuickAction(event, message.id, {
+                              is_read: !message.is_read,
+                            })
+                          }
+                        >
+                          {message.is_read ? <MarkEmailUnread fontSize="small" /> : <MarkEmailRead fontSize="small" />}
+                        </IconButton>
+                      </Tooltip>
                       <Tooltip title="В избранное">
                         <IconButton
                           size="small"
@@ -464,10 +562,16 @@ export function MailPage() {
                 );
               })}
             </List>
+
+            {totalPages > 1 && (
+              <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
+                <Pagination count={totalPages} page={page} onChange={(_, value) => setPage(value)} color="primary" />
+              </Box>
+            )}
           </Box>
         ) : (
           <Box sx={{ p: 2, overflow: "auto" }}>
-            <Button startIcon={<ArrowBack />} onClick={() => setSelectedMessageId(null)}>
+            <Button startIcon={<ArrowBack />} onClick={() => navigate(`/crm/mail/${selectedFolder}`)}>
               Назад к списку
             </Button>
 
@@ -478,6 +582,70 @@ export function MailPage() {
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 От: {selectedMessage?.sender_name || selectedMessage?.sender_email}
               </Typography>
+
+              <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<Reply />}
+                  onClick={() => openReplyComposer(false)}
+                >
+                  Ответить
+                </Button>
+                <Button
+                  size="small"
+                  variant="outlined"
+                  startIcon={<ReplyAll />}
+                  onClick={() => openReplyComposer(true)}
+                >
+                  Ответить всем
+                </Button>
+              </Stack>
+
+              {!!selectedMessage?.attachments?.length && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Вложения ({selectedMessage.attachments.length})
+                  </Typography>
+                  <Stack spacing={0.8}>
+                    {selectedMessage.attachments.map((attachment) => (
+                      <Stack
+                        key={attachment.id}
+                        direction="row"
+                        justifyContent="space-between"
+                        alignItems="center"
+                        sx={{
+                          px: 1.2,
+                          py: 0.8,
+                          borderRadius: 2,
+                          border: `1px solid ${alpha("#9EB3DA", 0.45)}`,
+                          backgroundColor: alpha("#ffffff", 0.7),
+                        }}
+                      >
+                        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                          <AttachFile fontSize="small" />
+                          <Typography variant="body2" noWrap>
+                            {attachment.filename}
+                          </Typography>
+                          <Typography variant="caption" color="text.secondary">
+                            {(attachment.file_size / 1024).toFixed(1)} KB
+                          </Typography>
+                        </Stack>
+                        <Button
+                          size="small"
+                          component="a"
+                          href={mailApi.getDownloadAttachmentUrlForDownload(selectedMessage.id, attachment.id)}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          Скачать
+                        </Button>
+                      </Stack>
+                    ))}
+                  </Stack>
+                </Box>
+              )}
+
               <Divider sx={{ mb: 2 }} />
               {selectedMessage?.content?.body_text ? (
                 <Typography sx={{ whiteSpace: "pre-line" }}>
@@ -501,7 +669,11 @@ export function MailPage() {
         )}
       </Box>
 
-      <MailComposer open={composerOpen} onClose={() => setComposerOpen(false)} />
+      <MailComposer
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        initialValues={composerDefaults}
+      />
     </Box>
   );
 }

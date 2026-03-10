@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { CircularProgress, Box } from "@mui/material";
 import { Layout } from "../layout/Layout";
@@ -200,8 +200,12 @@ export const router = createBrowserRouter([
       // { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
       // { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
       // { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
-            {
+      {
         path: "mail",
+        element: <Navigate to="/crm/mail/inbox" replace />,
+      },
+      {
+        path: "mail/:folder/:messageId?",
         element: (
           <Suspense fallback={<PageLoader />}>
             <RoleGuard allowedRoles={["admin", "ceo", "accountant"]}>
