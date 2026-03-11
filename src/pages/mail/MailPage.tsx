@@ -661,6 +661,41 @@ export function MailPage() {
                     "& li": { mb: 0.75 },
                     "& img": { maxWidth: "100%", height: "auto" },
                     "& table": { maxWidth: "100%", display: "block", overflowX: "auto" },
+                    "& .gmail_chip": {
+                      boxSizing: "border-box",
+                      height: "auto !important",
+                      maxHeight: "none !important",
+                      minHeight: 40,
+                      display: "flex !important",
+                      alignItems: "center",
+                      overflow: "hidden",
+                    },
+                    "& .gmail_chip a": {
+                      display: "flex !important",
+                      alignItems: "center",
+                      minWidth: 0,
+                      width: "100%",
+                      maxWidth: "100% !important",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                    },
+                    "& .gmail_chip img": {
+                      width: 20,
+                      minWidth: 20,
+                      height: 20,
+                      objectFit: "contain",
+                      verticalAlign: "middle !important",
+                      flexShrink: 0,
+                    },
+                    "& .gmail_chip span": {
+                      display: "inline-block",
+                      minWidth: 0,
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      whiteSpace: "nowrap",
+                      verticalAlign: "middle !important",
+                    },
                   }}
                   dangerouslySetInnerHTML={{ __html: sanitizedHtmlBody }}
                 />
