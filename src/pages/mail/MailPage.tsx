@@ -647,18 +647,27 @@ export function MailPage() {
               )}
 
               <Divider sx={{ mb: 2 }} />
-              {selectedMessage?.content?.body_text ? (
-                <Typography sx={{ whiteSpace: "pre-line" }}>
-                  {selectedMessage.content.body_text}
-                </Typography>
-              ) : sanitizedHtmlBody ? (
+              {sanitizedHtmlBody ? (
                 <Box
                   sx={{
+                    "& a": {
+                      color: theme.palette.primary.main,
+                      textDecoration: "underline",
+                      fontWeight: 500,
+                    },
+                    "& p": { my: 1 },
+                    "& br": { lineHeight: 1.55 },
+                    "& ol, & ul": { pl: 3, my: 1.25 },
+                    "& li": { mb: 0.75 },
                     "& img": { maxWidth: "100%", height: "auto" },
                     "& table": { maxWidth: "100%", display: "block", overflowX: "auto" },
                   }}
                   dangerouslySetInnerHTML={{ __html: sanitizedHtmlBody }}
                 />
+              ) : selectedMessage?.content?.body_text ? (
+                <Typography sx={{ whiteSpace: "pre-line" }}>
+                  {selectedMessage.content.body_text}
+                </Typography>
               ) : (
                 <Typography sx={{ whiteSpace: "pre-line" }}>
                   Нет содержимого письма
