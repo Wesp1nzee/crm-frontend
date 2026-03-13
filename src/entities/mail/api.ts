@@ -17,6 +17,15 @@ import type {
   PaginatedMailMessages,
 } from "./types";
 
+const buildMailFormData = (payload: MailSendPayload, files: File[]) => {
+  const formData = new FormData();
+  formData.append("data", JSON.stringify(payload));
+  files.forEach((file) => {
+    formData.append("files", file);
+  });
+  return formData;
+};
+
 export const mailApi = {
   getMessages: (params?: MailMessagesQuery) =>
     api.get<PaginatedMailMessages>("/mail/messages", { params }),
@@ -29,6 +38,17 @@ export const mailApi = {
 
   sendMessage: (payload: MailSendPayload) =>
     api.post<MailSendResult>("/mail/messages", payload),
+
+  sendMessageWithAttachments: (payload: MailSendPayload, files: File[]) =>
+    api.post<MailSendResult>(
+      "/mail/messages/with-attachments",
+      buildMailFormData(payload, files),
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      },
+    ),
 
   patchMessage: (messageId: string, payload: MailMessagePatch) =>
     api.patch<MailMessageRead>(`/mail/messages/${messageId}`, payload),

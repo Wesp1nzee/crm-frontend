@@ -56,8 +56,12 @@ export const useSendMail = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (payload: MailSendPayload) =>
-      mailApi.sendMessage(payload).then((res) => res.data),
+    mutationFn: ({ payload, files }: { payload: MailSendPayload; files?: File[] }) => {
+      if (files && files.length > 0) {
+        return mailApi.sendMessageWithAttachments(payload, files).then((res) => res.data);
+      }
+      return mailApi.sendMessage(payload).then((res) => res.data);
+    },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mail"] });
     },

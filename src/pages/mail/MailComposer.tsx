@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Dialog,
@@ -7,10 +8,13 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
+  List,
+  ListItem,
+  ListItemText,
   TextField,
   Typography,
 } from "@mui/material";
-import { Close, Send } from "@mui/icons-material";
+import { AttachFile, Close, DeleteOutline, Send } from "@mui/icons-material";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useSendMail } from "../../shared/hooks/useMail";
 import type { MailRecipientType, MailSendPayload } from "../../entities/mail/types";
@@ -27,11 +31,16 @@ interface MailComposerProps {
   };
 }
 
+const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
+const SUGGESTED_SAFE_ATTACHMENT_MB = 18.75;
+
 const splitEmails = (value: string) =>
   value
     .split(",")
     .map((email) => email.trim())
     .filter(Boolean);
+
+const formatMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(2)} МБ`;
 
 export function MailComposer({ open, onClose, initialValues }: MailComposerProps) {
   const { data: user } = useAuth();
@@ -42,6 +51,9 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState("");
   const [body, setBody] = useState("");
+  const [attachments, setAttachments] = useState<File[]>([]);
+  const [formError, setFormError] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -50,9 +62,27 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
     setBcc(initialValues?.bcc ?? "");
     setSubject(initialValues?.subject ?? "");
     setBody(initialValues?.body ?? "");
+    setAttachments([]);
+    setFormError(null);
   }, [initialValues, open]);
 
-  const canSend = useMemo(() => splitEmails(to).length > 0 && body.trim().length > 0, [to, body]);
+  const totalAttachmentBytes = useMemo(
+    () => attachments.reduce((total, file) => total + file.size, 0),
+    [attachments],
+  );
+
+  const attachmentError = useMemo(() => {
+    if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
+      return `Суммарный размер вложений не должен превышать 25 МБ (сейчас ${formatMb(totalAttachmentBytes)}).`;
+    }
+
+    return null;
+  }, [totalAttachmentBytes]);
+
+  const canSend = useMemo(
+    () => splitEmails(to).length > 0 && body.trim().length > 0 && !attachmentError,
+    [to, body, attachmentError],
+  );
 
   const buildRecipients = (emails: string, type: MailRecipientType) =>
     splitEmails(emails).map((email_address) => ({ email_address, recipient_type: type }));
@@ -63,7 +93,33 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
     }
   };
 
+  const handleAddFiles = (files: FileList | null) => {
+    if (!files) return;
+    setFormError(null);
+
+    setAttachments((prev) => {
+      const existing = new Set(prev.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+      const next = [...prev];
+
+      Array.from(files).forEach((file) => {
+        const key = `${file.name}-${file.size}-${file.lastModified}`;
+        if (!existing.has(key)) {
+          existing.add(key);
+          next.push(file);
+        }
+      });
+
+      return next;
+    });
+  };
+
+  const handleRemoveAttachment = (index: number) => {
+    setAttachments((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+  };
+
   const handleSend = async () => {
+    setFormError(null);
+
     const payload: MailSendPayload = {
       sender_email: user?.email || "",
       sender_name: user?.full_name,
@@ -78,8 +134,24 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
       },
     };
 
-    await sendMail.mutateAsync(payload);
-    onClose();
+    try {
+      const result = await sendMail.mutateAsync({ payload, files: attachments });
+
+      if (result.status === "error" || result.status === "failed") {
+        const rejectedFilesText = result.rejected_files?.length
+          ? ` Рекомендуется убрать: ${result.rejected_files.join(", ")}.`
+          : "";
+        setFormError(
+          result.error ??
+            `Письмо не отправлено.${result.error_code ? ` Код ошибки: ${result.error_code}.` : ""}${rejectedFilesText}`,
+        );
+        return;
+      }
+
+      onClose();
+    } catch {
+      setFormError("Не удалось отправить письмо. Проверьте данные и попробуйте снова.");
+    }
   };
 
   return (
@@ -95,6 +167,8 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
 
       <DialogContent>
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
+          {formError && <Alert severity="error">{formError}</Alert>}
+
           <TextField
             label="Кому"
             value={to}
@@ -132,6 +206,57 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
             fullWidth
             required
           />
+
+          <Box>
+            <Button
+              startIcon={<AttachFile />}
+              onClick={() => fileInputRef.current?.click()}
+              variant="outlined"
+            >
+              Добавить вложения
+            </Button>
+            <input
+              ref={fileInputRef}
+              type="file"
+              multiple
+              onChange={(event) => {
+                handleAddFiles(event.target.files);
+                event.target.value = "";
+              }}
+              style={{ display: "none" }}
+            />
+
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              Вложения суммарно до 25 МБ. Рекомендуемый безопасный объем: до {SUGGESTED_SAFE_ATTACHMENT_MB} МБ.
+            </Typography>
+
+            <Typography variant="body2" sx={{ mt: 0.5 }}>
+              Выбрано файлов: {attachments.length}. Общий размер: {formatMb(totalAttachmentBytes)}.
+            </Typography>
+
+            {attachmentError && (
+              <Alert severity="warning" sx={{ mt: 1 }}>
+                {attachmentError}
+              </Alert>
+            )}
+
+            {attachments.length > 0 && (
+              <List dense sx={{ mt: 1, border: "1px solid", borderColor: "divider", borderRadius: 1 }}>
+                {attachments.map((file, index) => (
+                  <ListItem
+                    key={`${file.name}-${file.size}-${file.lastModified}`}
+                    secondaryAction={
+                      <IconButton edge="end" onClick={() => handleRemoveAttachment(index)}>
+                        <DeleteOutline fontSize="small" />
+                      </IconButton>
+                    }
+                  >
+                    <ListItemText primary={file.name} secondary={formatMb(file.size)} />
+                  </ListItem>
+                ))}
+              </List>
+            )}
+          </Box>
         </Box>
       </DialogContent>
 
