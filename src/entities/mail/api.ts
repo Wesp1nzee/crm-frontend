@@ -14,6 +14,8 @@ import type {
   MailStats,
   MailSyncResult,
   MailThreadRead,
+  OversizedMailBatch,
+  OversizedMailPreviewUrl,
   PaginatedMailMessages,
 } from "./types";
 
@@ -106,4 +108,19 @@ export const mailApi = {
     api.post<MailSyncResult>("/mail/messages/sync", payload),
 
   getStats: () => api.get<MailStats>("/mail/stats"),
+
+  getOversizedBatch: (token: string) =>
+    api.get<OversizedMailBatch>(`/mail/oversized/${token}`, {
+      withCredentials: false,
+    }),
+
+  getOversizedPreviewUrl: (token: string, fileId: string) =>
+    api.get<OversizedMailPreviewUrl>(`/mail/oversized/${token}/${fileId}/preview-url`, {
+      withCredentials: false,
+    }),
+
+  getOversizedDownloadUrl: (token: string, fileId: string) =>
+    `/api/mail/oversized/${token}/${fileId}/download`,
+
+  getOversizedZipUrl: (token: string) => `/api/mail/oversized/${token}/zip`,
 };

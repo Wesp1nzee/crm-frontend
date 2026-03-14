@@ -191,6 +191,28 @@ export interface MailMessagesSyncPayload {
   days_history?: number;
 }
 
+export interface OversizedMailFile {
+  id: string;
+  filename: string;
+  content_type: string;
+  file_size: number;
+}
+
+export interface OversizedMailBatch {
+  id: string;
+  share_token: string;
+  created_at: string;
+  files: OversizedMailFile[];
+}
+
+export interface OversizedMailPreviewUrl {
+  file_id: string;
+  filename: string;
+  url: string;
+  expires_in: number;
+}
+
+
 // Legacy UI types used by mock mail screens (to be removed after full UI migration).
 export interface Mail {
   id: string;
