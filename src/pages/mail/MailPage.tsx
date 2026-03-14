@@ -16,6 +16,9 @@ import {
   Send,
   Star,
   AttachFile,
+  OpenInFull,
+  Remove,
+  Close,
 } from "@mui/icons-material";
 import {
   alpha,
@@ -101,6 +104,8 @@ export function MailPage() {
 
   const [mobileOpen, setMobileOpen] = useState(false);
   const [composerOpen, setComposerOpen] = useState(false);
+  const [composerMinimized, setComposerMinimized] = useState(false);
+  const [composeSessionId, setComposeSessionId] = useState(0);
   const [composerDefaults, setComposerDefaults] = useState<{
     to?: string;
     cc?: string;
@@ -158,6 +163,29 @@ export function MailPage() {
 
   const resetSelection = () => setSelectedIds([]);
 
+  const openComposer = (defaults?: { to?: string; cc?: string; subject?: string; body?: string }) => {
+    setComposerDefaults(defaults ?? {});
+    setComposeSessionId((prev) => prev + 1);
+    setComposerMinimized(false);
+    setComposerOpen(true);
+  };
+
+  const minimizeComposer = () => {
+    setComposerOpen(false);
+    setComposerMinimized(true);
+  };
+
+  const restoreComposer = () => {
+    setComposerMinimized(false);
+    setComposerOpen(true);
+  };
+
+  const closeComposerDiscard = () => {
+    setComposerOpen(false);
+    setComposerMinimized(false);
+    setComposerDefaults({});
+  };
+
   const goToFolder = (folder: MailFolder) => {
     navigate(`/crm/mail/${folder}`);
     resetSelection();
@@ -206,13 +234,12 @@ export function MailPage() {
     const uniqueTo = Array.from(new Set(toList.filter(Boolean))).join(", ");
     const cc = replyAll ? toRecipientEmailList(selectedMessage.recipients, "cc").join(", ") : "";
 
-    setComposerDefaults({
+    openComposer({
       to: uniqueTo,
       cc,
       subject: getReplySubject(selectedMessage.subject),
       body: `\n\n---\n${selectedMessage.content?.body_text ?? ""}`,
     });
-    setComposerOpen(true);
   };
 
   const handleRefresh = async () => {
@@ -247,8 +274,7 @@ export function MailPage() {
         startIcon={<Add />}
         variant="contained"
         onClick={() => {
-          setComposerDefaults({});
-          setComposerOpen(true);
+          openComposer();
         }}
         sx={{
           borderRadius: 99,
@@ -713,9 +739,74 @@ export function MailPage() {
         )}
       </Box>
 
+      {composerMinimized && (
+        <Box
+          sx={{
+            position: "fixed",
+            right: 24,
+            bottom: 20,
+            width: { xs: "calc(100% - 24px)", sm: 360 },
+            maxWidth: "calc(100vw - 24px)",
+            borderRadius: "14px",
+            border: `1px solid ${alpha("#8EA8D8", 0.7)}`,
+            boxShadow: `0 10px 24px ${alpha("#2A4D8F", 0.22)}`,
+            background: "linear-gradient(120deg, rgba(255,255,255,0.96), rgba(244,248,255,0.92))",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            px: 1.5,
+            py: 0.75,
+            zIndex: 1400,
+            transition: "all .18s ease",
+            "&:hover": {
+              boxShadow: `0 14px 30px ${alpha("#2A4D8F", 0.28)}`,
+              transform: "translateY(-1px)",
+            },
+          }}
+        >
+          <Box
+            sx={{
+              minWidth: 0,
+              bgcolor: alpha("#2563EB", 0.14),
+              color: "#1746A2",
+              borderRadius: 99,
+              px: 1.25,
+              py: 0.5,
+              fontWeight: 700,
+              fontSize: 13,
+              lineHeight: 1.2,
+            }}
+          >
+            Черновик письма
+          </Box>
+
+          <Stack direction="row" spacing={0.25}>
+            <Tooltip title="Свернуто">
+              <span>
+                <IconButton size="small" disabled>
+                  <Remove fontSize="small" />
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Tooltip title="Развернуть">
+              <IconButton size="small" onClick={restoreComposer}>
+                <OpenInFull fontSize="small" />
+              </IconButton>
+            </Tooltip>
+            <Tooltip title="Закрыть">
+              <IconButton size="small" onClick={closeComposerDiscard}>
+                <Close fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Stack>
+        </Box>
+      )}
+
       <MailComposer
         open={composerOpen}
-        onClose={() => setComposerOpen(false)}
+        composeSessionId={composeSessionId}
+        onMinimize={minimizeComposer}
+        onCloseDiscard={closeComposerDiscard}
         initialValues={composerDefaults}
       />
     </Box>

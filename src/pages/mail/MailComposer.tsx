@@ -21,7 +21,9 @@ import type { MailRecipientType, MailSendPayload } from "../../entities/mail/typ
 
 interface MailComposerProps {
   open: boolean;
-  onClose: () => void;
+  composeSessionId: number;
+  onMinimize: () => void;
+  onCloseDiscard: () => void;
   initialValues?: {
     to?: string;
     cc?: string;
@@ -42,7 +44,13 @@ const splitEmails = (value: string) =>
 
 const formatMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(2)} МБ`;
 
-export function MailComposer({ open, onClose, initialValues }: MailComposerProps) {
+export function MailComposer({
+  open,
+  composeSessionId,
+  onMinimize,
+  onCloseDiscard,
+  initialValues,
+}: MailComposerProps) {
   const { data: user } = useAuth();
   const sendMail = useSendMail();
 
@@ -56,7 +64,6 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (!open) return;
     setTo(initialValues?.to ?? "");
     setCc(initialValues?.cc ?? "");
     setBcc(initialValues?.bcc ?? "");
@@ -64,7 +71,7 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
     setBody(initialValues?.body ?? "");
     setAttachments([]);
     setFormError(null);
-  }, [initialValues, open]);
+  }, [composeSessionId, initialValues]);
 
   const totalAttachmentBytes = useMemo(
     () => attachments.reduce((total, file) => total + file.size, 0),
@@ -89,7 +96,7 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
 
   const handleClose = () => {
     if (!sendMail.isPending) {
-      onClose();
+      onMinimize();
     }
   };
 
@@ -148,7 +155,7 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
         return;
       }
 
-      onClose();
+      onCloseDiscard();
     } catch {
       setFormError("Не удалось отправить письмо. Проверьте данные и попробуйте снова.");
     }
@@ -262,7 +269,7 @@ export function MailComposer({ open, onClose, initialValues }: MailComposerProps
 
       <DialogActions>
         <Button onClick={handleClose} disabled={sendMail.isPending}>
-          Отмена
+          Свернуть
         </Button>
         <Button
           variant="contained"
