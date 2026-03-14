@@ -94,11 +94,14 @@ export interface MailSendPayload {
 }
 
 export interface MailSendResult {
-  message_id: string;
+  message_id: string | null;
   status: MailStatus;
   external_message_id: string | null;
   sent_at: string | null;
   error: string | null;
+  error_code?: string | null;
+  rejected_files?: string[];
+  message_saved?: boolean;
 }
 
 export interface MailMessagePatch {
