@@ -13,6 +13,8 @@ import {
   Stack,
   Tooltip,
   Typography,
+  type SxProps,
+  type Theme,
 } from "@mui/material";
 import {
   Download,
@@ -96,11 +98,32 @@ const isPreviewable = (ct: string) =>
 const isNotFoundError = (error: unknown) =>
   error instanceof AxiosError && error.response?.status === 404;
 
-
-
+function SvgFromString({
+  svg,
+  sx,
+}: {
+  svg: string;
+  sx?: SxProps<Theme>;
+}) {
+  return (
+    <Box
+      aria-hidden
+      sx={{
+        display: "inline-flex",
+        lineHeight: 0,
+        "& > svg": {
+          width: "100%",
+          height: "100%",
+          display: "block",
+        },
+        ...sx,
+      }}
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
 
 function BgWatermark() {
-  const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(MAP_SVG)}`;
   return (
     <Box
       sx={{
@@ -114,10 +137,8 @@ function BgWatermark() {
         justifyContent: "center",
       }}
     >
-      <Box
-        component="img"
-        src={encoded}
-        alt=""
+      <SvgFromString
+        svg={MAP_SVG}
         sx={{
           width: "68vmin",
           maxWidth: "560px",
@@ -145,7 +166,7 @@ function CompanyHeader() {
           flexShrink: 0,
         }}
       >
-        <Box component="img" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(MAP_SVG)}`} alt="Логотип ООО Экспертиза" sx={{ width: 40, height: 40 }} />
+        <SvgFromString svg={MAP_SVG} sx={{ width: 40, height: 40 }} />
       </Box>
 
       <Box>
