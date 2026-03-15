@@ -36,7 +36,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useParams } from "react-router-dom";
 import { AxiosError } from "axios";
 import { mailApi } from "../../entities/mail/api";
-import { COMPANY_LOGO_SVG, COMPANY_WATERMARK_SVG } from "./sharedFilesSvg";
+import { MAP_SVG } from "./sharedFilesSvg";
 
 /* ─────────────────── utils ─────────────────── */
 
@@ -100,7 +100,7 @@ const isNotFoundError = (error: unknown) =>
 
 
 function BgWatermark() {
-  const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(COMPANY_WATERMARK_SVG)}`;
+  const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(MAP_SVG)}`;
   return (
     <Box
       sx={{
@@ -145,7 +145,7 @@ function CompanyHeader() {
           flexShrink: 0,
         }}
       >
-        <Box component="img" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(COMPANY_LOGO_SVG)}`} alt="Логотип ООО Экспертиза" sx={{ width: 40, height: 40 }} />
+        <Box component="img" src={`data:image/svg+xml;charset=utf-8,${encodeURIComponent(MAP_SVG)}`} alt="Логотип ООО Экспертиза" sx={{ width: 40, height: 40 }} />
       </Box>
 
       <Box>
