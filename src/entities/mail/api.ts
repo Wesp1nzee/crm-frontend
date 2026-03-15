@@ -19,9 +19,18 @@ import type {
   PaginatedMailMessages,
 } from "./types";
 
+const getFrontendDomain = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.location.origin;
+};
+
 const buildMailFormData = (payload: MailSendPayload, files: File[]) => {
   const formData = new FormData();
   formData.append("data", JSON.stringify(payload));
+  formData.append("frontend_domain", getFrontendDomain());
   files.forEach((file) => {
     formData.append("files", file);
   });
