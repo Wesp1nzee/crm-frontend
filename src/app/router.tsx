@@ -99,6 +99,15 @@ export const router = createBrowserRouter([
   },
 
   {
+    path: "/mail/oversized/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedFilesPage />
+      </Suspense>
+    ),
+  },
+
+  {
     path: "/shared-files/:token",
     element: (
       <Suspense fallback={<PageLoader />}>
