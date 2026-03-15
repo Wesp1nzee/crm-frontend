@@ -17,6 +17,7 @@ import {
 import { AttachFile, Close, DeleteOutline, Send } from "@mui/icons-material";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useSendMail } from "../../shared/hooks/useMail";
+import { notificationService } from "../../shared/services/notifications";
 import type { MailRecipientType, MailSendPayload } from "../../entities/mail/types";
 
 interface MailComposerProps {
@@ -34,7 +35,7 @@ interface MailComposerProps {
 }
 
 const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-const SUGGESTED_SAFE_ATTACHMENT_MB = 18.75;
+const LARGE_ATTACHMENT_HINT_MB = 25;
 
 const splitEmails = (value: string) =>
   value
@@ -78,17 +79,11 @@ export function MailComposer({
     [attachments],
   );
 
-  const attachmentError = useMemo(() => {
-    if (totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES) {
-      return `Суммарный размер вложений не должен превышать 25 МБ (сейчас ${formatMb(totalAttachmentBytes)}).`;
-    }
-
-    return null;
-  }, [totalAttachmentBytes]);
+  const hasOversizedAttachments = totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES;
 
   const canSend = useMemo(
-    () => splitEmails(to).length > 0 && body.trim().length > 0 && !attachmentError,
-    [to, body, attachmentError],
+    () => splitEmails(to).length > 0 && body.trim().length > 0,
+    [to, body],
   );
 
   const buildRecipients = (emails: string, type: MailRecipientType) =>
@@ -153,6 +148,13 @@ export function MailComposer({
             `Письмо не отправлено.${result.error_code ? ` Код ошибки: ${result.error_code}.` : ""}${rejectedFilesText}`,
         );
         return;
+      }
+
+      if (hasOversizedAttachments) {
+        notificationService.info(
+          "Файлы прикреплены как ссылки — они слишком большие для вложений. Получатель увидит ссылку для скачивания прямо в письме.",
+          7000,
+        );
       }
 
       onCloseDiscard();
@@ -234,16 +236,16 @@ export function MailComposer({
             />
 
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Вложения суммарно до 25 МБ. Рекомендуемый безопасный объем: до {SUGGESTED_SAFE_ATTACHMENT_MB} МБ.
+              При суммарном объеме файлов больше {LARGE_ATTACHMENT_HINT_MB} МБ вложения будут отправлены как ссылка для скачивания.
             </Typography>
 
             <Typography variant="body2" sx={{ mt: 0.5 }}>
-              Выбрано файлов: {attachments.length}. Общий размер: {formatMb(totalAttachmentBytes)}.
+              📎 {attachments.length} файла(ов) · {formatMb(totalAttachmentBytes)}
             </Typography>
 
-            {attachmentError && (
+            {hasOversizedAttachments && (
               <Alert severity="warning" sx={{ mt: 1 }}>
-                {attachmentError}
+                ⚠️ Файлы больше 25 МБ будут отправлены как ссылка для скачивания.
               </Alert>
             )}
 

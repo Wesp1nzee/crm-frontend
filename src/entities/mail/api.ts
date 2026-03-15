@@ -14,12 +14,27 @@ import type {
   MailStats,
   MailSyncResult,
   MailThreadRead,
+  OversizedMailBatch,
+  OversizedMailPreviewUrl,
   PaginatedMailMessages,
 } from "./types";
 
+const getFrontendDomain = () => {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  return window.location.origin;
+};
+
+const withFrontendDomain = (payload: MailSendPayload): MailSendPayload => ({
+  ...payload,
+  frontend_domain: payload.frontend_domain ?? getFrontendDomain(),
+});
+
 const buildMailFormData = (payload: MailSendPayload, files: File[]) => {
   const formData = new FormData();
-  formData.append("data", JSON.stringify(payload));
+  formData.append("data", JSON.stringify(withFrontendDomain(payload)));
   files.forEach((file) => {
     formData.append("files", file);
   });
@@ -37,7 +52,7 @@ export const mailApi = {
     api.get<MailMessageRead>(`/mail/messages/${messageId}`),
 
   sendMessage: (payload: MailSendPayload) =>
-    api.post<MailSendResult>("/mail/messages", payload),
+    api.post<MailSendResult>("/mail/messages", withFrontendDomain(payload)),
 
   sendMessageWithAttachments: (payload: MailSendPayload, files: File[]) =>
     api.post<MailSendResult>(
@@ -71,18 +86,18 @@ export const mailApi = {
     payload: MailSendPayload,
     replyAll = false,
   ) =>
-    api.post<MailSendResult>(`/mail/messages/${messageId}/reply`, payload, {
+    api.post<MailSendResult>(`/mail/messages/${messageId}/reply`, withFrontendDomain(payload), {
       params: { reply_all: replyAll },
     }),
 
   forwardMessage: (messageId: string, payload: MailSendPayload) =>
-    api.post<MailSendResult>(`/mail/messages/${messageId}/forward`, payload),
+    api.post<MailSendResult>(`/mail/messages/${messageId}/forward`, withFrontendDomain(payload)),
 
   createDraft: (payload: MailSendPayload) =>
-    api.post<MailMessageRead>("/mail/drafts", payload),
+    api.post<MailMessageRead>("/mail/drafts", withFrontendDomain(payload)),
 
   updateDraft: (messageId: string, payload: MailSendPayload) =>
-    api.patch<MailMessageRead>(`/mail/drafts/${messageId}`, payload),
+    api.patch<MailMessageRead>(`/mail/drafts/${messageId}`, withFrontendDomain(payload)),
 
   sendDraft: (messageId: string) =>
     api.post<MailSendResult>(`/mail/drafts/${messageId}/send`),
@@ -106,4 +121,19 @@ export const mailApi = {
     api.post<MailSyncResult>("/mail/messages/sync", payload),
 
   getStats: () => api.get<MailStats>("/mail/stats"),
+
+  getOversizedBatch: (token: string) =>
+    api.get<OversizedMailBatch>(`/mail/oversized/${token}`, {
+      withCredentials: false,
+    }),
+
+  getOversizedPreviewUrl: (token: string, fileId: string) =>
+    api.get<OversizedMailPreviewUrl>(`/mail/oversized/${token}/${fileId}/preview-url`, {
+      withCredentials: false,
+    }),
+
+  getOversizedDownloadUrl: (token: string, fileId: string) =>
+    `/api/mail/oversized/${token}/${fileId}/download`,
+
+  getOversizedZipUrl: (token: string) => `/api/mail/oversized/${token}/zip`,
 };

@@ -65,6 +65,9 @@ const SettingsPage = lazy(() =>
 const MailPage = lazy(() =>
   import("../pages/mail/MailPage").then((m) => ({ default: m.MailPage })),
 );
+const SharedFilesPage = lazy(() =>
+  import("../pages/mail/SharedFilesPage").then((m) => ({ default: m.SharedFilesPage })),
+);
 
 const PageLoader = () => (
   <Box
@@ -93,6 +96,24 @@ export const router = createBrowserRouter([
   {
     path: "/share/:token",
     element: <PublicSharePage />,
+  },
+
+  {
+    path: "/mail/oversized/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedFilesPage />
+      </Suspense>
+    ),
+  },
+
+  {
+    path: "/shared-files/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedFilesPage />
+      </Suspense>
+    ),
   },
 
   // ВСЕ CRM-маршруты теперь под /crm
