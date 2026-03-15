@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
   Box,
@@ -11,20 +11,38 @@ import {
   List,
   ListItem,
   ListItemText,
+  MenuItem,
+  Select,
+  Stack,
   TextField,
+  Tooltip,
   Typography,
+  type SelectChangeEvent,
 } from "@mui/material";
 import {
   AttachFile,
   Close,
   DeleteOutline,
+  FormatAlignCenter,
+  FormatAlignJustify,
+  FormatAlignLeft,
   FormatBold,
+  FormatClear,
+  FormatColorFill,
+  FormatColorText,
+  FormatIndentDecrease,
+  FormatIndentIncrease,
   FormatItalic,
   FormatListBulleted,
   FormatListNumbered,
+  FormatQuote,
+  FormatStrikethrough,
   FormatUnderlined,
+  HorizontalRule,
+  Image,
   Link,
   Send,
+  TableChart,
 } from "@mui/icons-material";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useSendMail } from "../../shared/hooks/useMail";
@@ -45,8 +63,37 @@ interface MailComposerProps {
   };
 }
 
+interface EditorCommandState {
+  bold: boolean;
+  italic: boolean;
+  underline: boolean;
+  strikeThrough: boolean;
+  unorderedList: boolean;
+  orderedList: boolean;
+  blockquote: boolean;
+  alignLeft: boolean;
+  alignCenter: boolean;
+  alignJustify: boolean;
+  blockType: string;
+  fontName: string;
+  fontSize: string;
+}
+
 const MAX_TOTAL_ATTACHMENT_BYTES = 25 * 1024 * 1024;
 const LARGE_ATTACHMENT_HINT_MB = 25;
+const DEFAULT_FONT = "Arial";
+const DEFAULT_FONT_SIZE = "3";
+
+const FONT_OPTIONS = ["Arial", "Times New Roman", "Georgia", "Verdana", "Tahoma"];
+const FONT_SIZE_OPTIONS = [
+  { value: "1", label: "8px" },
+  { value: "2", label: "10px" },
+  { value: "3", label: "12px" },
+  { value: "4", label: "14px" },
+  { value: "5", label: "18px" },
+  { value: "6", label: "24px" },
+  { value: "7", label: "32px" },
+];
 
 const splitEmails = (value: string) =>
   value
@@ -88,6 +135,49 @@ const convertPlainTextToHtml = (text: string) => {
   return container.innerHTML;
 };
 
+const getBlockTypeLabel = (rawValue: string) => {
+  const value = rawValue.toLowerCase().replace(/[<>]/g, "");
+
+  if (value.includes("h1")) return "h1";
+  if (value.includes("h2")) return "h2";
+  if (value.includes("h3")) return "h3";
+  if (value.includes("blockquote")) return "blockquote";
+
+  return "p";
+};
+
+const getSafeQueryState = (command: string) => {
+  try {
+    return document.queryCommandState(command);
+  } catch {
+    return false;
+  }
+};
+
+const getSafeQueryValue = (command: string) => {
+  try {
+    return document.queryCommandValue(command);
+  } catch {
+    return "";
+  }
+};
+
+const initialEditorState: EditorCommandState = {
+  bold: false,
+  italic: false,
+  underline: false,
+  strikeThrough: false,
+  unorderedList: false,
+  orderedList: false,
+  blockquote: false,
+  alignLeft: true,
+  alignCenter: false,
+  alignJustify: false,
+  blockType: "p",
+  fontName: DEFAULT_FONT,
+  fontSize: DEFAULT_FONT_SIZE,
+};
+
 export function MailComposer({
   open,
   composeSessionId,
@@ -105,8 +195,31 @@ export function MailComposer({
   const [bodyHtml, setBodyHtml] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
+  const [editorState, setEditorState] = useState<EditorCommandState>(initialEditorState);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
+
+  const syncEditorState = useCallback(() => {
+    if (!editorRef.current || typeof document === "undefined") {
+      return;
+    }
+
+    setEditorState({
+      bold: getSafeQueryState("bold"),
+      italic: getSafeQueryState("italic"),
+      underline: getSafeQueryState("underline"),
+      strikeThrough: getSafeQueryState("strikeThrough"),
+      unorderedList: getSafeQueryState("insertUnorderedList"),
+      orderedList: getSafeQueryState("insertOrderedList"),
+      blockquote: getBlockTypeLabel(getSafeQueryValue("formatBlock")) === "blockquote",
+      alignLeft: getSafeQueryState("justifyLeft"),
+      alignCenter: getSafeQueryState("justifyCenter"),
+      alignJustify: getSafeQueryState("justifyFull"),
+      blockType: getBlockTypeLabel(getSafeQueryValue("formatBlock")),
+      fontName: getSafeQueryValue("fontName") || DEFAULT_FONT,
+      fontSize: getSafeQueryValue("fontSize") || DEFAULT_FONT_SIZE,
+    });
+  }, []);
 
   useEffect(() => {
     setTo(initialValues?.to ?? "");
@@ -116,13 +229,26 @@ export function MailComposer({
     setBodyHtml(convertPlainTextToHtml(initialValues?.body ?? ""));
     setAttachments([]);
     setFormError(null);
+    setEditorState(initialEditorState);
   }, [composeSessionId, initialValues]);
 
   useEffect(() => {
     if (editorRef.current && editorRef.current.innerHTML !== bodyHtml) {
       editorRef.current.innerHTML = bodyHtml;
+      syncEditorState();
     }
-  }, [bodyHtml]);
+  }, [bodyHtml, syncEditorState]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+
+    const handler = () => syncEditorState();
+    document.addEventListener("selectionchange", handler);
+
+    return () => document.removeEventListener("selectionchange", handler);
+  }, [syncEditorState]);
 
   const totalAttachmentBytes = useMemo(
     () => attachments.reduce((total, file) => total + file.size, 0),
@@ -168,20 +294,56 @@ export function MailComposer({
     setAttachments((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   };
 
-  const applyFormat = (command: string) => {
+  const executeCommand = (command: string, value?: string) => {
     if (!editorRef.current) return;
 
     editorRef.current.focus();
+    document.execCommand(command, false, value);
+    setBodyHtml(editorRef.current.innerHTML);
+    syncEditorState();
+  };
 
-    if (command === "createLink") {
-      const url = window.prompt("Введите URL", "https://");
-      if (!url) return;
-      document.execCommand(command, false, url);
-    } else {
-      document.execCommand(command, false);
+  const handleCreateLink = () => {
+    const url = window.prompt("Введите URL", "https://");
+    if (!url) return;
+
+    executeCommand("createLink", url);
+  };
+
+  const handleInsertImage = () => {
+    const url = window.prompt("Введите URL картинки", "https://");
+    if (!url) return;
+
+    executeCommand("insertImage", url);
+  };
+
+  const handleInsertTable = () => {
+    const tableHtml = `<table border="1" cellpadding="6" cellspacing="0" style="border-collapse: collapse; width: 100%;"><tr><th>Колонка 1</th><th>Колонка 2</th></tr><tr><td>Значение 1</td><td>Значение 2</td></tr></table><p></p>`;
+    executeCommand("insertHTML", tableHtml);
+  };
+
+  const handleBlockTypeChange = (event: SelectChangeEvent) => {
+    const value = event.target.value;
+
+    if (value === "p") {
+      executeCommand("formatBlock", "<p>");
+      return;
     }
 
-    setBodyHtml(editorRef.current.innerHTML);
+    if (value === "blockquote") {
+      executeCommand("formatBlock", "<blockquote>");
+      return;
+    }
+
+    executeCommand("formatBlock", `<${value}>`);
+  };
+
+  const handleFontNameChange = (event: SelectChangeEvent) => {
+    executeCommand("fontName", event.target.value);
+  };
+
+  const handleFontSizeChange = (event: SelectChangeEvent) => {
+    executeCommand("fontSize", event.target.value);
   };
 
   const handleSend = async () => {
@@ -281,53 +443,175 @@ export function MailComposer({
             <Typography variant="subtitle2" sx={{ mb: 1 }}>
               Сообщение
             </Typography>
-            <Box
-              sx={{
-                border: "1px solid",
-                borderColor: "divider",
-                borderRadius: 1,
-                p: 1,
-                display: "flex",
-                gap: 0.5,
-                flexWrap: "wrap",
-              }}
+
+            <Stack
+              direction="row"
+              spacing={0.5}
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 1 }}
             >
-              <IconButton size="small" onClick={() => applyFormat("bold")}>
-                <FormatBold fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => applyFormat("italic")}>
-                <FormatItalic fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => applyFormat("underline")}>
-                <FormatUnderlined fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => applyFormat("insertUnorderedList")}>
-                <FormatListBulleted fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => applyFormat("insertOrderedList")}>
-                <FormatListNumbered fontSize="small" />
-              </IconButton>
-              <IconButton size="small" onClick={() => applyFormat("createLink")}>
-                <Link fontSize="small" />
-              </IconButton>
-            </Box>
+              <Select size="small" value={editorState.blockType} onChange={handleBlockTypeChange} sx={{ minWidth: 120 }}>
+                <MenuItem value="p">Параграф</MenuItem>
+                <MenuItem value="h1">H1</MenuItem>
+                <MenuItem value="h2">H2</MenuItem>
+                <MenuItem value="h3">H3</MenuItem>
+                <MenuItem value="blockquote">Цитата</MenuItem>
+              </Select>
+
+              <Select size="small" value={editorState.fontName} onChange={handleFontNameChange} sx={{ minWidth: 140 }}>
+                {FONT_OPTIONS.map((font) => (
+                  <MenuItem key={font} value={font}>
+                    {font}
+                  </MenuItem>
+                ))}
+              </Select>
+
+              <Select size="small" value={editorState.fontSize} onChange={handleFontSizeChange} sx={{ minWidth: 90 }}>
+                {FONT_SIZE_OPTIONS.map((size) => (
+                  <MenuItem key={size.value} value={size.value}>
+                    {size.label}
+                  </MenuItem>
+                ))}
+              </Select>
+
+              <Tooltip title="Полужирный">
+                <IconButton color={editorState.bold ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("bold")}>
+                  <FormatBold fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Курсив">
+                <IconButton color={editorState.italic ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("italic")}>
+                  <FormatItalic fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Подчеркивание">
+                <IconButton color={editorState.underline ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("underline")}>
+                  <FormatUnderlined fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Зачеркивание">
+                <IconButton color={editorState.strikeThrough ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("strikeThrough")}>
+                  <FormatStrikethrough fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Маркированный список">
+                <IconButton color={editorState.unorderedList ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertUnorderedList")}>
+                  <FormatListBulleted fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Нумерованный список">
+                <IconButton color={editorState.orderedList ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertOrderedList")}>
+                  <FormatListNumbered fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Цитата">
+                <IconButton color={editorState.blockquote ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("formatBlock", "<blockquote>")}>
+                  <FormatQuote fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Разделительная линия">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertHorizontalRule")}>
+                  <HorizontalRule fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Текст: красный">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("foreColor", "#d32f2f")}>
+                  <FormatColorText fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Маркер: желтый">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("hiliteColor", "#fff59d")}>
+                  <FormatColorFill fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Выравнивание по левому краю">
+                <IconButton color={editorState.alignLeft ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyLeft")}>
+                  <FormatAlignLeft fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Выравнивание по центру">
+                <IconButton color={editorState.alignCenter ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyCenter")}>
+                  <FormatAlignCenter fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Выравнивание по ширине">
+                <IconButton color={editorState.alignJustify ? "primary" : "default"} size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyFull")}>
+                  <FormatAlignJustify fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Увеличить отступ">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("indent")}>
+                  <FormatIndentIncrease fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Уменьшить отступ">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("outdent")}>
+                  <FormatIndentDecrease fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Вставить ссылку">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={handleCreateLink}>
+                  <Link fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Вставить изображение по URL">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={handleInsertImage}>
+                  <Image fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Вставить таблицу">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={handleInsertTable}>
+                  <TableChart fontSize="small" />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="Очистить форматирование">
+                <IconButton size="small" onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("removeFormat")}>
+                  <FormatClear fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            </Stack>
+
             <Box
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              onInput={(event) => setBodyHtml(event.currentTarget.innerHTML)}
+              onInput={(event) => {
+                setBodyHtml(event.currentTarget.innerHTML);
+                syncEditorState();
+              }}
+              onFocus={syncEditorState}
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
                 borderRadius: 1,
-                minHeight: 220,
+                minHeight: 240,
                 p: 1.5,
                 mt: 1,
                 outline: "none",
+                overflowWrap: "anywhere",
                 "&:focus": {
                   borderColor: "primary.main",
                   boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}`,
                 },
+                "& h1, & h2, & h3": { marginTop: 1, marginBottom: 1 },
+                "& blockquote": {
+                  borderLeft: "3px solid",
+                  borderColor: "divider",
+                  pl: 1,
+                  ml: 0,
+                  color: "text.secondary",
+                },
+                "& ul, & ol": {
+                  paddingInlineStart: "24px",
+                  margin: "8px 0",
+                },
+                "& ul": { listStyleType: "disc" },
+                "& ol": { listStyleType: "decimal" },
+                "& li": { display: "list-item" },
+                "& img": { maxWidth: "100%", height: "auto" },
+                "& table": { width: "100%", borderCollapse: "collapse" },
+                "& table td, & table th": { border: "1px solid #d0d7de", padding: "6px" },
               }}
             />
           </Box>
