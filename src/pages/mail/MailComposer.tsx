@@ -14,7 +14,18 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { AttachFile, Close, DeleteOutline, Send } from "@mui/icons-material";
+import {
+  AttachFile,
+  Close,
+  DeleteOutline,
+  FormatBold,
+  FormatItalic,
+  FormatListBulleted,
+  FormatListNumbered,
+  FormatUnderlined,
+  Link,
+  Send,
+} from "@mui/icons-material";
 import { useAuth } from "../../shared/hooks/useAuth";
 import { useSendMail } from "../../shared/hooks/useMail";
 import { notificationService } from "../../shared/services/notifications";
@@ -45,6 +56,38 @@ const splitEmails = (value: string) =>
 
 const formatMb = (bytes: number) => `${(bytes / (1024 * 1024)).toFixed(2)} МБ`;
 
+const getPlainTextFromHtml = (html: string) => {
+  if (typeof document === "undefined") {
+    return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  }
+
+  const container = document.createElement("div");
+  container.innerHTML = html;
+  return (container.textContent ?? "").trim();
+};
+
+const convertPlainTextToHtml = (text: string) => {
+  if (!text.trim()) {
+    return "";
+  }
+
+  if (typeof document === "undefined") {
+    return text
+      .split("\n")
+      .map((line) => `<p>${line}</p>`)
+      .join("");
+  }
+
+  const container = document.createElement("div");
+  text.split("\n").forEach((line) => {
+    const paragraph = document.createElement("p");
+    paragraph.textContent = line;
+    container.appendChild(paragraph);
+  });
+
+  return container.innerHTML;
+};
+
 export function MailComposer({
   open,
   composeSessionId,
@@ -59,20 +102,27 @@ export function MailComposer({
   const [cc, setCc] = useState("");
   const [bcc, setBcc] = useState("");
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState("");
+  const [bodyHtml, setBodyHtml] = useState("");
   const [attachments, setAttachments] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const editorRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     setTo(initialValues?.to ?? "");
     setCc(initialValues?.cc ?? "");
     setBcc(initialValues?.bcc ?? "");
     setSubject(initialValues?.subject ?? "");
-    setBody(initialValues?.body ?? "");
+    setBodyHtml(convertPlainTextToHtml(initialValues?.body ?? ""));
     setAttachments([]);
     setFormError(null);
   }, [composeSessionId, initialValues]);
+
+  useEffect(() => {
+    if (editorRef.current && editorRef.current.innerHTML !== bodyHtml) {
+      editorRef.current.innerHTML = bodyHtml;
+    }
+  }, [bodyHtml]);
 
   const totalAttachmentBytes = useMemo(
     () => attachments.reduce((total, file) => total + file.size, 0),
@@ -81,10 +131,9 @@ export function MailComposer({
 
   const hasOversizedAttachments = totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES;
 
-  const canSend = useMemo(
-    () => splitEmails(to).length > 0 && body.trim().length > 0,
-    [to, body],
-  );
+  const plainBody = useMemo(() => getPlainTextFromHtml(bodyHtml), [bodyHtml]);
+
+  const canSend = useMemo(() => splitEmails(to).length > 0 && plainBody.length > 0, [to, plainBody]);
 
   const buildRecipients = (emails: string, type: MailRecipientType) =>
     splitEmails(emails).map((email_address) => ({ email_address, recipient_type: type }));
@@ -119,8 +168,27 @@ export function MailComposer({
     setAttachments((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
   };
 
+  const applyFormat = (command: string) => {
+    if (!editorRef.current) return;
+
+    editorRef.current.focus();
+
+    if (command === "createLink") {
+      const url = window.prompt("Введите URL", "https://");
+      if (!url) return;
+      document.execCommand(command, false, url);
+    } else {
+      document.execCommand(command, false);
+    }
+
+    setBodyHtml(editorRef.current.innerHTML);
+  };
+
   const handleSend = async () => {
     setFormError(null);
+
+    const html = bodyHtml.trim();
+    const text = getPlainTextFromHtml(html);
 
     const payload: MailSendPayload = {
       sender_email: user?.email || "",
@@ -132,7 +200,9 @@ export function MailComposer({
         ...buildRecipients(bcc, "bcc"),
       ],
       content: {
-        body_text: body,
+        body_text: text,
+        body_html: html,
+        html_body: html,
       },
     };
 
@@ -206,15 +276,61 @@ export function MailComposer({
             onChange={(event) => setSubject(event.target.value)}
             fullWidth
           />
-          <TextField
-            label="Сообщение"
-            value={body}
-            onChange={(event) => setBody(event.target.value)}
-            multiline
-            minRows={8}
-            fullWidth
-            required
-          />
+
+          <Box>
+            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+              Сообщение
+            </Typography>
+            <Box
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                p: 1,
+                display: "flex",
+                gap: 0.5,
+                flexWrap: "wrap",
+              }}
+            >
+              <IconButton size="small" onClick={() => applyFormat("bold")}>
+                <FormatBold fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => applyFormat("italic")}>
+                <FormatItalic fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => applyFormat("underline")}>
+                <FormatUnderlined fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => applyFormat("insertUnorderedList")}>
+                <FormatListBulleted fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => applyFormat("insertOrderedList")}>
+                <FormatListNumbered fontSize="small" />
+              </IconButton>
+              <IconButton size="small" onClick={() => applyFormat("createLink")}>
+                <Link fontSize="small" />
+              </IconButton>
+            </Box>
+            <Box
+              ref={editorRef}
+              contentEditable
+              suppressContentEditableWarning
+              onInput={(event) => setBodyHtml(event.currentTarget.innerHTML)}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1,
+                minHeight: 220,
+                p: 1.5,
+                mt: 1,
+                outline: "none",
+                "&:focus": {
+                  borderColor: "primary.main",
+                  boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}`,
+                },
+              }}
+            />
+          </Box>
 
           <Box>
             <Button
