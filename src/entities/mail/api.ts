@@ -27,10 +27,14 @@ const getFrontendDomain = () => {
   return window.location.origin;
 };
 
+const withFrontendDomain = (payload: MailSendPayload): MailSendPayload => ({
+  ...payload,
+  frontend_domain: payload.frontend_domain ?? getFrontendDomain(),
+});
+
 const buildMailFormData = (payload: MailSendPayload, files: File[]) => {
   const formData = new FormData();
-  formData.append("data", JSON.stringify(payload));
-  formData.append("frontend_domain", getFrontendDomain());
+  formData.append("data", JSON.stringify(withFrontendDomain(payload)));
   files.forEach((file) => {
     formData.append("files", file);
   });
@@ -48,7 +52,7 @@ export const mailApi = {
     api.get<MailMessageRead>(`/mail/messages/${messageId}`),
 
   sendMessage: (payload: MailSendPayload) =>
-    api.post<MailSendResult>("/mail/messages", payload),
+    api.post<MailSendResult>("/mail/messages", withFrontendDomain(payload)),
 
   sendMessageWithAttachments: (payload: MailSendPayload, files: File[]) =>
     api.post<MailSendResult>(
@@ -82,18 +86,18 @@ export const mailApi = {
     payload: MailSendPayload,
     replyAll = false,
   ) =>
-    api.post<MailSendResult>(`/mail/messages/${messageId}/reply`, payload, {
+    api.post<MailSendResult>(`/mail/messages/${messageId}/reply`, withFrontendDomain(payload), {
       params: { reply_all: replyAll },
     }),
 
   forwardMessage: (messageId: string, payload: MailSendPayload) =>
-    api.post<MailSendResult>(`/mail/messages/${messageId}/forward`, payload),
+    api.post<MailSendResult>(`/mail/messages/${messageId}/forward`, withFrontendDomain(payload)),
 
   createDraft: (payload: MailSendPayload) =>
-    api.post<MailMessageRead>("/mail/drafts", payload),
+    api.post<MailMessageRead>("/mail/drafts", withFrontendDomain(payload)),
 
   updateDraft: (messageId: string, payload: MailSendPayload) =>
-    api.patch<MailMessageRead>(`/mail/drafts/${messageId}`, payload),
+    api.patch<MailMessageRead>(`/mail/drafts/${messageId}`, withFrontendDomain(payload)),
 
   sendDraft: (messageId: string) =>
     api.post<MailSendResult>(`/mail/drafts/${messageId}/send`),

@@ -82,6 +82,7 @@ export interface MailSendPayload {
   sender_email: string;
   sender_name?: string;
   subject?: string;
+  frontend_domain?: string;
   recipients: Array<{
     email_address: string;
     recipient_type: MailRecipientType;
