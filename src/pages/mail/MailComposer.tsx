@@ -4,6 +4,7 @@ import {
   Autocomplete,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -34,7 +35,6 @@ import {
   FormatItalic,
   FormatListBulleted,
   FormatListNumbered,
-  FormatQuote,
   FormatStrikethrough,
   FormatUnderlined,
   HorizontalRule,
@@ -67,7 +67,6 @@ interface EditorCommandState {
   strikeThrough: boolean;
   unorderedList: boolean;
   orderedList: boolean;
-  blockquote: boolean;
   alignLeft: boolean;
   alignCenter: boolean;
   alignJustify: boolean;
@@ -145,7 +144,6 @@ const getBlockTypeLabel = (rawValue: string) => {
   if (value.includes("h1")) return "h1";
   if (value.includes("h2")) return "h2";
   if (value.includes("h3")) return "h3";
-  if (value.includes("blockquote")) return "blockquote";
 
   return "p";
 };
@@ -166,10 +164,22 @@ const getSafeQueryValue = (command: string) => {
   }
 };
 
-const iconButtonSx = {
-  width: 22,
-  height: 22,
+const controlSizeSx = {
+  width: 24,
+  height: 24,
   p: 0,
+};
+
+const selectSx = {
+  width: 96,
+  height: 24,
+  "& .MuiSelect-select": {
+    py: 0,
+    px: 0.75,
+    fontSize: 12,
+    display: "flex",
+    alignItems: "center",
+  },
 };
 
 const initialEditorState: EditorCommandState = {
@@ -179,7 +189,6 @@ const initialEditorState: EditorCommandState = {
   strikeThrough: false,
   unorderedList: false,
   orderedList: false,
-  blockquote: false,
   alignLeft: true,
   alignCenter: false,
   alignJustify: false,
@@ -206,8 +215,6 @@ export function MailComposer({
   const [attachments, setAttachments] = useState<File[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
   const [editorState, setEditorState] = useState<EditorCommandState>(initialEditorState);
-  const [textColor, setTextColor] = useState("#000000");
-  const [highlightColor, setHighlightColor] = useState("#fff59d");
 
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const editorRef = useRef<HTMLDivElement | null>(null);
@@ -224,7 +231,6 @@ export function MailComposer({
       strikeThrough: getSafeQueryState("strikeThrough"),
       unorderedList: getSafeQueryState("insertUnorderedList"),
       orderedList: getSafeQueryState("insertOrderedList"),
-      blockquote: getBlockTypeLabel(getSafeQueryValue("formatBlock")) === "blockquote",
       alignLeft: getSafeQueryState("justifyLeft"),
       alignCenter: getSafeQueryState("justifyCenter"),
       alignJustify: getSafeQueryState("justifyFull"),
@@ -331,11 +337,6 @@ export function MailComposer({
       return;
     }
 
-    if (value === "blockquote") {
-      executeCommand("formatBlock", "<blockquote>");
-      return;
-    }
-
     executeCommand("formatBlock", `<${value}>`);
   };
 
@@ -345,18 +346,6 @@ export function MailComposer({
 
   const handleFontSizeChange = (event: SelectChangeEvent) => {
     executeCommand("fontSize", event.target.value);
-  };
-
-  const handleTextColorChange = (color: string) => {
-    setTextColor(color);
-    executeCommand("styleWithCSS", "true");
-    executeCommand("foreColor", color);
-  };
-
-  const handleHighlightColorChange = (color: string) => {
-    setHighlightColor(color);
-    executeCommand("styleWithCSS", "true");
-    executeCommand("hiliteColor", color);
   };
 
   const handleSend = async () => {
@@ -429,7 +418,30 @@ export function MailComposer({
             options={[]}
             value={to}
             onChange={(_, value) => setTo(value.map((item) => item.trim()).filter(Boolean))}
-            renderInput={(params) => <TextField {...params} label="Кому" placeholder="Добавьте получателя" required fullWidth />}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={`${option}-${index}`}
+                  label={option}
+                  size="small"
+                  sx={{ borderRadius: "999px", bgcolor: "primary.50", border: "1px solid", borderColor: "primary.200" }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Кому"
+                placeholder="Добавьте получателя"
+                required
+                fullWidth
+                variant="outlined"
+                sx={{
+                  "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" },
+                }}
+              />
+            )}
           />
           <Autocomplete
             multiple
@@ -437,7 +449,27 @@ export function MailComposer({
             options={[]}
             value={cc}
             onChange={(_, value) => setCc(value.map((item) => item.trim()).filter(Boolean))}
-            renderInput={(params) => <TextField {...params} label="Копия (CC)" placeholder="Добавьте копию" fullWidth />}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={`${option}-${index}`}
+                  label={option}
+                  size="small"
+                  sx={{ borderRadius: "999px", bgcolor: "grey.100" }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Копия (CC)"
+                placeholder="Добавьте копию"
+                fullWidth
+                variant="outlined"
+                sx={{ "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" } }}
+              />
+            )}
           />
           <Autocomplete
             multiple
@@ -445,7 +477,27 @@ export function MailComposer({
             options={[]}
             value={bcc}
             onChange={(_, value) => setBcc(value.map((item) => item.trim()).filter(Boolean))}
-            renderInput={(params) => <TextField {...params} label="Скрытая копия (BCC)" placeholder="Добавьте скрытую копию" fullWidth />}
+            renderTags={(value, getTagProps) =>
+              value.map((option, index) => (
+                <Chip
+                  {...getTagProps({ index })}
+                  key={`${option}-${index}`}
+                  label={option}
+                  size="small"
+                  sx={{ borderRadius: "999px", bgcolor: "grey.100" }}
+                />
+              ))
+            }
+            renderInput={(params) => (
+              <TextField
+                {...params}
+                label="Скрытая копия (BCC)"
+                placeholder="Добавьте скрытую копию"
+                fullWidth
+                variant="outlined"
+                sx={{ "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" } }}
+              />
+            )}
           />
           <TextField
             label="Тема"
@@ -466,15 +518,14 @@ export function MailComposer({
               flexWrap="wrap"
               sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 0.75 }}
             >
-              <Select size="small" value={editorState.blockType} onChange={handleBlockTypeChange} sx={{ minWidth: 110 }}>
-                <MenuItem value="p">Параграф</MenuItem>
+              <Select size="small" value={editorState.blockType} onChange={handleBlockTypeChange} sx={selectSx}>
+                <MenuItem value="p">P</MenuItem>
                 <MenuItem value="h1">H1</MenuItem>
                 <MenuItem value="h2">H2</MenuItem>
                 <MenuItem value="h3">H3</MenuItem>
-                <MenuItem value="blockquote">Цитата</MenuItem>
               </Select>
 
-              <Select size="small" value={editorState.fontName} onChange={handleFontNameChange} sx={{ minWidth: 135 }}>
+              <Select size="small" value={editorState.fontName} onChange={handleFontNameChange} sx={selectSx}>
                 {FONT_OPTIONS.map((font) => (
                   <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
                     {font}
@@ -482,7 +533,7 @@ export function MailComposer({
                 ))}
               </Select>
 
-              <Select size="small" value={editorState.fontSize} onChange={handleFontSizeChange} sx={{ minWidth: 80 }}>
+              <Select size="small" value={editorState.fontSize} onChange={handleFontSizeChange} sx={selectSx}>
                 {FONT_SIZE_OPTIONS.map((size) => (
                   <MenuItem key={size.value} value={size.value}>
                     {size.label}
@@ -491,101 +542,72 @@ export function MailComposer({
               </Select>
 
               <Tooltip title="Полужирный">
-                <IconButton color={editorState.bold ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("bold")}>
+                <IconButton color={editorState.bold ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("bold")}>
                   <FormatBold sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Курсив">
-                <IconButton color={editorState.italic ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("italic")}>
+                <IconButton color={editorState.italic ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("italic")}>
                   <FormatItalic sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Подчеркивание">
-                <IconButton color={editorState.underline ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("underline")}>
+                <IconButton color={editorState.underline ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("underline")}>
                   <FormatUnderlined sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Зачеркивание">
-                <IconButton color={editorState.strikeThrough ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("strikeThrough")}>
+                <IconButton color={editorState.strikeThrough ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("strikeThrough")}>
                   <FormatStrikethrough sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Маркированный список">
-                <IconButton color={editorState.unorderedList ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertUnorderedList")}>
+                <IconButton color={editorState.unorderedList ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertUnorderedList")}>
                   <FormatListBulleted sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Нумерованный список">
-                <IconButton color={editorState.orderedList ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertOrderedList")}>
+                <IconButton color={editorState.orderedList ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertOrderedList")}>
                   <FormatListNumbered sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="Цитата">
-                <IconButton color={editorState.blockquote ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("formatBlock", "<blockquote>")}>
-                  <FormatQuote sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
               <Tooltip title="Разделительная линия">
-                <IconButton size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertHorizontalRule")}>
+                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertHorizontalRule")}>
                   <HorizontalRule sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
-
-              <Box display="flex" alignItems="center" gap={0.5} sx={{ px: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Текст
-                </Typography>
-                <input
-                  type="color"
-                  value={textColor}
-                  onChange={(event) => handleTextColorChange(event.target.value)}
-                  style={{ width: 22, height: 22, border: "none", background: "transparent", padding: 0 }}
-                />
-              </Box>
-              <Box display="flex" alignItems="center" gap={0.5} sx={{ px: 0.5 }}>
-                <Typography variant="caption" color="text.secondary">
-                  Маркер
-                </Typography>
-                <input
-                  type="color"
-                  value={highlightColor}
-                  onChange={(event) => handleHighlightColorChange(event.target.value)}
-                  style={{ width: 22, height: 22, border: "none", background: "transparent", padding: 0 }}
-                />
-              </Box>
-
               <Tooltip title="Выравнивание по левому краю">
-                <IconButton color={editorState.alignLeft ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyLeft")}>
+                <IconButton color={editorState.alignLeft ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyLeft")}>
                   <FormatAlignLeft sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Выравнивание по центру">
-                <IconButton color={editorState.alignCenter ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyCenter")}>
+                <IconButton color={editorState.alignCenter ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyCenter")}>
                   <FormatAlignCenter sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Выравнивание по ширине">
-                <IconButton color={editorState.alignJustify ? "primary" : "default"} size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyFull")}>
+                <IconButton color={editorState.alignJustify ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyFull")}>
                   <FormatAlignJustify sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Увеличить отступ">
-                <IconButton size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("indent")}>
+                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("indent")}>
                   <FormatIndentIncrease sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Уменьшить отступ">
-                <IconButton size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("outdent")}>
+                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("outdent")}>
                   <FormatIndentDecrease sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Вставить ссылку">
-                <IconButton size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={handleCreateLink}>
+                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={handleCreateLink}>
                   <Link sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
               <Tooltip title="Очистить форматирование">
-                <IconButton size="small" sx={iconButtonSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("removeFormat")}>
+                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("removeFormat")}>
                   <FormatClear sx={{ fontSize: 16 }} />
                 </IconButton>
               </Tooltip>
@@ -600,12 +622,6 @@ export function MailComposer({
                 syncEditorState();
               }}
               onFocus={syncEditorState}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey && editorState.blockquote) {
-                  event.preventDefault();
-                  executeCommand("formatBlock", "<p>");
-                }
-              }}
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
@@ -621,13 +637,6 @@ export function MailComposer({
                   boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}`,
                 },
                 "& h1, & h2, & h3": { marginTop: 1, marginBottom: 1 },
-                "& blockquote": {
-                  borderLeft: "3px solid",
-                  borderColor: "divider",
-                  pl: 1,
-                  ml: 0,
-                  color: "text.secondary",
-                },
                 "& ul, & ol": {
                   paddingInlineStart: "24px",
                   margin: "8px 0",
@@ -637,10 +646,6 @@ export function MailComposer({
                 "& li": { display: "list-item" },
               }}
             />
-
-            <Typography variant="caption" color="text.secondary" sx={{ mt: 0.5, display: "block" }}>
-              Enter в цитате завершает цитирование и переводит в обычный абзац. Shift + Enter — перенос строки внутри текущего блока.
-            </Typography>
           </Box>
 
           <Box>
