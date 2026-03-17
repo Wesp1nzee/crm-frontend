@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery } from "@tanstack/react-query";
 import {
   Add,
   Archive,
@@ -36,7 +37,6 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
-  Pagination,
 } from "@mui/material";
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
@@ -44,8 +44,6 @@ import { mailApi } from "../../entities/mail/api";
 import type { MailFolder, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
 import {
   useMailThread,
-  useMailThreadSearch,
-  useMailThreads,
   useMailStats,
   useSyncMailMessages,
 } from "../../shared/hooks/useMail";
@@ -89,6 +87,30 @@ const getReplySubject = (subject?: string | null) => {
 const toRecipientEmailList = (recipients: MailRecipient[], type: "to" | "cc") =>
   recipients.filter((recipient) => recipient.recipient_type === type).map((recipient) => recipient.email_address);
 
+const getThreadGroupLabel = (isoDate?: string) => {
+  if (!isoDate) return "Без даты";
+
+  const date = new Date(isoDate);
+  const now = new Date();
+
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
+  const startWeek = new Date(startToday);
+  startWeek.setDate(startWeek.getDate() - 7);
+
+  if (date >= startToday) return "Сегодня";
+  if (date >= startYesterday && date < startToday) return "Вчера";
+  if (date >= startWeek && date < startYesterday) return "Неделя";
+
+  const monthYear = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+  return monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+};
+
 export function MailPage() {
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
@@ -106,7 +128,8 @@ export function MailPage() {
     body?: string;
   }>({});
   const [searchTerm, setSearchTerm] = useState("");
-  const [page, setPage] = useState(1);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   const selectedFolder: MailFolder =
     folderParam && folderSet.has(folderParam as MailFolder) ? (folderParam as MailFolder) : "inbox";
@@ -115,32 +138,81 @@ export function MailPage() {
   const debouncedSearch = useDebounce(searchTerm.trim(), 300);
 
   const { data: stats } = useMailStats();
-  const { data: threadsData, isLoading } = useMailThreads({
-    folder: selectedFolder,
-    page,
-    page_size: PAGE_SIZE,
-  });
+  const {
+    data: threadsPages,
+    isLoading,
+    isFetching,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["mail", "threads", selectedFolder, debouncedSearch],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => {
+      const page = Number(pageParam);
 
-  const { data: searchData, isFetching: isSearchFetching } = useMailThreadSearch(
-    { q: debouncedSearch, page, page_size: PAGE_SIZE },
-    debouncedSearch.length > 1,
-  );
+      if (debouncedSearch.length > 1) {
+        return mailApi
+          .searchThreads({ q: debouncedSearch, page, page_size: PAGE_SIZE })
+          .then((response) => response.data);
+      }
+
+      return mailApi
+        .getThreads({ folder: selectedFolder, page, page_size: PAGE_SIZE })
+        .then((response) => response.data);
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.has_next ? lastPage.page + 1 : undefined,
+  });
 
   const { data: selectedThread } = useMailThread(selectedThreadId ?? "");
   const syncMessages = useSyncMailMessages();
   const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
 
-  const baseThreads = useMemo(() => threadsData?.items ?? [], [threadsData]);
-
   const threads = useMemo(() => {
-    if (!debouncedSearch) {
-      return baseThreads;
-    }
-    return searchData?.items ?? [];
-  }, [baseThreads, debouncedSearch, searchData?.items]);
+    const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
+    const unique = new Map<string, MailThreadListItem>();
 
-  const totalCount = debouncedSearch ? (searchData?.total ?? 0) : (threadsData?.total ?? 0);
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    allItems.forEach((thread) => {
+      const key = thread.thread_id ?? thread.id;
+      if (!key || unique.has(key)) return;
+      unique.set(key, thread);
+    });
+
+    return Array.from(unique.values());
+  }, [threadsPages?.pages]);
+
+  const groupedThreads = useMemo(() => {
+    const groups = new Map<string, MailThreadListItem[]>();
+
+    threads.forEach((thread) => {
+      const label = getThreadGroupLabel(thread.last_message_at);
+      const list = groups.get(label) ?? [];
+      list.push(thread);
+      groups.set(label, list);
+    });
+
+    return Array.from(groups.entries()).map(([label, items]) => ({ label, items }));
+  }, [threads]);
+
+  useEffect(() => {
+    const root = listContainerRef.current;
+    const target = loadMoreTriggerRef.current;
+
+    if (!root || !target || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { root, threshold: 0.1 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, threads.length]);
 
   const openComposer = (defaults?: { to?: string; cc?: string; subject?: string; body?: string }) => {
     setComposerDefaults(defaults ?? {});
@@ -167,7 +239,6 @@ export function MailPage() {
 
   const goToFolder = (folder: MailFolder) => {
     navigate(`/crm/mail/${folder}`);
-    setPage(1);
   };
 
   const selectThread = (thread: MailThreadListItem) => {
@@ -341,12 +412,11 @@ export function MailPage() {
         </Box>
 
         {!selectedThreadId ? (
-          <Box sx={{ p: 1.25, overflow: "auto" }}>
+          <Box ref={listContainerRef} sx={{ p: 1.25, overflow: "auto" }}>
             <OutlinedInput
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value);
-                setPage(1);
               }}
               fullWidth
               size="small"
@@ -367,79 +437,97 @@ export function MailPage() {
               }}
             />
 
-            {(isLoading || isSearchFetching) && <Typography>Загрузка...</Typography>}
-            {!isLoading && !isSearchFetching && threads.length === 0 && (
+            {(isLoading || isFetching) && <Typography>Загрузка...</Typography>}
+            {!isLoading && !isFetching && threads.length === 0 && (
               <Typography color="text.secondary">Нет тредов в этой папке.</Typography>
             )}
 
             <List sx={{ display: "flex", flexDirection: "column", gap: 0.75, p: 0 }}>
-              {threads.map((thread) => {
-                return (
-                  <Paper
-                    key={thread.thread_id ?? thread.id}
-                    variant="outlined"
+              {groupedThreads.map((group) => (
+                <Box key={group.label}>
+                  <Typography
+                    variant="caption"
                     sx={{
-                      px: 1.2,
-                      py: 0.8,
-                      borderRadius: "16px",
-                      minHeight: 64,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
-                      backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
-                      transition: "all 0.2s ease",
-                      "&:hover": {
-                        boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
-                      },
+                      display: "block",
+                      color: "#4A5F89",
+                      fontWeight: 700,
+                      px: 0.6,
+                      py: 0.4,
                     }}
-                    onClick={() => selectThread(thread)}
                   >
-                    <Box sx={{ minWidth: 190, maxWidth: 220 }}>
-                      <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
-                        {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
-                      </Typography>
-                    </Box>
+                    {group.label}
+                  </Typography>
 
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                  <Stack spacing={0.75}>
+                    {group.items.map((thread) => (
+                      <Paper
+                        key={thread.thread_id ?? thread.id}
+                        variant="outlined"
+                        sx={{
+                          px: 1.2,
+                          py: 0.8,
+                          borderRadius: "16px",
+                          minHeight: 64,
+                          cursor: "pointer",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 1,
+                          borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
+                          backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
+                          transition: "all 0.2s ease",
+                          "&:hover": {
+                            boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
+                          },
+                        }}
+                        onClick={() => selectThread(thread)}
                       >
-                        {thread.subject || "(без темы)"}
-                      </Typography>
-                    </Box>
+                        <Box sx={{ minWidth: 190, maxWidth: 220 }}>
+                          <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
+                            {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
+                          </Typography>
+                        </Box>
 
-                    <Stack direction="row" spacing={0.8} alignItems="center">
-                      {thread.has_attachments && (
-                        <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
-                      )}
-                      {thread.message_count > 1 && (
-                        <Chip
-                          label={`${thread.message_count}`}
-                          size="small"
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            selectThread(thread);
-                          }}
-                          sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
-                        />
-                      )}
-                      <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
-                        {new Date(thread.last_message_at).toLocaleString("ru-RU")}
-                      </Typography>
-                    </Stack>
-                  </Paper>
-                );
-              })}
+                        <Box sx={{ flex: 1, minWidth: 0 }}>
+                          <Typography
+                            variant="body2"
+                            noWrap
+                            sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                          >
+                            {thread.subject || "(без темы)"}
+                          </Typography>
+                        </Box>
+
+                        <Stack direction="row" spacing={0.8} alignItems="center">
+                          {thread.has_attachments && (
+                            <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
+                          )}
+                          {thread.message_count > 1 && (
+                            <Chip
+                              label={`${thread.message_count}`}
+                              size="small"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                selectThread(thread);
+                              }}
+                              sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
+                            />
+                          )}
+                          <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
+                            {new Date(thread.last_message_at).toLocaleString("ru-RU")}
+                          </Typography>
+                        </Stack>
+                      </Paper>
+                    ))}
+                  </Stack>
+                </Box>
+              ))}
             </List>
 
-            {totalPages > 1 && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
-                <Pagination count={totalPages} page={page} onChange={(_, value) => setPage(value)} color="primary" />
-              </Box>
+            <Box ref={loadMoreTriggerRef} sx={{ height: 6 }} />
+            {isFetchingNextPage && (
+              <Typography color="text.secondary" sx={{ mt: 1, textAlign: "center" }}>
+                Загружаем ещё треды...
+              </Typography>
             )}
           </Box>
         ) : (
