@@ -78,6 +78,33 @@ export interface PaginatedMailMessages {
   has_next: boolean;
 }
 
+export interface MailThreadListItem {
+  thread_id: string;
+  subject: string | null;
+  message_count: number;
+  unread_count: number;
+  last_message_at: string;
+  participants: string[];
+  has_attachments?: boolean;
+}
+
+export interface PaginatedMailThreads {
+  items: MailThreadListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+export interface PaginatedMailThread {
+  meta: MailThreadListItem;
+  items: MailMessageRead[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
 export interface MailSendPayload {
   case_id?: string;
   sender_email: string;

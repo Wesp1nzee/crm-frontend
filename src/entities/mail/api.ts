@@ -16,6 +16,8 @@ import type {
   MailThreadRead,
   OversizedMailBatch,
   OversizedMailPreviewUrl,
+  PaginatedMailThread,
+  PaginatedMailThreads,
   PaginatedMailMessages,
 } from "./types";
 
@@ -103,6 +105,15 @@ export const mailApi = {
     api.post<MailSendResult>(`/mail/drafts/${messageId}/send`),
 
   getThread: (threadId: string) => api.get<MailThreadRead>(`/mail/threads/${threadId}`),
+
+  getThreads: (params?: { folder?: MailFolder; page?: number; page_size?: number }) =>
+    api.get<PaginatedMailThreads>("/mail/threads", { params }),
+
+  searchThreads: (params: { q: string; page?: number; page_size?: number }) =>
+    api.get<PaginatedMailThreads>("/mail/threads/search", { params }),
+
+  getThreadMessages: (threadId: string, params?: { page?: number; page_size?: number }) =>
+    api.get<PaginatedMailThread>(`/mail/threads/${threadId}/messages`, { params }),
 
   getAttachments: (messageId: string) =>
     api.get<MailAttachment[]>(`/mail/messages/${messageId}/attachments`),
