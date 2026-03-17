@@ -171,7 +171,9 @@ export function MailPage() {
   };
 
   const selectThread = (thread: MailThreadListItem) => {
-    navigate(`/crm/mail/${selectedFolder}/${thread.thread_id}`);
+    const threadId = thread.thread_id ?? thread.id;
+    if (!threadId) return;
+    navigate(`/crm/mail/${selectedFolder}/${threadId}`);
   };
 
   const orderedMessages = useMemo(() => {
@@ -374,7 +376,7 @@ export function MailPage() {
               {threads.map((thread) => {
                 return (
                   <Paper
-                    key={thread.thread_id}
+                    key={thread.thread_id ?? thread.id}
                     variant="outlined"
                     sx={{
                       px: 1.2,
@@ -396,7 +398,7 @@ export function MailPage() {
                   >
                     <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                       <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
-                        {(thread.participants ?? []).join(", ") || "Участники неизвестны"}
+                        {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
                       </Typography>
                     </Box>
 
@@ -414,7 +416,17 @@ export function MailPage() {
                       {thread.has_attachments && (
                         <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
                       )}
-                      <Chip label={`${thread.message_count}`} size="small" sx={{ height: 20, borderRadius: 99 }} />
+                      {thread.message_count > 1 && (
+                        <Chip
+                          label={`${thread.message_count}`}
+                          size="small"
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            selectThread(thread);
+                          }}
+                          sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
+                        />
+                      )}
                       <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
                         {new Date(thread.last_message_at).toLocaleString("ru-RU")}
                       </Typography>
