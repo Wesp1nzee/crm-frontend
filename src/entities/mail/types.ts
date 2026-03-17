@@ -62,6 +62,7 @@ export interface MailContent {
   message_id: string;
   body_text: string | null;
   body_html: string | null;
+  html_body?: string | null;
 }
 
 export interface MailMessageRead extends MailMessageListItem {
@@ -91,6 +92,7 @@ export interface MailSendPayload {
   content: {
     body_text?: string;
     body_html?: string;
+    html_body?: string;
   };
 }
 
