@@ -184,12 +184,13 @@ export function MailPage() {
 
   const openReplyComposer = (replyAll: boolean) => {
     if (!latestMessage) return;
+    const safeRecipients = latestMessage.recipients ?? [];
     const toList = replyAll
-      ? [latestMessage.sender_email, ...toRecipientEmailList(latestMessage.recipients, "to")]
+      ? [latestMessage.sender_email, ...toRecipientEmailList(safeRecipients, "to")]
       : [latestMessage.sender_email];
 
     const uniqueTo = Array.from(new Set(toList.filter(Boolean))).join(", ");
-    const cc = replyAll ? toRecipientEmailList(latestMessage.recipients, "cc").join(", ") : "";
+    const cc = replyAll ? toRecipientEmailList(safeRecipients, "cc").join(", ") : "";
 
     openComposer({
       to: uniqueTo,
@@ -395,7 +396,7 @@ export function MailPage() {
                   >
                     <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                       <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
-                        {thread.participants.join(", ") || "Участники неизвестны"}
+                        {(thread.participants ?? []).join(", ") || "Участники неизвестны"}
                       </Typography>
                     </Box>
 
@@ -440,7 +441,7 @@ export function MailPage() {
                 {selectedThread?.subject || "(без темы)"}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                Участники: {selectedThread?.participants.join(", ") || "—"}
+                Участники: {(selectedThread?.participants ?? []).join(", ") || "—"}
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -478,9 +479,9 @@ export function MailPage() {
                         {new Date(message.processed_at).toLocaleString("ru-RU")}
                       </Typography>
 
-                      {!!message.attachments.length && (
+                      {!!(message.attachments?.length ?? 0) && (
                         <Stack spacing={0.8} sx={{ my: 1 }}>
-                          {message.attachments.map((attachment) => (
+                          {(message.attachments ?? []).map((attachment) => (
                             <Stack key={attachment.id} direction="row" justifyContent="space-between" alignItems="center">
                               <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
                                 <AttachFile fontSize="small" />
