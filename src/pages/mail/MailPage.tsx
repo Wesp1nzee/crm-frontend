@@ -4,6 +4,8 @@ import {
   Add,
   Archive,
   ArrowBack,
+  ExpandLess,
+  ExpandMore,
   Delete,
   Drafts,
   Inbox,
@@ -24,6 +26,7 @@ import {
   Box,
   Button,
   Chip,
+  Collapse,
   Divider,
   Drawer,
   IconButton,
@@ -41,7 +44,7 @@ import {
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
-import type { MailFolder, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
+import type { MailFolder, MailRecipient, MailThreadListItem, MailThreadRead } from "../../entities/mail/types";
 import {
   useMailThread,
   useMailStats,
@@ -128,6 +131,9 @@ export function MailPage() {
     body?: string;
   }>({});
   const [searchTerm, setSearchTerm] = useState("");
+  const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
+  const [threadDetailsById, setThreadDetailsById] = useState<Record<string, MailThreadRead>>({});
+  const [loadingThreadIds, setLoadingThreadIds] = useState<string[]>([]);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
@@ -245,6 +251,35 @@ export function MailPage() {
     const threadId = thread.thread_id ?? thread.id;
     if (!threadId) return;
     navigate(`/crm/mail/${selectedFolder}/${threadId}`);
+  };
+
+  const toggleThreadExpansion = async (thread: MailThreadListItem) => {
+    const threadId = thread.thread_id ?? thread.id;
+    if (!threadId || thread.message_count < 2) return;
+
+    const isExpanded = expandedThreadIds.includes(threadId);
+    if (isExpanded) {
+      setExpandedThreadIds((prev) => prev.filter((id) => id !== threadId));
+      return;
+    }
+
+    setExpandedThreadIds((prev) => [...prev, threadId]);
+    if (threadDetailsById[threadId] || loadingThreadIds.includes(threadId)) return;
+
+    setLoadingThreadIds((prev) => [...prev, threadId]);
+    try {
+      const response = await mailApi.getThread(threadId);
+      setThreadDetailsById((prev) => ({ ...prev, [threadId]: response.data }));
+    } finally {
+      setLoadingThreadIds((prev) => prev.filter((id) => id !== threadId));
+    }
+  };
+
+  const openMessageFromThread = async (messageId: string, threadId: string) => {
+    const response = await mailApi.getMessage(messageId);
+    const resolvedThreadId = response.data.thread_id ?? threadId;
+    if (!resolvedThreadId) return;
+    navigate(`/crm/mail/${selectedFolder}/${resolvedThreadId}`);
   };
 
   const orderedMessages = useMemo(() => {
@@ -460,63 +495,119 @@ export function MailPage() {
 
                   <Stack spacing={0.75}>
                     {group.items.map((thread) => (
-                      <Paper
-                        key={thread.thread_id ?? thread.id}
-                        variant="outlined"
-                        sx={{
-                          px: 1.2,
-                          py: 0.8,
-                          borderRadius: "16px",
-                          minHeight: 64,
-                          cursor: "pointer",
-                          display: "flex",
-                          alignItems: "center",
-                          gap: 1,
-                          borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
-                          backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
-                          transition: "all 0.2s ease",
-                          "&:hover": {
-                            boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
-                          },
-                        }}
-                        onClick={() => selectThread(thread)}
-                      >
-                        <Box sx={{ minWidth: 190, maxWidth: 220 }}>
-                          <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
-                            {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
-                          </Typography>
-                        </Box>
+                      <Box key={thread.thread_id ?? thread.id}>
+                        <Paper
+                          variant="outlined"
+                          sx={{
+                            px: 1.2,
+                            py: 0.8,
+                            borderRadius: "16px",
+                            minHeight: 64,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
+                            backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
+                            },
+                          }}
+                          onClick={() => selectThread(thread)}
+                        >
+                          <Box sx={{ minWidth: 190, maxWidth: 220 }}>
+                            <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
+                              {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
+                            </Typography>
+                          </Box>
 
-                        <Box sx={{ flex: 1, minWidth: 0 }}>
-                          <Typography
-                            variant="body2"
-                            noWrap
-                            sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
-                          >
-                            {thread.subject || "(без темы)"}
-                          </Typography>
-                        </Box>
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              noWrap
+                              sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                            >
+                              {thread.subject || "(без темы)"}
+                            </Typography>
+                          </Box>
 
-                        <Stack direction="row" spacing={0.8} alignItems="center">
-                          {thread.has_attachments && (
-                            <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
-                          )}
-                          {thread.message_count > 1 && (
-                            <Chip
-                              label={`${thread.message_count}`}
-                              size="small"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                selectThread(thread);
+                          <Stack direction="row" spacing={0.8} alignItems="center">
+                            {thread.has_attachments && (
+                              <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
+                            )}
+                            {thread.message_count > 1 && (
+                              <Chip
+                                label={`${thread.message_count}`}
+                                size="small"
+                                icon={expandedThreadIds.includes(thread.thread_id ?? thread.id ?? "") ? <ExpandLess /> : <ExpandMore />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void toggleThreadExpansion(thread);
+                                }}
+                                sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
+                              />
+                            )}
+                            <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
+                              {new Date(thread.last_message_at).toLocaleString("ru-RU")}
+                            </Typography>
+                          </Stack>
+                        </Paper>
+
+                        {!!(thread.thread_id ?? thread.id) && (
+                          <Collapse in={expandedThreadIds.includes((thread.thread_id ?? thread.id) as string)} timeout="auto" unmountOnExit>
+                            <Paper
+                              variant="outlined"
+                              sx={{
+                                mt: 0.6,
+                                mb: 0.2,
+                                px: 1.2,
+                                py: 1,
+                                borderRadius: 3,
+                                borderColor: alpha("#8EA4CC", 0.35),
+                                backgroundColor: alpha("#F8FAFF", 0.9),
                               }}
-                              sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
-                            />
-                          )}
-                          <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
-                            {new Date(thread.last_message_at).toLocaleString("ru-RU")}
-                          </Typography>
-                        </Stack>
-                      </Paper>
+                            >
+                              {loadingThreadIds.includes((thread.thread_id ?? thread.id) as string) ? (
+                                <Typography variant="body2" color="text.secondary">Загрузка сообщений треда...</Typography>
+                              ) : (
+                                <Stack spacing={0.8}>
+                                  {(threadDetailsById[(thread.thread_id ?? thread.id) as string]?.messages ?? [])
+                                    .slice()
+                                    .sort(
+                                      (a, b) =>
+                                        new Date(a.processed_at).getTime() - new Date(b.processed_at).getTime(),
+                                    )
+                                    .map((message) => (
+                                      <Paper
+                                        key={message.id}
+                                        variant="outlined"
+                                        onClick={() => void openMessageFromThread(message.id, (thread.thread_id ?? thread.id) as string)}
+                                        sx={{
+                                          p: 0.9,
+                                          borderRadius: 2,
+                                          cursor: "pointer",
+                                          borderColor: alpha("#A0B2D8", 0.45),
+                                          "&:hover": {
+                                            borderColor: alpha("#5C7BC0", 0.7),
+                                            backgroundColor: alpha("#FFFFFF", 0.95),
+                                          },
+                                        }}
+                                      >
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                                          {message.subject || "(без темы)"}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                          {message.sender_name || message.sender_email} • {new Date(message.processed_at).toLocaleString("ru-RU")}
+                                        </Typography>
+                                      </Paper>
+                                    ))}
+                                </Stack>
+                              )}
+                            </Paper>
+                          </Collapse>
+                        )}
+                      </Box>
                     ))}
                   </Stack>
                 </Box>
