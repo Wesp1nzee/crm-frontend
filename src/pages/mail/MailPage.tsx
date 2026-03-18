@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useInfiniteQuery } from "@tanstack/react-query";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Add,
   Archive,
@@ -115,6 +115,7 @@ const getThreadGroupLabel = (isoDate?: string) => {
 };
 
 export function MailPage() {
+  const queryClient = useQueryClient();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const navigate = useNavigate();
@@ -328,6 +329,20 @@ export function MailPage() {
   };
 
   const isSyncBlocked = Date.now() - lastSyncedAt < 30_000;
+
+  const handleBackToList = async () => {
+    await Promise.allSettled([
+      mailApi.getStats(),
+      mailApi.getThreads({ folder: selectedFolder, page: 1, page_size: PAGE_SIZE }),
+    ]);
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["mail", "stats"] }),
+      queryClient.invalidateQueries({ queryKey: ["mail", "threads"] }),
+    ]);
+
+    navigate(`/crm/mail/${selectedFolder}`);
+  };
 
   const drawer = (
     <Box
@@ -638,7 +653,7 @@ export function MailPage() {
           </Box>
         ) : (
           <Box sx={{ p: 2, overflow: "auto" }}>
-            <Button startIcon={<ArrowBack />} onClick={() => navigate(`/crm/mail/${selectedFolder}`)}>
+            <Button startIcon={<ArrowBack />} onClick={() => void handleBackToList()}>
               Назад к списку
             </Button>
 
