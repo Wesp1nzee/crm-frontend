@@ -245,6 +245,7 @@ export interface MailSearchQuery {
 }
 
 export interface MailMessagesSyncPayload {
+  folder?: MailFolder;
   days_history?: number;
 }
 

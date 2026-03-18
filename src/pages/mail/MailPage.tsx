@@ -12,7 +12,6 @@ import {
   Menu,
   Refresh,
   Reply,
-  ReplyAll,
   Search,
   Send,
   AttachFile,
@@ -85,6 +84,24 @@ const glassSurface = {
 const getReplySubject = (subject?: string | null) => {
   if (!subject) return "Re:";
   return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
+};
+
+const formatQuotedReply = (message: MailMessageRead) => {
+  const sentAt = new Date(message.processed_at).toLocaleString("ru-RU");
+  const author = message.sender_name || message.sender_email || "Отправитель";
+  const email = message.sender_email ? ` <${message.sender_email}>` : "";
+  const sourceText = (message.content?.body_text ?? "")
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+
+  return [
+    "",
+    "",
+    `> ${sentAt} от ${author}${email}:`,
+    ">",
+    sourceText || ">",
+  ].join("\n");
 };
 
 const toRecipientEmailList = (recipients: MailRecipient[], type: "to" | "cc") =>
@@ -315,7 +332,7 @@ export function MailPage() {
       to: uniqueTo,
       cc,
       subject: getReplySubject(latestMessage.subject),
-      body: `\n\n---\n${latestMessage.content?.body_text ?? ""}`,
+      body: formatQuotedReply(latestMessage),
     });
   };
 
@@ -324,7 +341,7 @@ export function MailPage() {
     if (now - lastSyncedAt < 30_000) {
       return;
     }
-    await syncMessages.mutateAsync();
+    await syncMessages.mutateAsync({ folder: selectedFolder, daysHistory: 1 });
     setLastSyncedAt(now);
   };
 
@@ -673,14 +690,6 @@ export function MailPage() {
                   onClick={() => openReplyComposer(false)}
                 >
                   Ответить
-                </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ReplyAll />}
-                  onClick={() => openReplyComposer(true)}
-                >
-                  Ответить всем
                 </Button>
               </Stack>
 

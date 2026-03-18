@@ -116,9 +116,9 @@ export const useSyncMailMessages = () => {
   const queryClient = useQueryClient();
 
   return useMutation({
-    mutationFn: (daysHistory?: number) =>
+    mutationFn: ({ folder, daysHistory }: { folder: MailFolder; daysHistory?: number }) =>
       mailApi
-        .syncMessages(daysHistory ? { days_history: daysHistory } : undefined)
+        .syncMessages({ folder, days_history: daysHistory })
         .then((res) => res.data),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["mail"] });

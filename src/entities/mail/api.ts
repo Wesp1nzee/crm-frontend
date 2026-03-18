@@ -201,7 +201,12 @@ export const mailApi = {
   syncFolder: (folder: MailFolder) => api.post<MailSyncResult>(`/mail/sync/${folder}`),
 
   syncMessages: (payload?: MailMessagesSyncPayload) =>
-    api.post<MailSyncResult>("/mail/messages/sync", payload),
+    api.post<MailSyncResult>("/mail/sync", null, {
+      params: {
+        folder: payload?.folder,
+        days_history: payload?.days_history,
+      },
+    }),
 
   getStats: () => api.get<MailStats>("/mail/stats"),
 
