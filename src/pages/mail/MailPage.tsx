@@ -44,7 +44,7 @@ import {
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
-import type { MailFolder, MailRecipient, MailThreadListItem, MailThreadRead } from "../../entities/mail/types";
+import type { MailFolder, MailMessageRead, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
 import {
   useMailThread,
   useMailStats,
@@ -132,7 +132,7 @@ export function MailPage() {
   }>({});
   const [searchTerm, setSearchTerm] = useState("");
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
-  const [threadDetailsById, setThreadDetailsById] = useState<Record<string, MailThreadRead>>({});
+  const [threadMessagesById, setThreadMessagesById] = useState<Record<string, MailMessageRead[]>>({});
   const [loadingThreadIds, setLoadingThreadIds] = useState<string[]>([]);
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
@@ -253,9 +253,17 @@ export function MailPage() {
     navigate(`/crm/mail/${selectedFolder}/${threadId}`);
   };
 
+  const openMessageById = async (messageId: string, fallbackThreadId?: string) => {
+    const response = await mailApi.getMessage(messageId);
+    const resolvedThreadId = response.data.thread_id ?? fallbackThreadId;
+    if (!resolvedThreadId) return;
+    navigate(`/crm/mail/${selectedFolder}/${resolvedThreadId}`);
+  };
+
   const toggleThreadExpansion = async (thread: MailThreadListItem) => {
     const threadId = thread.thread_id ?? thread.id;
-    if (!threadId || thread.message_count < 2) return;
+    const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
+    if (!threadId || !isThreadType) return;
 
     const isExpanded = expandedThreadIds.includes(threadId);
     if (isExpanded) {
@@ -264,22 +272,24 @@ export function MailPage() {
     }
 
     setExpandedThreadIds((prev) => [...prev, threadId]);
-    if (threadDetailsById[threadId] || loadingThreadIds.includes(threadId)) return;
+    if (threadMessagesById[threadId] || loadingThreadIds.includes(threadId)) return;
 
     setLoadingThreadIds((prev) => [...prev, threadId]);
     try {
-      const response = await mailApi.getThread(threadId);
-      setThreadDetailsById((prev) => ({ ...prev, [threadId]: response.data }));
+      const response = await mailApi.getThreadMessages(threadId, { page: 1, page_size: 100 });
+      setThreadMessagesById((prev) => ({ ...prev, [threadId]: response.data.items ?? [] }));
     } finally {
       setLoadingThreadIds((prev) => prev.filter((id) => id !== threadId));
     }
   };
 
-  const openMessageFromThread = async (messageId: string, threadId: string) => {
-    const response = await mailApi.getMessage(messageId);
-    const resolvedThreadId = response.data.thread_id ?? threadId;
-    if (!resolvedThreadId) return;
-    navigate(`/crm/mail/${selectedFolder}/${resolvedThreadId}`);
+  const handleListItemClick = (item: MailThreadListItem) => {
+    if (item.type === "message" && item.message_id) {
+      void openMessageById(item.message_id, item.thread_id ?? item.id);
+      return;
+    }
+
+    void toggleThreadExpansion(item);
   };
 
   const orderedMessages = useMemo(() => {
@@ -494,8 +504,13 @@ export function MailPage() {
                   </Typography>
 
                   <Stack spacing={0.75}>
-                    {group.items.map((thread) => (
-                      <Box key={thread.thread_id ?? thread.id}>
+                    {group.items.map((thread) => {
+                      const threadId = thread.thread_id ?? thread.id;
+                      const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
+                      const expanded = !!threadId && expandedThreadIds.includes(threadId);
+
+                      return (
+                      <Box key={threadId}>
                         <Paper
                           variant="outlined"
                           sx={{
@@ -514,7 +529,7 @@ export function MailPage() {
                               boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
                             },
                           }}
-                          onClick={() => selectThread(thread)}
+                          onClick={() => handleListItemClick(thread)}
                         >
                           <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                             <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
@@ -536,11 +551,11 @@ export function MailPage() {
                             {thread.has_attachments && (
                               <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
                             )}
-                            {thread.message_count > 1 && (
+                            {isThreadType && (
                               <Chip
-                                label={`${thread.message_count}`}
+                                label={`${thread.message_count ?? 0}`}
                                 size="small"
-                                icon={expandedThreadIds.includes(thread.thread_id ?? thread.id ?? "") ? <ExpandLess /> : <ExpandMore />}
+                                icon={expanded ? <ExpandLess /> : <ExpandMore />}
                                 onClick={(event) => {
                                   event.stopPropagation();
                                   void toggleThreadExpansion(thread);
@@ -554,8 +569,8 @@ export function MailPage() {
                           </Stack>
                         </Paper>
 
-                        {!!(thread.thread_id ?? thread.id) && (
-                          <Collapse in={expandedThreadIds.includes((thread.thread_id ?? thread.id) as string)} timeout="auto" unmountOnExit>
+                        {!!threadId && isThreadType && (
+                          <Collapse in={expanded} timeout="auto" unmountOnExit>
                             <Paper
                               variant="outlined"
                               sx={{
@@ -568,11 +583,11 @@ export function MailPage() {
                                 backgroundColor: alpha("#F8FAFF", 0.9),
                               }}
                             >
-                              {loadingThreadIds.includes((thread.thread_id ?? thread.id) as string) ? (
+                              {loadingThreadIds.includes(threadId) ? (
                                 <Typography variant="body2" color="text.secondary">Загрузка сообщений треда...</Typography>
                               ) : (
                                 <Stack spacing={0.8}>
-                                  {(threadDetailsById[(thread.thread_id ?? thread.id) as string]?.messages ?? [])
+                                  {(threadMessagesById[threadId] ?? [])
                                     .slice()
                                     .sort(
                                       (a, b) =>
@@ -582,7 +597,7 @@ export function MailPage() {
                                       <Paper
                                         key={message.id}
                                         variant="outlined"
-                                        onClick={() => void openMessageFromThread(message.id, (thread.thread_id ?? thread.id) as string)}
+                                        onClick={() => void openMessageById(message.id, threadId)}
                                         sx={{
                                           p: 0.9,
                                           borderRadius: 2,
@@ -608,7 +623,7 @@ export function MailPage() {
                           </Collapse>
                         )}
                       </Box>
-                    ))}
+                    );})}
                   </Stack>
                 </Box>
               ))}

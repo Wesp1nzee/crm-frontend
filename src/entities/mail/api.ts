@@ -53,9 +53,16 @@ const normalizeThreadItem = (item: Record<string, unknown>) => {
 
   return {
     ...item,
+    type:
+      item.type === "thread" || item.type === "message"
+        ? item.type
+        : (typeof item.message_count === "number" && item.message_count > 1 ? "thread" : "message"),
     thread_id:
       (typeof item.thread_id === "string" ? item.thread_id : null) ??
       (typeof item.id === "string" ? item.id : ""),
+    message_id: typeof item.message_id === "string" ? item.message_id : undefined,
+    message_count:
+      typeof item.message_count === "number" ? item.message_count : 1,
     participants,
     sender_name: senderName,
     sender_email: senderEmail,

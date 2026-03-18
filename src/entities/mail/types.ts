@@ -79,10 +79,12 @@ export interface PaginatedMailMessages {
 }
 
 export interface MailThreadListItem {
+  type?: "thread" | "message";
   thread_id?: string;
   id?: string;
+  message_id?: string;
   subject: string | null;
-  message_count: number;
+  message_count?: number;
   unread_count: number;
   last_message_at: string;
   participants?: string[];
