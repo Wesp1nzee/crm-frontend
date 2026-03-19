@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Add,
-  Archive,
   ArrowBack,
   ExpandLess,
   ExpandMore,
@@ -19,8 +18,6 @@ import {
   LabelImportantOutline,
   Report,
   OutlinedFlag,
-  ArchiveOutlined,
-  UnarchiveOutlined,
   DeleteOutline,
   Refresh,
   Reply,
@@ -80,7 +77,6 @@ const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "drafts", label: "Черновики" },
   { id: "spam", label: "Спам" },
   { id: "trash", label: "Корзина" },
-  { id: "archive", label: "Архив" },
 ];
 
 const folderSet = new Set<MailFolder>(folderMeta.map((folder) => folder.id));
@@ -92,7 +88,6 @@ const folderIcon = (folder: MailFolder) => {
   if (folder === "sent") return <Send fontSize="small" />;
   if (folder === "drafts") return <Drafts fontSize="small" />;
   if (folder === "spam") return <Delete fontSize="small" />;
-  if (folder === "archive") return <Archive fontSize="small" />;
   return <Delete fontSize="small" />;
 };
 
@@ -246,7 +241,6 @@ export function MailPage() {
     hasStarred: boolean;
     hasImportant: boolean;
     hasSpam: boolean;
-    hasArchived: boolean;
   } | null>(null);
   const [updatingThreadIds, setUpdatingThreadIds] = useState<string[]>([]);
 
@@ -428,7 +422,6 @@ export function MailPage() {
         hasStarred: false,
         hasImportant: false,
         hasSpam: false,
-        hasArchived: false,
       };
     }
 
@@ -437,7 +430,6 @@ export function MailPage() {
       hasStarred: messages.some((message) => message.is_starred),
       hasImportant: messages.some((message) => message.is_important),
       hasSpam: messages.some((message) => message.is_spam || message.folder === "spam"),
-      hasArchived: messages.some((message) => message.is_archived || message.folder === "archive"),
     };
   };
 
@@ -854,7 +846,6 @@ export function MailPage() {
                               noWrap
                               sx={{ fontWeight: isUnreadThread ? 800 : 600, color: "#1C2B4D" }}
                             >
-                              {isUnreadThread ? "📩 " : "✉️ "}
                               {thread.subject || "(без темы)"}
                             </Typography>
                           </Box>
@@ -1169,33 +1160,6 @@ export function MailPage() {
             <LabelImportantOutline fontSize="small" sx={{ mr: 1 }} />
           )}
           {actionMenuFlags?.hasImportant ? "Снять важность" : "Пометить как важное"}
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const item = actionMenuState?.item;
-            closeActionMenu();
-            if (!item) return;
-            if (actionMenuFlags?.hasArchived) {
-              void updateMessagesByPatch(
-                item,
-                { folder: "inbox", is_archived: false },
-                (message) => message.is_archived || message.folder === "archive",
-              );
-              return;
-            }
-            void updateMessagesByPatch(
-              item,
-              { folder: "archive", is_archived: true, is_spam: false },
-              (message) => !message.is_archived || message.folder !== "archive",
-            );
-          }}
-        >
-          {actionMenuFlags?.hasArchived ? (
-            <UnarchiveOutlined fontSize="small" sx={{ mr: 1 }} />
-          ) : (
-            <ArchiveOutlined fontSize="small" sx={{ mr: 1 }} />
-          )}
-          {actionMenuFlags?.hasArchived ? "Вернуть во входящие" : "В архив"}
         </MenuItem>
         <MenuItem
           onClick={() => {
