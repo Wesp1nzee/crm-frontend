@@ -1,20 +1,19 @@
-import { type MouseEvent, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Add,
   Archive,
   ArrowBack,
+  ExpandLess,
+  ExpandMore,
   Delete,
   Drafts,
   Inbox,
-  MarkEmailRead,
-  MarkEmailUnread,
   Menu,
   Refresh,
   Reply,
-  ReplyAll,
   Search,
   Send,
-  Star,
   AttachFile,
   OpenInFull,
   Remove,
@@ -25,8 +24,8 @@ import {
   Badge,
   Box,
   Button,
-  Checkbox,
   Chip,
+  Collapse,
   Divider,
   Drawer,
   IconButton,
@@ -36,24 +35,18 @@ import {
   OutlinedInput,
   Paper,
   Stack,
-  Switch,
   Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
-  Pagination,
 } from "@mui/material";
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
-import type { MailFolder, MailMessageListItem, MailRecipient } from "../../entities/mail/types";
+import type { MailFolder, MailMessageRead, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
 import {
-  useBulkMailAction,
-  useMailMessage,
-  useMailMessages,
-  useMailSearch,
+  useMailThread,
   useMailStats,
-  usePatchMailMessage,
   useSyncMailMessages,
 } from "../../shared/hooks/useMail";
 import { useDebounce } from "../../shared/hooks/useDebounce";
@@ -93,10 +86,53 @@ const getReplySubject = (subject?: string | null) => {
   return subject.toLowerCase().startsWith("re:") ? subject : `Re: ${subject}`;
 };
 
+const formatQuotedReply = (message: MailMessageRead) => {
+  const sentAt = new Date(message.processed_at).toLocaleString("ru-RU");
+  const author = message.sender_name || message.sender_email || "Отправитель";
+  const email = message.sender_email ? ` <${message.sender_email}>` : "";
+  const sourceText = (message.content?.body_text ?? "")
+    .split("\n")
+    .map((line) => `> ${line}`)
+    .join("\n");
+
+  return [
+    "",
+    "",
+    `> ${sentAt} от ${author}${email}:`,
+    ">",
+    sourceText || ">",
+  ].join("\n");
+};
+
 const toRecipientEmailList = (recipients: MailRecipient[], type: "to" | "cc") =>
   recipients.filter((recipient) => recipient.recipient_type === type).map((recipient) => recipient.email_address);
 
+const getThreadGroupLabel = (isoDate?: string) => {
+  if (!isoDate) return "Без даты";
+
+  const date = new Date(isoDate);
+  const now = new Date();
+
+  const startToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const startYesterday = new Date(startToday);
+  startYesterday.setDate(startYesterday.getDate() - 1);
+  const startWeek = new Date(startToday);
+  startWeek.setDate(startWeek.getDate() - 7);
+
+  if (date >= startToday) return "Сегодня";
+  if (date >= startYesterday && date < startToday) return "Вчера";
+  if (date >= startWeek && date < startYesterday) return "Неделя";
+
+  const monthYear = new Intl.DateTimeFormat("ru-RU", {
+    month: "long",
+    year: "numeric",
+  }).format(date);
+
+  return monthYear.charAt(0).toUpperCase() + monthYear.slice(1);
+};
+
 export function MailPage() {
+  const queryClient = useQueryClient();
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
   const navigate = useNavigate();
@@ -112,56 +148,95 @@ export function MailPage() {
     subject?: string;
     body?: string;
   }>({});
-  const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [selectedIds, setSelectedIds] = useState<string[]>([]);
-  const [page, setPage] = useState(1);
+  const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
+  const [threadMessagesById, setThreadMessagesById] = useState<Record<string, MailMessageRead[]>>({});
+  const [loadingThreadIds, setLoadingThreadIds] = useState<string[]>([]);
+  const listContainerRef = useRef<HTMLDivElement | null>(null);
+  const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
   const selectedFolder: MailFolder =
     folderParam && folderSet.has(folderParam as MailFolder) ? (folderParam as MailFolder) : "inbox";
-  const selectedMessageId = messageIdParam ?? null;
+  const selectedThreadId = messageIdParam ?? null;
 
   const debouncedSearch = useDebounce(searchTerm.trim(), 300);
 
   const { data: stats } = useMailStats();
-  const { data: messagesData, isLoading } = useMailMessages({
-    folder: selectedFolder,
-    is_read: showUnreadOnly ? false : undefined,
-    page,
-    page_size: PAGE_SIZE,
+  const {
+    data: threadsPages,
+    isLoading,
+    isFetching,
+    hasNextPage,
+    isFetchingNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
+    queryKey: ["mail", "threads", selectedFolder, debouncedSearch],
+    initialPageParam: 1,
+    queryFn: ({ pageParam }) => {
+      const page = Number(pageParam);
+
+      if (debouncedSearch.length > 1) {
+        return mailApi
+          .searchThreads({ q: debouncedSearch, page, page_size: PAGE_SIZE })
+          .then((response) => response.data);
+      }
+
+      return mailApi
+        .getThreads({ folder: selectedFolder, page, page_size: PAGE_SIZE })
+        .then((response) => response.data);
+    },
+    getNextPageParam: (lastPage) =>
+      lastPage.has_next ? lastPage.page + 1 : undefined,
   });
 
-  const { data: searchData, isFetching: isSearchFetching } = useMailSearch(
-    { q: debouncedSearch, page, page_size: PAGE_SIZE },
-    debouncedSearch.length > 1,
-  );
-
-  const { data: selectedMessage } = useMailMessage(selectedMessageId ?? "");
-  const patchMessage = usePatchMailMessage();
+  const { data: selectedThread } = useMailThread(selectedThreadId ?? "");
   const syncMessages = useSyncMailMessages();
-  const bulkAction = useBulkMailAction();
   const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
 
-  const baseMessages = useMemo(() => messagesData?.items ?? [], [messagesData]);
+  const threads = useMemo(() => {
+    const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
+    const unique = new Map<string, MailThreadListItem>();
 
-  const messages = useMemo(() => {
-    if (!debouncedSearch) {
-      return baseMessages;
-    }
-    return (searchData?.items ?? []).filter((message) => message.folder === selectedFolder);
-  }, [baseMessages, debouncedSearch, searchData?.items, selectedFolder]);
+    allItems.forEach((thread) => {
+      const key = thread.thread_id ?? thread.id;
+      if (!key || unique.has(key)) return;
+      unique.set(key, thread);
+    });
 
-  const totalCount = debouncedSearch ? (searchData?.total ?? 0) : (messagesData?.total ?? 0);
-  const totalPages = Math.max(1, Math.ceil(totalCount / PAGE_SIZE));
+    return Array.from(unique.values());
+  }, [threadsPages?.pages]);
 
-  const sanitizedHtmlBody = useMemo(() => {
-    const rawHtml = selectedMessage?.content?.body_html;
-    if (!rawHtml) return null;
+  const groupedThreads = useMemo(() => {
+    const groups = new Map<string, MailThreadListItem[]>();
 
-    return DOMPurify.sanitize(rawHtml, { USE_PROFILES: { html: true } });
-  }, [selectedMessage?.content?.body_html]);
+    threads.forEach((thread) => {
+      const label = getThreadGroupLabel(thread.last_message_at);
+      const list = groups.get(label) ?? [];
+      list.push(thread);
+      groups.set(label, list);
+    });
 
-  const resetSelection = () => setSelectedIds([]);
+    return Array.from(groups.entries()).map(([label, items]) => ({ label, items }));
+  }, [threads]);
+
+  useEffect(() => {
+    const root = listContainerRef.current;
+    const target = loadMoreTriggerRef.current;
+
+    if (!root || !target || !hasNextPage) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0]?.isIntersecting && !isFetchingNextPage) {
+          void fetchNextPage();
+        }
+      },
+      { root, threshold: 0.1 },
+    );
+
+    observer.observe(target);
+    return () => observer.disconnect();
+  }, [fetchNextPage, hasNextPage, isFetchingNextPage, threads.length]);
 
   const openComposer = (defaults?: { to?: string; cc?: string; subject?: string; body?: string }) => {
     setComposerDefaults(defaults ?? {});
@@ -188,57 +263,76 @@ export function MailPage() {
 
   const goToFolder = (folder: MailFolder) => {
     navigate(`/crm/mail/${folder}`);
-    resetSelection();
-    setPage(1);
   };
 
-  const selectMessage = async (message: MailMessageListItem) => {
-    navigate(`/crm/mail/${selectedFolder}/${message.id}`);
-    if (!message.is_read) {
-      await patchMessage.mutateAsync({
-        messageId: message.id,
-        payload: { is_read: true },
-      });
+  const selectThread = (thread: MailThreadListItem) => {
+    const threadId = thread.thread_id ?? thread.id;
+    if (!threadId) return;
+    navigate(`/crm/mail/${selectedFolder}/${threadId}`);
+  };
+
+  const openMessageById = async (messageId: string, fallbackThreadId?: string) => {
+    const response = await mailApi.getMessage(messageId);
+    const resolvedThreadId = response.data.thread_id ?? fallbackThreadId;
+    if (!resolvedThreadId) return;
+    navigate(`/crm/mail/${selectedFolder}/${resolvedThreadId}`);
+  };
+
+  const toggleThreadExpansion = async (thread: MailThreadListItem) => {
+    const threadId = thread.thread_id ?? thread.id;
+    const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
+    if (!threadId || !isThreadType) return;
+
+    const isExpanded = expandedThreadIds.includes(threadId);
+    if (isExpanded) {
+      setExpandedThreadIds((prev) => prev.filter((id) => id !== threadId));
+      return;
+    }
+
+    setExpandedThreadIds((prev) => [...prev, threadId]);
+    if (threadMessagesById[threadId] || loadingThreadIds.includes(threadId)) return;
+
+    setLoadingThreadIds((prev) => [...prev, threadId]);
+    try {
+      const response = await mailApi.getThreadMessages(threadId, { page: 1, page_size: 100 });
+      setThreadMessagesById((prev) => ({ ...prev, [threadId]: response.data.items ?? [] }));
+    } finally {
+      setLoadingThreadIds((prev) => prev.filter((id) => id !== threadId));
     }
   };
 
-  const toggleSelection = (messageId: string) => {
-    setSelectedIds((prev) =>
-      prev.includes(messageId) ? prev.filter((id) => id !== messageId) : [...prev, messageId],
+  const handleListItemClick = (item: MailThreadListItem) => {
+    if (item.type === "message" && item.message_id) {
+      void openMessageById(item.message_id, item.thread_id ?? item.id);
+      return;
+    }
+
+    void toggleThreadExpansion(item);
+  };
+
+  const orderedMessages = useMemo(() => {
+    return [...(selectedThread?.messages ?? [])].sort(
+      (a, b) => new Date(a.processed_at).getTime() - new Date(b.processed_at).getTime(),
     );
-  };
+  }, [selectedThread?.messages]);
 
-  const handleBulkAction = async (
-    action: "read" | "unread" | "star" | "unstar" | "archive" | "delete",
-  ) => {
-    if (selectedIds.length === 0) return;
-    await bulkAction.mutateAsync({ messageIds: selectedIds, action });
-    resetSelection();
-  };
-
-  const handleQuickAction = async (
-    event: MouseEvent,
-    messageId: string,
-    payload: Parameters<typeof patchMessage.mutateAsync>[0]["payload"],
-  ) => {
-    event.stopPropagation();
-    await patchMessage.mutateAsync({ messageId, payload });
-  };
+  const latestMessage = orderedMessages.at(-1);
 
   const openReplyComposer = (replyAll: boolean) => {
-    if (!selectedMessage) return;
+    if (!latestMessage) return;
+    const safeRecipients = latestMessage.recipients ?? [];
     const toList = replyAll
-      ? [selectedMessage.sender_email, ...toRecipientEmailList(selectedMessage.recipients, "to")]
-      : [selectedMessage.sender_email];
+      ? [latestMessage.sender_email, ...toRecipientEmailList(safeRecipients, "to")]
+      : [latestMessage.sender_email];
 
     const uniqueTo = Array.from(new Set(toList.filter(Boolean))).join(", ");
-    const cc = replyAll ? toRecipientEmailList(selectedMessage.recipients, "cc").join(", ") : "";
+    const cc = replyAll ? toRecipientEmailList(safeRecipients, "cc").join(", ") : "";
 
     openComposer({
       to: uniqueTo,
       cc,
-      subject: getReplySubject(selectedMessage.subject),
-      body: `\n\n---\n${selectedMessage.content?.body_text ?? ""}`,
+      subject: getReplySubject(latestMessage.subject),
+      body: formatQuotedReply(latestMessage),
     });
   };
 
@@ -247,11 +341,25 @@ export function MailPage() {
     if (now - lastSyncedAt < 30_000) {
       return;
     }
-    await syncMessages.mutateAsync();
+    await syncMessages.mutateAsync({ folder: selectedFolder, daysHistory: 1 });
     setLastSyncedAt(now);
   };
 
   const isSyncBlocked = Date.now() - lastSyncedAt < 30_000;
+
+  const handleBackToList = async () => {
+    await Promise.allSettled([
+      mailApi.getStats(),
+      mailApi.getThreads({ folder: selectedFolder, page: 1, page_size: PAGE_SIZE }),
+    ]);
+
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["mail", "stats"] }),
+      queryClient.invalidateQueries({ queryKey: ["mail", "threads"] }),
+    ]);
+
+    navigate(`/crm/mail/${selectedFolder}`);
+  };
 
   const drawer = (
     <Box
@@ -329,20 +437,6 @@ export function MailPage() {
       </List>
 
       <Divider sx={{ my: 0.5 }} />
-
-      <Box sx={{ px: 1.5, display: "flex", alignItems: "center", gap: 1 }}>
-        <Switch
-          size="small"
-          checked={showUnreadOnly}
-          onChange={(event) => {
-            setShowUnreadOnly(event.target.checked);
-            setPage(1);
-          }}
-        />
-        <Typography variant="body2" sx={{ color: "#50607E" }}>
-          Только непрочитанные
-        </Typography>
-      </Box>
     </Box>
   );
 
@@ -394,17 +488,16 @@ export function MailPage() {
           </IconButton>
         </Box>
 
-        {!selectedMessageId ? (
-          <Box sx={{ p: 1.25, overflow: "auto" }}>
+        {!selectedThreadId ? (
+          <Box ref={listContainerRef} sx={{ p: 1.25, overflow: "auto" }}>
             <OutlinedInput
               value={searchTerm}
               onChange={(event) => {
                 setSearchTerm(event.target.value);
-                setPage(1);
               }}
               fullWidth
               size="small"
-              placeholder="Поиск писем..."
+              placeholder="Поиск тредов..."
               startAdornment={
                 <InputAdornment position="start">
                   <Search fontSize="small" sx={{ color: "#4B5A7A" }} />
@@ -421,192 +514,172 @@ export function MailPage() {
               }}
             />
 
-            {selectedIds.length > 0 && (
-              <Paper
-                sx={{
-                  mb: 1,
-                  px: 1,
-                  py: 0.75,
-                  borderRadius: 99,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 0.75,
-                  bgcolor: alpha("#E9F0FF", 0.92),
-                  border: `1px solid ${alpha("#8DA8DD", 0.5)}`,
-                }}
-              >
-                <Chip label={`${selectedIds.length} выбрано`} size="small" color="primary" />
-                <Button size="small" onClick={() => void handleBulkAction("archive")}>Архив</Button>
-                <Button size="small" onClick={() => void handleBulkAction("star")}>В избранное</Button>
-                <Button size="small" onClick={() => void handleBulkAction("read")}>Прочитано</Button>
-                <Button size="small" color="error" onClick={() => void handleBulkAction("delete")}>
-                  Удалить
-                </Button>
-              </Paper>
-            )}
-
-            {(isLoading || isSearchFetching) && <Typography>Загрузка...</Typography>}
-            {!isLoading && !isSearchFetching && messages.length === 0 && (
-              <Typography color="text.secondary">Нет писем в этой папке.</Typography>
+            {(isLoading || isFetching) && <Typography>Загрузка...</Typography>}
+            {!isLoading && !isFetching && threads.length === 0 && (
+              <Typography color="text.secondary">Нет тредов в этой папке.</Typography>
             )}
 
             <List sx={{ display: "flex", flexDirection: "column", gap: 0.75, p: 0 }}>
-              {messages.map((message) => {
-                const isSelected = selectedIds.includes(message.id);
-                return (
-                  <Paper
-                    key={message.id}
-                    variant="outlined"
+              {groupedThreads.map((group) => (
+                <Box key={group.label}>
+                  <Typography
+                    variant="caption"
                     sx={{
-                      px: 1.2,
-                      py: 0.8,
-                      borderRadius: "16px",
-                      minHeight: 64,
-                      cursor: "pointer",
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 1,
-                      borderColor: isSelected
-                        ? alpha("#2563EB", 0.6)
-                        : alpha(message.is_read ? "#8EA4CC" : "#2563EB", message.is_read ? 0.35 : 0.55),
-                      backgroundColor: alpha("#FFFFFF", message.is_read ? 0.68 : 0.86),
-                      transition: "all 0.2s ease",
-                      "&:hover": {
-                        boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
-                        "& .quick-actions": {
-                          opacity: 1,
-                          transform: "translateX(0)",
-                        },
-                      },
+                      display: "block",
+                      color: "#4A5F89",
+                      fontWeight: 700,
+                      px: 0.6,
+                      py: 0.4,
                     }}
-                    onClick={() => void selectMessage(message)}
                   >
-                    <Checkbox
-                      size="small"
-                      checked={isSelected}
-                      onClick={(event) => event.stopPropagation()}
-                      onChange={() => toggleSelection(message.id)}
-                    />
+                    {group.label}
+                  </Typography>
 
-                    <Tooltip title={message.is_read ? "Пометить как непрочитанное" : "Пометить как прочитанное"}>
-                      <IconButton
-                        size="small"
-                        onClick={(event) =>
-                          void handleQuickAction(event, message.id, {
-                            is_read: !message.is_read,
-                          })
-                        }
-                        sx={{ p: 0.25 }}
-                      >
-                        <Box
+                  <Stack spacing={0.75}>
+                    {group.items.map((thread) => {
+                      const threadId = thread.thread_id ?? thread.id;
+                      const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
+                      const expanded = !!threadId && expandedThreadIds.includes(threadId);
+
+                      return (
+                      <Box key={threadId}>
+                        <Paper
+                          variant="outlined"
                           sx={{
-                            width: 11,
-                            height: 11,
-                            borderRadius: "50%",
-                            border: `1px solid ${alpha("#2563EB", 0.55)}`,
-                            backgroundColor: message.is_read ? "transparent" : "#2563EB",
+                            px: 1.2,
+                            py: 0.8,
+                            borderRadius: "16px",
+                            minHeight: 64,
+                            cursor: "pointer",
+                            display: "flex",
+                            alignItems: "center",
+                            gap: 1,
+                            borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
+                            backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
+                            transition: "all 0.2s ease",
+                            "&:hover": {
+                              boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
+                            },
                           }}
-                        />
-                      </IconButton>
-                    </Tooltip>
-
-                    <Box sx={{ minWidth: 190, maxWidth: 220 }}>
-                      <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
-                        {message.sender_name || message.sender_email}
-                      </Typography>
-                    </Box>
-
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Typography
-                        variant="body2"
-                        noWrap
-                        sx={{ fontWeight: message.is_read ? 600 : 800, color: "#1C2B4D" }}
-                      >
-                        {message.subject || "(без темы)"}
-                      </Typography>
-                    </Box>
-
-                    <Stack direction="row" spacing={0.8} alignItems="center">
-                      {message.has_attachments && (
-                        <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
-                      )}
-                      <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
-                        {new Date(message.processed_at).toLocaleString("ru-RU")}
-                      </Typography>
-                    </Stack>
-
-                    <Stack
-                      direction="row"
-                      spacing={0.25}
-                      className="quick-actions"
-                      sx={{
-                        opacity: 0,
-                        transform: "translateX(4px)",
-                        transition: "all 0.18s ease",
-                      }}
-                    >
-                      <Tooltip title={message.is_read ? "Пометить непрочитанным" : "Пометить прочитанным"}>
-                        <IconButton
-                          size="small"
-                          onClick={(event) =>
-                            void handleQuickAction(event, message.id, {
-                              is_read: !message.is_read,
-                            })
-                          }
+                          onClick={() => handleListItemClick(thread)}
                         >
-                          {message.is_read ? <MarkEmailUnread fontSize="small" /> : <MarkEmailRead fontSize="small" />}
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="В избранное">
-                        <IconButton
-                          size="small"
-                          onClick={(event) =>
-                            void handleQuickAction(event, message.id, { is_starred: !message.is_starred })
-                          }
-                        >
-                          <Star fontSize="small" sx={{ color: message.is_starred ? "#2563EB" : undefined }} />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="Архивировать">
-                        <IconButton
-                          size="small"
-                          onClick={(event) => void handleQuickAction(event, message.id, { is_archived: true })}
-                        >
-                          <Archive fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                      <Tooltip title="В корзину">
-                        <IconButton
-                          size="small"
-                          onClick={(event) => void handleQuickAction(event, message.id, { is_deleted: true })}
-                        >
-                          <Delete fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    </Stack>
-                  </Paper>
-                );
-              })}
+                          <Box sx={{ minWidth: 190, maxWidth: 220 }}>
+                            <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
+                              {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
+                            </Typography>
+                          </Box>
+
+                          <Box sx={{ flex: 1, minWidth: 0 }}>
+                            <Typography
+                              variant="body2"
+                              noWrap
+                              sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                            >
+                              {thread.subject || "(без темы)"}
+                            </Typography>
+                          </Box>
+
+                          <Stack direction="row" spacing={0.8} alignItems="center">
+                            {thread.has_attachments && (
+                              <Chip label="Файлы" size="small" sx={{ height: 20, borderRadius: 99 }} />
+                            )}
+                            {isThreadType && (
+                              <Chip
+                                label={`${thread.message_count ?? 0}`}
+                                size="small"
+                                icon={expanded ? <ExpandLess /> : <ExpandMore />}
+                                onClick={(event) => {
+                                  event.stopPropagation();
+                                  void toggleThreadExpansion(thread);
+                                }}
+                                sx={{ height: 20, borderRadius: 99, cursor: "pointer" }}
+                              />
+                            )}
+                            <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
+                              {new Date(thread.last_message_at).toLocaleString("ru-RU")}
+                            </Typography>
+                          </Stack>
+                        </Paper>
+
+                        {!!threadId && isThreadType && (
+                          <Collapse in={expanded} timeout="auto" unmountOnExit>
+                            <Paper
+                              variant="outlined"
+                              sx={{
+                                mt: 0.6,
+                                mb: 0.2,
+                                px: 1.2,
+                                py: 1,
+                                borderRadius: 3,
+                                borderColor: alpha("#8EA4CC", 0.35),
+                                backgroundColor: alpha("#F8FAFF", 0.9),
+                              }}
+                            >
+                              {loadingThreadIds.includes(threadId) ? (
+                                <Typography variant="body2" color="text.secondary">Загрузка сообщений треда...</Typography>
+                              ) : (
+                                <Stack spacing={0.8}>
+                                  {(threadMessagesById[threadId] ?? [])
+                                    .slice()
+                                    .sort(
+                                      (a, b) =>
+                                        new Date(a.processed_at).getTime() - new Date(b.processed_at).getTime(),
+                                    )
+                                    .map((message) => (
+                                      <Paper
+                                        key={message.id}
+                                        variant="outlined"
+                                        onClick={() => void openMessageById(message.id, threadId)}
+                                        sx={{
+                                          p: 0.9,
+                                          borderRadius: 2,
+                                          cursor: "pointer",
+                                          borderColor: alpha("#A0B2D8", 0.45),
+                                          "&:hover": {
+                                            borderColor: alpha("#5C7BC0", 0.7),
+                                            backgroundColor: alpha("#FFFFFF", 0.95),
+                                          },
+                                        }}
+                                      >
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                                          {message.subject || "(без темы)"}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary" noWrap>
+                                          {message.sender_name || message.sender_email} • {new Date(message.processed_at).toLocaleString("ru-RU")}
+                                        </Typography>
+                                      </Paper>
+                                    ))}
+                                </Stack>
+                              )}
+                            </Paper>
+                          </Collapse>
+                        )}
+                      </Box>
+                    );})}
+                  </Stack>
+                </Box>
+              ))}
             </List>
 
-            {totalPages > 1 && (
-              <Box sx={{ display: "flex", justifyContent: "center", mt: 1.5 }}>
-                <Pagination count={totalPages} page={page} onChange={(_, value) => setPage(value)} color="primary" />
-              </Box>
+            <Box ref={loadMoreTriggerRef} sx={{ height: 6 }} />
+            {isFetchingNextPage && (
+              <Typography color="text.secondary" sx={{ mt: 1, textAlign: "center" }}>
+                Загружаем ещё треды...
+              </Typography>
             )}
           </Box>
         ) : (
           <Box sx={{ p: 2, overflow: "auto" }}>
-            <Button startIcon={<ArrowBack />} onClick={() => navigate(`/crm/mail/${selectedFolder}`)}>
+            <Button startIcon={<ArrowBack />} onClick={() => void handleBackToList()}>
               Назад к списку
             </Button>
 
             <Paper variant="outlined" sx={{ p: 2, mt: 2, borderRadius: "20px" }}>
               <Typography variant="h6" sx={{ fontWeight: 700 }}>
-                {selectedMessage?.subject || "(без темы)"}
+                {selectedThread?.subject || "(без темы)"}
               </Typography>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                От: {selectedMessage?.sender_name || selectedMessage?.sender_email}
+                Участники: {(selectedThread?.participants ?? []).join(", ") || "—"}
               </Typography>
 
               <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
@@ -618,122 +691,64 @@ export function MailPage() {
                 >
                   Ответить
                 </Button>
-                <Button
-                  size="small"
-                  variant="outlined"
-                  startIcon={<ReplyAll />}
-                  onClick={() => openReplyComposer(true)}
-                >
-                  Ответить всем
-                </Button>
               </Stack>
 
-              {!!selectedMessage?.attachments?.length && (
-                <Box sx={{ mb: 2 }}>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Вложения ({selectedMessage.attachments.length})
-                  </Typography>
-                  <Stack spacing={0.8}>
-                    {selectedMessage.attachments.map((attachment) => (
-                      <Stack
-                        key={attachment.id}
-                        direction="row"
-                        justifyContent="space-between"
-                        alignItems="center"
-                        sx={{
-                          px: 1.2,
-                          py: 0.8,
-                          borderRadius: 2,
-                          border: `1px solid ${alpha("#9EB3DA", 0.45)}`,
-                          backgroundColor: alpha("#ffffff", 0.7),
-                        }}
-                      >
-                        <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
-                          <AttachFile fontSize="small" />
-                          <Typography variant="body2" noWrap>
-                            {attachment.filename}
-                          </Typography>
-                          <Typography variant="caption" color="text.secondary">
-                            {(attachment.file_size / 1024).toFixed(1)} KB
-                          </Typography>
-                        </Stack>
-                        <Button
-                          size="small"
-                          component="a"
-                          href={mailApi.getDownloadAttachmentUrlForDownload(selectedMessage.id, attachment.id)}
-                          target="_blank"
-                          rel="noreferrer"
-                        >
-                          Скачать
-                        </Button>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Box>
-              )}
+              <Stack spacing={1.25}>
+                {orderedMessages.map((message, index) => {
+                  const sanitizedHtmlBody = message.content?.body_html
+                    ? DOMPurify.sanitize(message.content.body_html, { USE_PROFILES: { html: true } })
+                    : null;
+                  const isLastMessage = index === orderedMessages.length - 1;
 
-              <Divider sx={{ mb: 2 }} />
-              {sanitizedHtmlBody ? (
-                <Box
-                  sx={{
-                    "& a": {
-                      color: theme.palette.primary.main,
-                      textDecoration: "underline",
-                      fontWeight: 500,
-                    },
-                    "& p": { my: 1 },
-                    "& br": { lineHeight: 1.55 },
-                    "& ol, & ul": { pl: 3, my: 1.25 },
-                    "& li": { mb: 0.75 },
-                    "& img": { maxWidth: "100%", height: "auto" },
-                    "& table": { maxWidth: "100%", display: "block", overflowX: "auto" },
-                    "& .gmail_chip": {
-                      boxSizing: "border-box",
-                      height: "auto !important",
-                      maxHeight: "none !important",
-                      minHeight: 40,
-                      display: "flex !important",
-                      alignItems: "center",
-                      overflow: "hidden",
-                    },
-                    "& .gmail_chip a": {
-                      display: "flex !important",
-                      alignItems: "center",
-                      minWidth: 0,
-                      width: "100%",
-                      maxWidth: "100% !important",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                    },
-                    "& .gmail_chip img": {
-                      width: 20,
-                      minWidth: 20,
-                      height: 20,
-                      objectFit: "contain",
-                      verticalAlign: "middle !important",
-                      flexShrink: 0,
-                    },
-                    "& .gmail_chip span": {
-                      display: "inline-block",
-                      minWidth: 0,
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      verticalAlign: "middle !important",
-                    },
-                  }}
-                  dangerouslySetInnerHTML={{ __html: sanitizedHtmlBody }}
-                />
-              ) : selectedMessage?.content?.body_text ? (
-                <Typography sx={{ whiteSpace: "pre-line" }}>
-                  {selectedMessage.content.body_text}
-                </Typography>
-              ) : (
-                <Typography sx={{ whiteSpace: "pre-line" }}>
-                  Нет содержимого письма
-                </Typography>
-              )}
+                  return (
+                    <Paper key={message.id} variant="outlined" sx={{ p: 1.5, borderRadius: 3 }}>
+                      <Typography variant="subtitle2" sx={{ fontWeight: 700 }}>
+                        {message.sender_name || message.sender_email}
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {new Date(message.processed_at).toLocaleString("ru-RU")}
+                      </Typography>
+
+                      {!!(message.attachments?.length ?? 0) && (
+                        <Stack spacing={0.8} sx={{ my: 1 }}>
+                          {(message.attachments ?? []).map((attachment) => (
+                            <Stack key={attachment.id} direction="row" justifyContent="space-between" alignItems="center">
+                              <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
+                                <AttachFile fontSize="small" />
+                                <Typography variant="body2" noWrap>
+                                  {attachment.filename}
+                                </Typography>
+                              </Stack>
+                              <Button
+                                size="small"
+                                component="a"
+                                href={mailApi.getDownloadAttachmentUrlForDownload(message.id, attachment.id)}
+                                target="_blank"
+                                rel="noreferrer"
+                              >
+                                Скачать
+                              </Button>
+                            </Stack>
+                          ))}
+                        </Stack>
+                      )}
+
+                      {(isLastMessage || message.content?.body_text || sanitizedHtmlBody) && (
+                        <>
+                          <Divider sx={{ my: 1 }} />
+                          {sanitizedHtmlBody ? (
+                            <Box dangerouslySetInnerHTML={{ __html: sanitizedHtmlBody }} />
+                          ) : message.content?.body_text ? (
+                            <Typography sx={{ whiteSpace: "pre-line" }}>{message.content.body_text}</Typography>
+                          ) : (
+                            <Typography sx={{ whiteSpace: "pre-line" }}>Нет содержимого письма</Typography>
+                          )}
+                        </>
+                      )}
+                    </Paper>
+                  );
+                })}
+              </Stack>
             </Paper>
           </Box>
         )}

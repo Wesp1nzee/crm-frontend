@@ -78,6 +78,41 @@ export interface PaginatedMailMessages {
   has_next: boolean;
 }
 
+export interface MailThreadListItem {
+  type?: "thread" | "message";
+  thread_id?: string;
+  id?: string;
+  message_id?: string;
+  subject: string | null;
+  message_count?: number;
+  unread_count: number;
+  last_message_at: string;
+  participants?: string[];
+  sender_name?: string | null;
+  sender_email?: string | null;
+  snippet?: string | null;
+  is_starred?: boolean;
+  is_important?: boolean;
+  has_attachments?: boolean;
+}
+
+export interface PaginatedMailThreads {
+  items: MailThreadListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+export interface PaginatedMailThread {
+  meta: MailThreadListItem;
+  items: MailMessageRead[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
 export interface MailSendPayload {
   case_id?: string;
   sender_email: string;
@@ -141,13 +176,32 @@ export interface MailBulkResult {
 }
 
 export interface MailThreadRead {
-  thread_id: string;
+  thread_id?: string;
+  id?: string;
   subject: string | null;
   message_count: number;
   unread_count: number;
   last_message_at: string;
-  participants: string[];
+  participants?: string[];
   messages: MailMessageRead[];
+}
+
+export interface MailPaginationMeta {
+  total_items: number;
+  total_pages: number;
+  current_page: number;
+  per_page: number;
+  has_next: boolean;
+  has_prev: boolean;
+}
+
+export interface MailThreadsApiResponse {
+  items: MailThreadListItem[];
+  meta?: MailPaginationMeta;
+  total?: number;
+  page?: number;
+  page_size?: number;
+  has_next?: boolean;
 }
 
 export interface MailAttachment {
@@ -191,6 +245,7 @@ export interface MailSearchQuery {
 }
 
 export interface MailMessagesSyncPayload {
+  folder?: MailFolder;
   days_history?: number;
 }
 

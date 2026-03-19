@@ -13,9 +13,12 @@ import type {
   MailSendResult,
   MailStats,
   MailSyncResult,
+  MailThreadsApiResponse,
   MailThreadRead,
   OversizedMailBatch,
   OversizedMailPreviewUrl,
+  PaginatedMailThread,
+  PaginatedMailThreads,
   PaginatedMailMessages,
 } from "./types";
 
@@ -40,6 +43,67 @@ const buildMailFormData = (payload: MailSendPayload, files: File[]) => {
   });
   return formData;
 };
+
+const normalizeThreadItem = (item: Record<string, unknown>) => {
+  const senderName = typeof item.sender_name === "string" ? item.sender_name : null;
+  const senderEmail = typeof item.sender_email === "string" ? item.sender_email : null;
+  const participants = Array.isArray(item.participants)
+    ? (item.participants as string[])
+    : [senderName || senderEmail].filter(Boolean);
+
+  return {
+    ...item,
+    type:
+      item.type === "thread" || item.type === "message"
+        ? item.type
+        : (typeof item.message_count === "number" && item.message_count > 1 ? "thread" : "message"),
+    thread_id:
+      (typeof item.thread_id === "string" ? item.thread_id : null) ??
+      (typeof item.id === "string" ? item.id : ""),
+    message_id: typeof item.message_id === "string" ? item.message_id : undefined,
+    message_count:
+      typeof item.message_count === "number" ? item.message_count : 1,
+    participants,
+    sender_name: senderName,
+    sender_email: senderEmail,
+  };
+};
+
+const normalizeThreadsResponse = (raw: MailThreadsApiResponse): PaginatedMailThreads => {
+  const items = (raw.items ?? []).map((item) => normalizeThreadItem(item as Record<string, unknown>));
+
+  if (raw.meta) {
+    return {
+      items,
+      total: raw.meta.total_items,
+      page: raw.meta.current_page,
+      page_size: raw.meta.per_page,
+      has_next: raw.meta.has_next,
+    };
+  }
+
+  return {
+    items,
+    total: raw.total ?? items.length,
+    page: raw.page ?? 1,
+    page_size: raw.page_size ?? items.length,
+    has_next: raw.has_next ?? false,
+  };
+};
+
+const normalizeThreadRead = (raw: MailThreadRead): MailThreadRead => ({
+  ...raw,
+  thread_id: raw.thread_id ?? raw.id ?? "",
+  participants:
+    raw.participants ??
+    Array.from(
+      new Set(
+        (raw.messages ?? [])
+          .flatMap((message) => [message.sender_name, message.sender_email])
+          .filter(Boolean) as string[],
+      ),
+    ),
+});
 
 export const mailApi = {
   getMessages: (params?: MailMessagesQuery) =>
@@ -102,7 +166,26 @@ export const mailApi = {
   sendDraft: (messageId: string) =>
     api.post<MailSendResult>(`/mail/drafts/${messageId}/send`),
 
-  getThread: (threadId: string) => api.get<MailThreadRead>(`/mail/threads/${threadId}`),
+  getThread: (threadId: string) =>
+    api.get<MailThreadRead>(`/mail/threads/${threadId}`).then((response) => ({
+      ...response,
+      data: normalizeThreadRead(response.data),
+    })),
+
+  getThreads: (params?: { folder?: MailFolder; page?: number; page_size?: number }) =>
+    api.get<MailThreadsApiResponse>("/mail/threads", { params }).then((response) => ({
+      ...response,
+      data: normalizeThreadsResponse(response.data),
+    })),
+
+  searchThreads: (params: { q: string; page?: number; page_size?: number }) =>
+    api.get<MailThreadsApiResponse>("/mail/threads/search", { params }).then((response) => ({
+      ...response,
+      data: normalizeThreadsResponse(response.data),
+    })),
+
+  getThreadMessages: (threadId: string, params?: { page?: number; page_size?: number }) =>
+    api.get<PaginatedMailThread>(`/mail/threads/${threadId}/messages`, { params }),
 
   getAttachments: (messageId: string) =>
     api.get<MailAttachment[]>(`/mail/messages/${messageId}/attachments`),
@@ -118,7 +201,12 @@ export const mailApi = {
   syncFolder: (folder: MailFolder) => api.post<MailSyncResult>(`/mail/sync/${folder}`),
 
   syncMessages: (payload?: MailMessagesSyncPayload) =>
-    api.post<MailSyncResult>("/mail/messages/sync", payload),
+    api.post<MailSyncResult>("/mail/sync", null, {
+      params: {
+        folder: payload?.folder,
+        days_history: payload?.days_history,
+      },
+    }),
 
   getStats: () => api.get<MailStats>("/mail/stats"),
 
