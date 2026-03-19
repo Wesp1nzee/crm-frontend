@@ -63,6 +63,13 @@ const normalizeThreadItem = (item: Record<string, unknown>) => {
     message_id: typeof item.message_id === "string" ? item.message_id : undefined,
     message_count:
       typeof item.message_count === "number" ? item.message_count : 1,
+    unread_count: typeof item.unread_count === "number" ? item.unread_count : 0,
+    is_read:
+      typeof item.is_read === "boolean"
+        ? item.is_read
+        : !(typeof item.unread_count === "number" && item.unread_count > 0),
+    is_starred: typeof item.is_starred === "boolean" ? item.is_starred : false,
+    is_important: typeof item.is_important === "boolean" ? item.is_important : false,
     participants,
     sender_name: senderName,
     sender_email: senderEmail,
@@ -172,13 +179,27 @@ export const mailApi = {
       data: normalizeThreadRead(response.data),
     })),
 
-  getThreads: (params?: { folder?: MailFolder; page?: number; page_size?: number }) =>
+  getThreads: (params?: {
+    folder?: MailFolder;
+    page?: number;
+    page_size?: number;
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }) =>
     api.get<MailThreadsApiResponse>("/mail/threads", { params }).then((response) => ({
       ...response,
       data: normalizeThreadsResponse(response.data),
     })),
 
-  searchThreads: (params: { q: string; page?: number; page_size?: number }) =>
+  searchThreads: (params: {
+    q: string;
+    page?: number;
+    page_size?: number;
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }) =>
     api.get<MailThreadsApiResponse>("/mail/threads/search", { params }).then((response) => ({
       ...response,
       data: normalizeThreadsResponse(response.data),

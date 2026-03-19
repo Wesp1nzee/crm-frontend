@@ -86,6 +86,7 @@ export interface MailThreadListItem {
   subject: string | null;
   message_count?: number;
   unread_count: number;
+  is_read?: boolean;
   last_message_at: string;
   participants?: string[];
   sender_name?: string | null;

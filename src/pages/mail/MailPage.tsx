@@ -49,6 +49,7 @@ import {
   OutlinedInput,
   Paper,
   Stack,
+  Switch,
   Tooltip,
   Typography,
   useMediaQuery,
@@ -174,6 +175,11 @@ export function MailPage() {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
   const [threadMessagesById, setThreadMessagesById] = useState<Record<string, MailMessageRead[]>>({});
   const [loadingThreadIds, setLoadingThreadIds] = useState<string[]>([]);
+  const [filters, setFilters] = useState<{
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }>({});
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
@@ -192,19 +198,33 @@ export function MailPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
-    queryKey: ["mail", "threads", selectedFolder, debouncedSearch],
+    queryKey: ["mail", "threads", selectedFolder, debouncedSearch, filters],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => {
       const page = Number(pageParam);
 
       if (debouncedSearch.length > 1) {
         return mailApi
-          .searchThreads({ q: debouncedSearch, page, page_size: PAGE_SIZE })
+          .searchThreads({
+            q: debouncedSearch,
+            page,
+            page_size: PAGE_SIZE,
+            is_read: filters.is_read,
+            is_starred: filters.is_starred,
+            is_important: filters.is_important,
+          })
           .then((response) => response.data);
       }
 
       return mailApi
-        .getThreads({ folder: selectedFolder, page, page_size: PAGE_SIZE })
+        .getThreads({
+          folder: selectedFolder,
+          page,
+          page_size: PAGE_SIZE,
+          is_read: filters.is_read,
+          is_starred: filters.is_starred,
+          is_important: filters.is_important,
+        })
         .then((response) => response.data);
     },
     getNextPageParam: (lastPage) =>
@@ -599,6 +619,55 @@ export function MailPage() {
       </List>
 
       <Divider sx={{ my: 0.5 }} />
+      <Box sx={{ px: 1, py: 0.5 }}>
+        <Typography variant="caption" sx={{ color: "#4A5F89", fontWeight: 700 }}>
+          Фильтры
+        </Typography>
+        <Stack spacing={0.75} sx={{ mt: 1 }}>
+          <Button
+            variant={filters.is_read === false ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_read: prev.is_read === false ? undefined : false,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_read === false} />}
+          >
+            Непрочитанные
+          </Button>
+          <Button
+            variant={filters.is_starred === true ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_starred: prev.is_starred === true ? undefined : true,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_starred === true} />}
+          >
+            Избранные
+          </Button>
+          <Button
+            variant={filters.is_important === true ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_important: prev.is_important === true ? undefined : true,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_important === true} />}
+          >
+            Важные
+          </Button>
+        </Stack>
+      </Box>
     </Box>
   );
 
@@ -702,6 +771,10 @@ export function MailPage() {
                       const threadId = thread.thread_id ?? thread.id;
                       const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
                       const expanded = !!threadId && expandedThreadIds.includes(threadId);
+                      const isActiveThread = Boolean(selectedThreadId && threadId === selectedThreadId);
+                      const isUnreadThread = thread.unread_count > 0;
+                      const isImportantThread = Boolean(thread.is_important);
+                      const isStarredThread = Boolean(thread.is_starred);
 
                       return (
                       <Box key={threadId}>
@@ -717,8 +790,17 @@ export function MailPage() {
                             display: "flex",
                             alignItems: "center",
                             gap: 1,
-                            borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
-                            backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
+                            borderColor: isActiveThread
+                              ? alpha("#1D4ED8", 0.9)
+                              : alpha(isUnreadThread ? "#2563EB" : "#8EA4CC", isUnreadThread ? 0.55 : 0.35),
+                            backgroundColor: isActiveThread
+                              ? alpha("#DBEAFE", 0.95)
+                              : isImportantThread
+                                ? alpha("#FEF3C7", 0.55)
+                                : alpha("#FFFFFF", isUnreadThread ? 0.86 : 0.68),
+                            boxShadow: isActiveThread
+                              ? `0 0 0 1px ${alpha("#1D4ED8", 0.45)}, 0 12px 26px ${alpha("#1E3A8A", 0.2)}`
+                              : "none",
                             transition: "all 0.2s ease",
                             "&:hover": {
                               boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
@@ -754,6 +836,12 @@ export function MailPage() {
                               }}
                             />
                           </Tooltip>
+                          {isStarredThread && (
+                            <Star fontSize="small" sx={{ color: "#F59E0B" }} />
+                          )}
+                          {isImportantThread && (
+                            <LabelImportant fontSize="small" sx={{ color: "#DC2626" }} />
+                          )}
                           <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                             <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
                               {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
@@ -764,8 +852,9 @@ export function MailPage() {
                             <Typography
                               variant="body2"
                               noWrap
-                              sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                              sx={{ fontWeight: isUnreadThread ? 800 : 600, color: "#1C2B4D" }}
                             >
+                              {isUnreadThread ? "📩 " : "✉️ "}
                               {thread.subject || "(без темы)"}
                             </Typography>
                           </Box>
