@@ -13,6 +13,15 @@ import {
   MarkEmailUnread,
   Menu,
   MoreVert,
+  Star,
+  StarBorder,
+  LabelImportant,
+  LabelImportantOutline,
+  Report,
+  OutlinedFlag,
+  ArchiveOutlined,
+  UnarchiveOutlined,
+  DeleteOutline,
   Refresh,
   Reply,
   Search,
@@ -212,6 +221,13 @@ export function MailPage() {
     mouseX: number | null;
     mouseY: number | null;
   } | null>(null);
+  const [actionMenuFlags, setActionMenuFlags] = useState<{
+    hasUnread: boolean;
+    hasStarred: boolean;
+    hasImportant: boolean;
+    hasSpam: boolean;
+    hasArchived: boolean;
+  } | null>(null);
   const [updatingThreadIds, setUpdatingThreadIds] = useState<string[]>([]);
 
   const threads = useMemo(() => {
@@ -385,33 +401,68 @@ export function MailPage() {
     }
   };
 
+  const buildActionMenuFlags = (messages: MailMessageRead[], fallbackUnread = false) => {
+    if (messages.length === 0) {
+      return {
+        hasUnread: fallbackUnread,
+        hasStarred: false,
+        hasImportant: false,
+        hasSpam: false,
+        hasArchived: false,
+      };
+    }
+
+    return {
+      hasUnread: messages.some((message) => !message.is_read),
+      hasStarred: messages.some((message) => message.is_starred),
+      hasImportant: messages.some((message) => message.is_important),
+      hasSpam: messages.some((message) => message.is_spam || message.folder === "spam"),
+      hasArchived: messages.some((message) => message.is_archived || message.folder === "archive"),
+    };
+  };
+
+  const openActionsMenu = (
+    item: MailThreadListItem,
+    anchorEl: HTMLElement | null,
+    mouseX: number | null,
+    mouseY: number | null,
+  ) => {
+    setActionMenuState({
+      item,
+      anchorEl,
+      mouseX,
+      mouseY,
+    });
+    setActionMenuFlags(
+      buildActionMenuFlags([], item.unread_count > 0),
+    );
+
+    void resolveMessagesForItem(item)
+      .then((messages) => {
+        setActionMenuFlags(buildActionMenuFlags(messages, item.unread_count > 0));
+      })
+      .catch(() => {
+        setActionMenuFlags(buildActionMenuFlags([], item.unread_count > 0));
+      });
+  };
+
   const openActionsFromButton = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
     event.preventDefault();
     event.stopPropagation();
-    setActionMenuState({
-      item,
-      anchorEl: event.currentTarget,
-      mouseX: null,
-      mouseY: null,
-    });
+    openActionsMenu(item, event.currentTarget, null, null);
   };
 
   const openActionsFromContextMenu = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
     event.preventDefault();
-    setActionMenuState({
-      item,
-      anchorEl: null,
-      mouseX: event.clientX,
-      mouseY: event.clientY,
-    });
+    openActionsMenu(item, null, event.clientX, event.clientY);
   };
 
   const closeActionMenu = () => {
     setActionMenuState(null);
+    setActionMenuFlags(null);
   };
 
-  const currentActionItem = actionMenuState?.item ?? null;
-  const canMarkAsRead = Boolean(currentActionItem && currentActionItem.unread_count > 0);
+  const canMarkAsRead = actionMenuFlags?.hasUnread ?? false;
 
   const contextMenuPosition =
     actionMenuState &&
@@ -1001,46 +1052,48 @@ export function MailPage() {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
+            if (actionMenuFlags?.hasStarred) {
+              void updateMessagesByPatch(item, { is_starred: false }, (message) => message.is_starred);
+              return;
+            }
             void updateMessagesByPatch(item, { is_starred: true }, (message) => !message.is_starred);
           }}
         >
-          В избранное
+          {actionMenuFlags?.hasStarred ? <Star fontSize="small" sx={{ mr: 1 }} /> : <StarBorder fontSize="small" sx={{ mr: 1 }} />}
+          {actionMenuFlags?.hasStarred ? "Убрать из избранного" : "В избранное"}
         </MenuItem>
         <MenuItem
           onClick={() => {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
-            void updateMessagesByPatch(item, { is_starred: false }, (message) => message.is_starred);
-          }}
-        >
-          Убрать из избранного
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const item = actionMenuState?.item;
-            closeActionMenu();
-            if (!item) return;
+            if (actionMenuFlags?.hasImportant) {
+              void updateMessagesByPatch(item, { is_important: false }, (message) => message.is_important);
+              return;
+            }
             void updateMessagesByPatch(item, { is_important: true }, (message) => !message.is_important);
           }}
         >
-          Пометить как важное
+          {actionMenuFlags?.hasImportant ? (
+            <LabelImportant fontSize="small" sx={{ mr: 1 }} />
+          ) : (
+            <LabelImportantOutline fontSize="small" sx={{ mr: 1 }} />
+          )}
+          {actionMenuFlags?.hasImportant ? "Снять важность" : "Пометить как важное"}
         </MenuItem>
         <MenuItem
           onClick={() => {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
-            void updateMessagesByPatch(item, { is_important: false }, (message) => message.is_important);
-          }}
-        >
-          Снять важность
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const item = actionMenuState?.item;
-            closeActionMenu();
-            if (!item) return;
+            if (actionMenuFlags?.hasArchived) {
+              void updateMessagesByPatch(
+                item,
+                { folder: "inbox", is_archived: false },
+                (message) => message.is_archived || message.folder === "archive",
+              );
+              return;
+            }
             void updateMessagesByPatch(
               item,
               { folder: "archive", is_archived: true, is_spam: false },
@@ -1048,27 +1101,26 @@ export function MailPage() {
             );
           }}
         >
-          В архив
+          {actionMenuFlags?.hasArchived ? (
+            <UnarchiveOutlined fontSize="small" sx={{ mr: 1 }} />
+          ) : (
+            <ArchiveOutlined fontSize="small" sx={{ mr: 1 }} />
+          )}
+          {actionMenuFlags?.hasArchived ? "Вернуть во входящие" : "В архив"}
         </MenuItem>
         <MenuItem
           onClick={() => {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
-            void updateMessagesByPatch(
-              item,
-              { folder: "inbox", is_archived: false },
-              (message) => message.is_archived || message.folder === "archive",
-            );
-          }}
-        >
-          Вернуть во входящие
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const item = actionMenuState?.item;
-            closeActionMenu();
-            if (!item) return;
+            if (actionMenuFlags?.hasSpam) {
+              void updateMessagesByPatch(
+                item,
+                { folder: "inbox", is_spam: false },
+                (message) => message.is_spam || message.folder === "spam",
+              );
+              return;
+            }
             void updateMessagesByPatch(
               item,
               { folder: "spam", is_spam: true },
@@ -1076,21 +1128,8 @@ export function MailPage() {
             );
           }}
         >
-          В спам
-        </MenuItem>
-        <MenuItem
-          onClick={() => {
-            const item = actionMenuState?.item;
-            closeActionMenu();
-            if (!item) return;
-            void updateMessagesByPatch(
-              item,
-              { folder: "inbox", is_spam: false },
-              (message) => message.is_spam || message.folder === "spam",
-            );
-          }}
-        >
-          Не спам
+          {actionMenuFlags?.hasSpam ? <OutlinedFlag fontSize="small" sx={{ mr: 1 }} /> : <Report fontSize="small" sx={{ mr: 1 }} />}
+          {actionMenuFlags?.hasSpam ? "Не спам" : "В спам"}
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -1104,6 +1143,7 @@ export function MailPage() {
             );
           }}
         >
+          <DeleteOutline fontSize="small" sx={{ mr: 1 }} />
           В корзину
         </MenuItem>
       </MuiMenu>
