@@ -396,6 +396,14 @@ export function MailPage() {
     setActionMenuState(null);
   };
 
+  const contextMenuPosition =
+    actionMenuState &&
+    actionMenuState.anchorEl === null &&
+    typeof actionMenuState.mouseX === "number" &&
+    typeof actionMenuState.mouseY === "number"
+      ? { top: actionMenuState.mouseY, left: actionMenuState.mouseX }
+      : undefined;
+
   const orderedMessages = useMemo(() => {
     return [...(selectedThread?.messages ?? [])].sort(
       (a, b) => new Date(a.processed_at).getTime() - new Date(b.processed_at).getTime(),
@@ -940,13 +948,7 @@ export function MailPage() {
         onClose={closeActionMenu}
         anchorEl={actionMenuState?.anchorEl ?? undefined}
         anchorReference={actionMenuState?.anchorEl ? "anchorEl" : "anchorPosition"}
-        anchorPosition={
-          actionMenuState?.anchorEl
-            ? undefined
-            : actionMenuState?.mouseX !== null && actionMenuState?.mouseY !== null
-              ? { top: actionMenuState.mouseY, left: actionMenuState.mouseX }
-              : undefined
-        }
+        anchorPosition={contextMenuPosition}
       >
         <MenuItem
           onClick={() => {
