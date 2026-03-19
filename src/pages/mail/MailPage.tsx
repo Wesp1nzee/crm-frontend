@@ -48,7 +48,13 @@ import {
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
-import type { MailFolder, MailMessageRead, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
+import type {
+  MailFolder,
+  MailMessagePatch,
+  MailMessageRead,
+  MailRecipient,
+  MailThreadListItem,
+} from "../../entities/mail/types";
 import {
   useMailThread,
   usePatchMailMessage,
@@ -69,6 +75,7 @@ const folderMeta: Array<{ id: MailFolder; label: string }> = [
 
 const folderSet = new Set<MailFolder>(folderMeta.map((folder) => folder.id));
 const PAGE_SIZE = 20;
+const DEFAULT_THREAD_MESSAGES_LIMIT = 100;
 
 const folderIcon = (folder: MailFolder) => {
   if (folder === "inbox") return <Inbox fontSize="small" />;
@@ -326,9 +333,10 @@ export function MailPage() {
 
   const getItemKey = (item: MailThreadListItem) => item.thread_id ?? item.id;
 
-  const resolveThreadMessageIds = async (item: MailThreadListItem, markAsRead: boolean) => {
+  const resolveMessagesForItem = async (item: MailThreadListItem): Promise<MailMessageRead[]> => {
     if (item.type === "message" && item.message_id) {
-      return [item.message_id];
+      const response = await mailApi.getMessage(item.message_id);
+      return [response.data];
     }
 
     const threadId = item.thread_id ?? item.id;
@@ -340,29 +348,35 @@ export function MailPage() {
       (
         await mailApi.getThreadMessages(threadId, {
           page: 1,
-          page_size: 100,
+          page_size: DEFAULT_THREAD_MESSAGES_LIMIT,
         })
       ).data.items;
 
-    return (messages ?? [])
-      .filter((message) => message.is_read !== markAsRead)
-      .map((message) => message.id);
+    return messages ?? [];
   };
 
-  const updateReadStatus = async (item: MailThreadListItem, markAsRead: boolean) => {
+  const updateMessagesByPatch = async (
+    item: MailThreadListItem,
+    payload: MailMessagePatch,
+    predicate?: (message: MailMessageRead) => boolean,
+  ) => {
     const itemKey = getItemKey(item);
     if (!itemKey) return;
 
     setUpdatingThreadIds((prev) => [...prev, itemKey]);
     try {
-      const messageIds = await resolveThreadMessageIds(item, markAsRead);
+      const messages = await resolveMessagesForItem(item);
+      const messageIds = messages
+        .filter((message) => (predicate ? predicate(message) : true))
+        .map((message) => message.id);
+
       if (messageIds.length === 0) return;
 
       await Promise.allSettled(
         messageIds.map((messageId) =>
           patchMailMessage.mutateAsync({
             messageId,
-            payload: { is_read: markAsRead },
+            payload,
           }),
         ),
       );
@@ -395,6 +409,9 @@ export function MailPage() {
   const closeActionMenu = () => {
     setActionMenuState(null);
   };
+
+  const currentActionItem = actionMenuState?.item ?? null;
+  const canMarkAsRead = Boolean(currentActionItem && currentActionItem.unread_count > 0);
 
   const contextMenuPosition =
     actionMenuState &&
@@ -667,7 +684,11 @@ export function MailPage() {
                               className="thread-read-toggle"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void updateReadStatus(thread, thread.unread_count > 0);
+                                void updateMessagesByPatch(
+                                  thread,
+                                  { is_read: thread.unread_count > 0 },
+                                  (message) => message.is_read !== (thread.unread_count > 0),
+                                );
                               }}
                               sx={{
                                 width: 10,
@@ -950,27 +971,140 @@ export function MailPage() {
         anchorReference={actionMenuState?.anchorEl ? "anchorEl" : "anchorPosition"}
         anchorPosition={contextMenuPosition}
       >
+        {canMarkAsRead ? (
+          <MenuItem
+            onClick={() => {
+              const item = actionMenuState?.item;
+              closeActionMenu();
+              if (!item) return;
+              void updateMessagesByPatch(item, { is_read: true }, (message) => !message.is_read);
+            }}
+          >
+            <MarkEmailRead fontSize="small" sx={{ mr: 1 }} />
+            Пометить как прочитанное
+          </MenuItem>
+        ) : (
+          <MenuItem
+            onClick={() => {
+              const item = actionMenuState?.item;
+              closeActionMenu();
+              if (!item) return;
+              void updateMessagesByPatch(item, { is_read: false }, (message) => message.is_read);
+            }}
+          >
+            <MarkEmailUnread fontSize="small" sx={{ mr: 1 }} />
+            Пометить как непрочитанное
+          </MenuItem>
+        )}
         <MenuItem
           onClick={() => {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
-            void updateReadStatus(item, true);
+            void updateMessagesByPatch(item, { is_starred: true }, (message) => !message.is_starred);
           }}
         >
-          <MarkEmailRead fontSize="small" sx={{ mr: 1 }} />
-          Пометить как прочитанное
+          В избранное
         </MenuItem>
         <MenuItem
           onClick={() => {
             const item = actionMenuState?.item;
             closeActionMenu();
             if (!item) return;
-            void updateReadStatus(item, false);
+            void updateMessagesByPatch(item, { is_starred: false }, (message) => message.is_starred);
           }}
         >
-          <MarkEmailUnread fontSize="small" sx={{ mr: 1 }} />
-          Пометить как непрочитанное
+          Убрать из избранного
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(item, { is_important: true }, (message) => !message.is_important);
+          }}
+        >
+          Пометить как важное
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(item, { is_important: false }, (message) => message.is_important);
+          }}
+        >
+          Снять важность
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "archive", is_archived: true, is_spam: false },
+              (message) => !message.is_archived || message.folder !== "archive",
+            );
+          }}
+        >
+          В архив
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "inbox", is_archived: false },
+              (message) => message.is_archived || message.folder === "archive",
+            );
+          }}
+        >
+          Вернуть во входящие
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "spam", is_spam: true },
+              (message) => !message.is_spam || message.folder !== "spam",
+            );
+          }}
+        >
+          В спам
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "inbox", is_spam: false },
+              (message) => message.is_spam || message.folder === "spam",
+            );
+          }}
+        >
+          Не спам
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "trash" },
+              (message) => message.folder !== "trash",
+            );
+          }}
+        >
+          В корзину
         </MenuItem>
       </MuiMenu>
 
