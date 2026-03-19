@@ -77,7 +77,30 @@ export const usePatchMailMessage = () => {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({ queryKey: ["mail", "threads"] });
       queryClient.invalidateQueries({ queryKey: ["mail", "threads", "search"] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "thread"] });
       queryClient.invalidateQueries({ queryKey: mailQueryKeys.stats() });
+      queryClient.setQueriesData(
+        { queryKey: ["mail", "thread"] },
+        (current: unknown) => {
+          if (!current || typeof current !== "object" || !("messages" in current)) {
+            return current;
+          }
+
+          const thread = current as { messages?: Array<Record<string, unknown>> };
+          if (!Array.isArray(thread.messages)) {
+            return current;
+          }
+
+          return {
+            ...thread,
+            messages: thread.messages.map((message) =>
+              message.id === variables.messageId
+                ? { ...message, ...variables.payload }
+                : message,
+            ),
+          };
+        },
+      );
       queryClient.setQueryData(mailQueryKeys.message(variables.messageId), (current: unknown) =>
         current && typeof current === "object"
           ? { ...current, ...variables.payload }

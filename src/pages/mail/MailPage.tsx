@@ -46,6 +46,7 @@ import { mailApi } from "../../entities/mail/api";
 import type { MailFolder, MailMessageRead, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
 import {
   useMailThread,
+  usePatchMailMessage,
   useMailStats,
   useSyncMailMessages,
 } from "../../shared/hooks/useMail";
@@ -190,8 +191,10 @@ export function MailPage() {
   });
 
   const { data: selectedThread } = useMailThread(selectedThreadId ?? "");
+  const patchMailMessage = usePatchMailMessage();
   const syncMessages = useSyncMailMessages();
   const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
+  const readSyncInFlightRef = useRef<Set<string>>(new Set());
 
   const threads = useMemo(() => {
     const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
@@ -317,6 +320,33 @@ export function MailPage() {
   }, [selectedThread?.messages]);
 
   const latestMessage = orderedMessages.at(-1);
+
+  useEffect(() => {
+    if (!selectedThreadId || !selectedThread?.messages?.length) return;
+
+    const unreadMessages = selectedThread.messages.filter(
+      (message) => !message.is_read && !readSyncInFlightRef.current.has(message.id),
+    );
+
+    if (unreadMessages.length === 0) return;
+
+    unreadMessages.forEach((message) => {
+      readSyncInFlightRef.current.add(message.id);
+    });
+
+    void Promise.allSettled(
+      unreadMessages.map((message) =>
+        patchMailMessage.mutateAsync({
+          messageId: message.id,
+          payload: { is_read: true },
+        }),
+      ),
+    ).finally(() => {
+      unreadMessages.forEach((message) => {
+        readSyncInFlightRef.current.delete(message.id);
+      });
+    });
+  }, [patchMailMessage, selectedThread?.messages, selectedThreadId]);
 
   const openReplyComposer = (replyAll: boolean) => {
     if (!latestMessage) return;
