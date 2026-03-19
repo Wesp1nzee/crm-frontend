@@ -9,7 +9,10 @@ import {
   Delete,
   Drafts,
   Inbox,
+  MarkEmailRead,
+  MarkEmailUnread,
   Menu,
+  MoreVert,
   Refresh,
   Reply,
   Search,
@@ -32,6 +35,8 @@ import {
   InputAdornment,
   List,
   ListItem,
+  Menu as MuiMenu,
+  MenuItem,
   OutlinedInput,
   Paper,
   Stack,
@@ -194,7 +199,13 @@ export function MailPage() {
   const patchMailMessage = usePatchMailMessage();
   const syncMessages = useSyncMailMessages();
   const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
-  const readSyncInFlightRef = useRef<Set<string>>(new Set());
+  const [actionMenuState, setActionMenuState] = useState<{
+    item: MailThreadListItem;
+    anchorEl: HTMLElement | null;
+    mouseX: number | null;
+    mouseY: number | null;
+  } | null>(null);
+  const [updatingThreadIds, setUpdatingThreadIds] = useState<string[]>([]);
 
   const threads = useMemo(() => {
     const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
@@ -313,6 +324,78 @@ export function MailPage() {
     void toggleThreadExpansion(item);
   };
 
+  const getItemKey = (item: MailThreadListItem) => item.thread_id ?? item.id;
+
+  const resolveThreadMessageIds = async (item: MailThreadListItem, markAsRead: boolean) => {
+    if (item.type === "message" && item.message_id) {
+      return [item.message_id];
+    }
+
+    const threadId = item.thread_id ?? item.id;
+    if (!threadId) return [];
+
+    const knownMessages = threadMessagesById[threadId];
+    const messages =
+      knownMessages ??
+      (
+        await mailApi.getThreadMessages(threadId, {
+          page: 1,
+          page_size: 100,
+        })
+      ).data.items;
+
+    return (messages ?? [])
+      .filter((message) => message.is_read !== markAsRead)
+      .map((message) => message.id);
+  };
+
+  const updateReadStatus = async (item: MailThreadListItem, markAsRead: boolean) => {
+    const itemKey = getItemKey(item);
+    if (!itemKey) return;
+
+    setUpdatingThreadIds((prev) => [...prev, itemKey]);
+    try {
+      const messageIds = await resolveThreadMessageIds(item, markAsRead);
+      if (messageIds.length === 0) return;
+
+      await Promise.allSettled(
+        messageIds.map((messageId) =>
+          patchMailMessage.mutateAsync({
+            messageId,
+            payload: { is_read: markAsRead },
+          }),
+        ),
+      );
+    } finally {
+      setUpdatingThreadIds((prev) => prev.filter((id) => id !== itemKey));
+    }
+  };
+
+  const openActionsFromButton = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setActionMenuState({
+      item,
+      anchorEl: event.currentTarget,
+      mouseX: null,
+      mouseY: null,
+    });
+  };
+
+  const openActionsFromContextMenu = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
+    event.preventDefault();
+    setActionMenuState({
+      item,
+      anchorEl: null,
+      mouseX: event.clientX,
+      mouseY: event.clientY,
+    });
+  };
+
+  const closeActionMenu = () => {
+    setActionMenuState(null);
+  };
+
   const orderedMessages = useMemo(() => {
     return [...(selectedThread?.messages ?? [])].sort(
       (a, b) => new Date(a.processed_at).getTime() - new Date(b.processed_at).getTime(),
@@ -320,33 +403,6 @@ export function MailPage() {
   }, [selectedThread?.messages]);
 
   const latestMessage = orderedMessages.at(-1);
-
-  useEffect(() => {
-    if (!selectedThreadId || !selectedThread?.messages?.length) return;
-
-    const unreadMessages = selectedThread.messages.filter(
-      (message) => !message.is_read && !readSyncInFlightRef.current.has(message.id),
-    );
-
-    if (unreadMessages.length === 0) return;
-
-    unreadMessages.forEach((message) => {
-      readSyncInFlightRef.current.add(message.id);
-    });
-
-    void Promise.allSettled(
-      unreadMessages.map((message) =>
-        patchMailMessage.mutateAsync({
-          messageId: message.id,
-          payload: { is_read: true },
-        }),
-      ),
-    ).finally(() => {
-      unreadMessages.forEach((message) => {
-        readSyncInFlightRef.current.delete(message.id);
-      });
-    });
-  }, [patchMailMessage, selectedThread?.messages, selectedThreadId]);
 
   const openReplyComposer = (replyAll: boolean) => {
     if (!latestMessage) return;
@@ -574,6 +630,7 @@ export function MailPage() {
                       return (
                       <Box key={threadId}>
                         <Paper
+                          className="thread-card"
                           variant="outlined"
                           sx={{
                             px: 1.2,
@@ -590,9 +647,33 @@ export function MailPage() {
                             "&:hover": {
                               boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
                             },
+                            "&:hover .thread-read-toggle": {
+                              opacity: 1,
+                            },
                           }}
                           onClick={() => handleListItemClick(thread)}
+                          onContextMenu={(event) => openActionsFromContextMenu(event, thread)}
                         >
+                          <Tooltip title={thread.unread_count > 0 ? "Пометить как прочитанное" : "Пометить как непрочитанное"}>
+                            <Box
+                              className="thread-read-toggle"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void updateReadStatus(thread, thread.unread_count > 0);
+                              }}
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                                bgcolor: thread.unread_count > 0 ? "#2563EB" : alpha("#2563EB", 0.12),
+                                border: thread.unread_count > 0 ? "none" : `1px solid ${alpha("#2563EB", 0.45)}`,
+                                opacity: thread.unread_count > 0 ? 1 : 0,
+                                transition: "opacity 0.2s ease, background-color 0.2s ease",
+                                cursor: "pointer",
+                              }}
+                            />
+                          </Tooltip>
                           <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                             <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
                               {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
@@ -628,6 +709,13 @@ export function MailPage() {
                             <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
                               {new Date(thread.last_message_at).toLocaleString("ru-RU")}
                             </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={(event) => openActionsFromButton(event, thread)}
+                              disabled={updatingThreadIds.includes(threadId)}
+                            >
+                              <MoreVert fontSize="small" />
+                            </IconButton>
                           </Stack>
                         </Paper>
 
@@ -846,6 +934,43 @@ export function MailPage() {
           </Stack>
         </Box>
       )}
+
+      <MuiMenu
+        open={Boolean(actionMenuState)}
+        onClose={closeActionMenu}
+        anchorEl={actionMenuState?.anchorEl ?? undefined}
+        anchorReference={actionMenuState?.anchorEl ? "anchorEl" : "anchorPosition"}
+        anchorPosition={
+          actionMenuState?.anchorEl
+            ? undefined
+            : actionMenuState?.mouseX !== null && actionMenuState?.mouseY !== null
+              ? { top: actionMenuState.mouseY, left: actionMenuState.mouseX }
+              : undefined
+        }
+      >
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateReadStatus(item, true);
+          }}
+        >
+          <MarkEmailRead fontSize="small" sx={{ mr: 1 }} />
+          Пометить как прочитанное
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateReadStatus(item, false);
+          }}
+        >
+          <MarkEmailUnread fontSize="small" sx={{ mr: 1 }} />
+          Пометить как непрочитанное
+        </MenuItem>
+      </MuiMenu>
 
       <MailComposer
         open={composerOpen}
