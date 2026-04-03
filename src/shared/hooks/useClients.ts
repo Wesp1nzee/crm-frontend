@@ -7,6 +7,9 @@ import {
   type ClientUpdateRequest,
   type ClientFilters,
   type ClientListResponse,
+  type Contact,
+  type ContactCreate,
+  type ContactUpdate,
 } from "../../entities/client/types";
 
 /**
@@ -97,6 +100,86 @@ export const useDeleteClient = () => {
 
     onError: (error: unknown) => {
       console.error("[CLIENT_HOOK] Ошибка удаления клиента:", error);
+    },
+  });
+};
+
+// ===== CONTACT HOOKS =====
+
+/**
+ * Хук для получения контактов клиента
+ */
+export const useClientContacts = (clientId: string) => {
+  return useQuery<Contact[]>({
+    queryKey: ["client-contacts", clientId],
+    queryFn: () =>
+      clientApi.getClientContacts(clientId).then((res) => res.data),
+    enabled: !!clientId,
+    staleTime: 2 * 60 * 1000,
+  });
+};
+
+/**
+ * Хук для создания контакта
+ */
+export const useCreateContact = (clientId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (data: ContactCreate) =>
+      clientApi.createContact(clientId, data).then((res) => res.data),
+
+    onSuccess: (newContact) => {
+      console.log("[CONTACT_HOOK] Контакт создан:", newContact.id);
+      queryClient.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+    },
+
+    onError: (error: unknown) => {
+      console.error("[CONTACT_HOOK] Ошибка создания контакта:", error);
+    },
+  });
+};
+
+/**
+ * Хук для обновления контакта
+ */
+export const useUpdateContact = (clientId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ contactId, data }: { contactId: string; data: ContactUpdate }) =>
+      clientApi.updateContact(contactId, data).then((res) => res.data),
+
+    onSuccess: (updatedContact) => {
+      console.log("[CONTACT_HOOK] Контакт обновлен:", updatedContact.id);
+      queryClient.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+    },
+
+    onError: (error: unknown) => {
+      console.error("[CONTACT_HOOK] Ошибка обновления контакта:", error);
+    },
+  });
+};
+
+/**
+ * Хук для удаления контакта
+ */
+export const useDeleteContact = (clientId: string) => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (contactId: string) => clientApi.deleteContact(contactId),
+
+    onSuccess: (_, contactId) => {
+      console.log("[CONTACT_HOOK] Контакт удален:", contactId);
+      queryClient.invalidateQueries({ queryKey: ["client-contacts", clientId] });
+      queryClient.invalidateQueries({ queryKey: ["client", clientId] });
+    },
+
+    onError: (error: unknown) => {
+      console.error("[CONTACT_HOOK] Ошибка удаления контакта:", error);
     },
   });
 };

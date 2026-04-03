@@ -7,6 +7,7 @@ import type {
   MailMessagesQuery,
   MailSearchQuery,
   MailSendPayload,
+  LinkMailToCaseRequest,
 } from "../../entities/mail/types";
 
 const mailQueryKeys = {
@@ -155,4 +156,40 @@ export const useCollaborationStatus = (_threadId: string) =>
     queryKey: ["mail", "collaboration", _threadId],
     queryFn: async () => [],
     staleTime: 30_000,
+  });
+
+export const useLinkMailToCase = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: ({ messageId, payload }: { messageId: string; payload: LinkMailToCaseRequest }) =>
+      mailApi.linkMailToCase(messageId, payload).then((res) => res.data),
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({ queryKey: ["mail", "threads"] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "message", variables.messageId] });
+      queryClient.invalidateQueries({ queryKey: ["cases", variables.payload.case_id] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "cases", variables.payload.case_id] });
+    },
+  });
+};
+
+export const useUnlinkMailFromCase = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (messageId: string) =>
+      mailApi.unlinkMailFromCase(messageId).then((res) => res.data),
+    onSuccess: (_, messageId) => {
+      queryClient.invalidateQueries({ queryKey: ["mail", "threads"] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "message", messageId] });
+      queryClient.invalidateQueries({ queryKey: ["mail", "cases"] });
+    },
+  });
+};
+
+export const useCaseMessages = (caseId: string, params?: { page?: number; page_size?: number }) =>
+  useQuery({
+    queryKey: ["mail", "cases", caseId, params],
+    queryFn: () => mailApi.getCaseMessages(caseId, params).then((res) => res.data),
+    enabled: Boolean(caseId),
   });

@@ -27,6 +27,7 @@ import {
   OpenInFull,
   Remove,
   Close,
+  Link,
 } from "@mui/icons-material";
 import {
   alpha,
@@ -35,6 +36,10 @@ import {
   Button,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Drawer,
   IconButton,
@@ -51,10 +56,15 @@ import {
   Typography,
   useMediaQuery,
   useTheme,
+  Autocomplete,
+  TextField,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
+import { casesApi } from "../../entities/case/api";
 import type {
   MailFolder,
   MailMessagePatch,
@@ -62,14 +72,17 @@ import type {
   MailRecipient,
   MailThreadListItem,
 } from "../../entities/mail/types";
+import type { CaseSuggestion } from "../../entities/case/types";
 import {
   useMailThread,
   usePatchMailMessage,
   useMailStats,
   useSyncMailMessages,
+  useLinkMailToCase,
 } from "../../shared/hooks/useMail";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import { MailComposer } from "./MailComposer";
+import { notificationService } from "../../shared/services/notifications";
 
 const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "inbox", label: "Входящие" },
@@ -243,6 +256,64 @@ export function MailPage() {
     hasSpam: boolean;
   } | null>(null);
   const [updatingThreadIds, setUpdatingThreadIds] = useState<string[]>([]);
+  
+  // Link to case dialog state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkingMessageId, setLinkingMessageId] = useState<string | null>(null);
+  const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
+  const [caseSearchQuery, setCaseSearchQuery] = useState("");
+  const [caseSuggestions, setCaseSuggestions] = useState<CaseSuggestion[]>([]);
+  const [isLoadingCases, setIsLoadingCases] = useState(false);
+  const linkMailToCase = useLinkMailToCase();
+
+  const handleOpenLinkDialog = (messageId: string) => {
+    setLinkingMessageId(messageId);
+    setLinkDialogOpen(true);
+    setSelectedCase(null);
+    setCaseSearchQuery("");
+    setCaseSuggestions([]);
+  };
+
+  const handleCloseLinkDialog = () => {
+    setLinkDialogOpen(false);
+    setLinkingMessageId(null);
+    setSelectedCase(null);
+    setCaseSearchQuery("");
+    setCaseSuggestions([]);
+  };
+
+  const handleLinkToCase = async () => {
+    if (!linkingMessageId || !selectedCase) return;
+    
+    try {
+      await linkMailToCase.mutateAsync({
+        messageId: linkingMessageId,
+        payload: { case_id: selectedCase.id },
+      });
+      notificationService.success("Письмо успешно привязано к делу");
+      handleCloseLinkDialog();
+    } catch {
+      notificationService.error("Не удалось привязать письмо к делу");
+    }
+  };
+
+  const searchCases = async (query: string) => {
+    if (!query.trim()) {
+      setCaseSuggestions([]);
+      return;
+    }
+    
+    setIsLoadingCases(true);
+    try {
+      const suggestions = await casesApi.getSuggestions(query);
+      setCaseSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error searching cases:", error);
+      setCaseSuggestions([]);
+    } finally {
+      setIsLoadingCases(false);
+    }
+  };
 
   const threads = useMemo(() => {
     const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
@@ -1199,7 +1270,95 @@ export function MailPage() {
           <DeleteOutline fontSize="small" sx={{ mr: 1 }} />
           В корзину
         </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            
+            // Get the first message ID from the thread
+            if (item.message_id) {
+              handleOpenLinkDialog(item.message_id);
+            }
+          }}
+        >
+          <Link fontSize="small" sx={{ mr: 1 }} />
+          Привязать к делу
+        </MenuItem>
       </MuiMenu>
+
+      {/* Link to Case Dialog */}
+      <Dialog open={linkDialogOpen} onClose={handleCloseLinkDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Привязать письмо к делу</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            <Autocomplete
+              value={selectedCase}
+              onChange={(_, newValue) => setSelectedCase(newValue)}
+              onInputChange={(_, newValue) => {
+                setCaseSearchQuery(newValue);
+                void searchCases(newValue);
+              }}
+              options={caseSuggestions}
+              getOptionLabel={(option) => `${option.number} - ${option.case_number}`}
+              loading={isLoadingCases}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Поиск дела"
+                  placeholder="Введите номер или название дела"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoadingCases ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => (
+                <Box component="li" {...props}>
+                  <Box sx={{ width: "100%" }}>
+                    <Typography variant="body2" fontWeight="bold">
+                      {option.number}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {option.case_number}
+                    </Typography>
+                  </Box>
+                </Box>
+              )}
+              noOptionsText={
+                caseSearchQuery.length > 0
+                  ? "Дела не найдены"
+                  : "Начните вводить для поиска дела"
+              }
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+            {selectedCase && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Письмо будет привязано к делу: <strong>{selectedCase.number} - {selectedCase.case_number}</strong>
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseLinkDialog} disabled={linkMailToCase.isPending}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => void handleLinkToCase()}
+            variant="contained"
+            disabled={!selectedCase || linkMailToCase.isPending}
+            startIcon={linkMailToCase.isPending ? <CircularProgress size={20} /> : <Link />}
+          >
+            {linkMailToCase.isPending ? "Привязка..." : "Привязать"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <MailComposer
         open={composerOpen}

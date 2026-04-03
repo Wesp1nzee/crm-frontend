@@ -20,6 +20,12 @@ import type {
   PaginatedMailThread,
   PaginatedMailThreads,
   PaginatedMailMessages,
+  MailAttachmentsListParams,
+  MailAttachmentsResponse,
+  LinkMailToCaseRequest,
+  LinkMailToCaseResponse,
+  UnlinkMailFromCaseResponse,
+  PaginatedMailMessagesForCase,
 } from "./types";
 
 const getFrontendDomain = () => {
@@ -211,6 +217,9 @@ export const mailApi = {
   getAttachments: (messageId: string) =>
     api.get<MailAttachment[]>(`/mail/messages/${messageId}/attachments`),
 
+  getAttachmentsList: (params?: MailAttachmentsListParams) =>
+    api.get<MailAttachmentsResponse>("/mail/attachments", { params }),
+
   getDownloadAttachmentUrl: (messageId: string, attachmentId: string) =>
     `/api/mail/messages/${messageId}/attachments/${attachmentId}/download`,
 
@@ -245,4 +254,13 @@ export const mailApi = {
     `/api/mail/oversized/${token}/${fileId}/download`,
 
   getOversizedZipUrl: (token: string) => `/api/mail/oversized/${token}/zip`,
+
+  linkMailToCase: (messageId: string, payload: LinkMailToCaseRequest) =>
+    api.post<LinkMailToCaseResponse>(`/mail/messages/${messageId}/link-to-case`, payload),
+
+  unlinkMailFromCase: (messageId: string) =>
+    api.post<UnlinkMailFromCaseResponse>(`/mail/messages/${messageId}/unlink-from-case`, {}),
+
+  getCaseMessages: (caseId: string, params?: { page?: number; page_size?: number }) =>
+    api.get<PaginatedMailMessagesForCase>(`/mail/cases/${caseId}/messages`, { params }),
 };

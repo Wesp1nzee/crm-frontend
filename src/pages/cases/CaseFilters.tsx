@@ -180,7 +180,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
           </Typography>
 
           <Grid container spacing={3}>
-            {/* Client Filter */}
             <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Клиент</InputLabel>

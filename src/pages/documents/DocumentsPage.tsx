@@ -83,6 +83,10 @@ import { usePermissions } from "../../shared/hooks/usePermissions";
 import { usersApi } from "../../entities/user/api";
 import { useCreateLinkShare, useCreateUserShare, useRevokeShare, useShareResource } from "../../shared/hooks/useShare";
 import type { UserRead } from "../../entities/user/types";
+import { DocumentModeSwitcher, type DocumentMode } from "../../shared/ui/DocumentModeSwitcher";
+import { EmailDocumentsView } from "./EmailDocumentsView";
+import { useMailAttachments } from "../../shared/hooks/useMailAttachments";
+import type { MailAttachmentsListParams } from "../../entities/mail/types";
 
 type SortField = "name" | "size" | "created_at" | "created_by";
 type SortOrder = "asc" | "desc";
@@ -154,6 +158,14 @@ const actionButtonSx = {
 };
 
 export function DocumentsPage() {
+  // Mode switching
+  const [activeMode, setActiveMode] = useState<DocumentMode>("storage");
+  const [emailPage, setEmailPage] = useState(0);
+  const [emailRowsPerPage, setEmailRowsPerPage] = useState(25);
+  const [emailSortField, setEmailSortField] = useState<"filename" | "created_at" | "file_size">("created_at");
+  const [emailSortOrder, setEmailSortOrder] = useState<"asc" | "desc">("desc");
+  const [emailAttachmentType, setEmailAttachmentType] = useState<"all" | "incoming" | "outgoing">("all");
+
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
   const [folderPath, setFolderPath] = useState<
     Array<{ id: string | null; name: string }>
@@ -257,6 +269,22 @@ export function DocumentsPage() {
     sort_by: sortField,
     order: sortOrder,
   });
+
+  // Mail attachments query
+  const mailAttachmentsParams: MailAttachmentsListParams = {
+    mail_attachment_type: emailAttachmentType,
+    search: searchQuery || undefined,
+    sort_by: emailSortField,
+    order: emailSortOrder,
+    page: emailPage + 1,
+    page_size: emailRowsPerPage,
+  };
+
+  const {
+    data: mailAttachmentsResponse,
+    isLoading: isMailLoading,
+    refetch: refetchMail,
+  } = useMailAttachments(mailAttachmentsParams);
 
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
 
@@ -1338,14 +1366,22 @@ export function DocumentsPage() {
     <TableRow>
       <TableCell colSpan={7} align="center" sx={{ py: 8 }}>
         <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
-          <FolderOutlined sx={{ fontSize: 60, color: "action.disabled" }} />
-          <Typography variant="h6">Папка пуста</Typography>
+          {activeMode === "email" ? (
+            <Mail sx={{ fontSize: 60, color: "action.disabled" }} />
+          ) : (
+            <FolderOutlined sx={{ fontSize: 60, color: "action.disabled" }} />
+          )}
+          <Typography variant="h6">
+            {activeMode === "email" ? "В почте пока нет документов" : "Папка пуста"}
+          </Typography>
           <Typography variant="body2" color="text.secondary">
             {searchQuery
               ? "По вашему запросу ничего не найдено"
-              : "Создайте папку или загрузите файлы"}
+              : activeMode === "email"
+                ? "Вложения из писем появятся здесь"
+                : "Создайте папку или загрузите файлы"}
           </Typography>
-          {!searchQuery && (
+          {!searchQuery && activeMode === "storage" && (
             <Box mt={2} display="flex" gap={2}>
               <Button
                 variant="outlined"
@@ -1400,14 +1436,16 @@ export function DocumentsPage() {
           Документы
         </Typography>
         <Box display="flex" gap={1} flexWrap="wrap">
-          <Button
-            variant="outlined"
-            startIcon={<CreateNewFolder />}
-            onClick={() => setCreateFolderOpen(true)}
-            sx={actionButtonSx}
-          >
-            Создать папку
-          </Button>
+          {activeMode === "storage" && (
+            <Button
+              variant="outlined"
+              startIcon={<CreateNewFolder />}
+              onClick={() => setCreateFolderOpen(true)}
+              sx={actionButtonSx}
+            >
+              Создать папку
+            </Button>
+          )}
           <Button
             variant="outlined"
             startIcon={<Upload />}
@@ -1416,6 +1454,7 @@ export function DocumentsPage() {
               setUploadDialogOpen(true);
             }}
             sx={actionButtonSx}
+            disabled={activeMode === "email"}
           >
             Загрузить файлы
           </Button>
@@ -1475,92 +1514,106 @@ export function DocumentsPage() {
 
       {/* Навигация и поиск */}
       <Paper sx={{ p: 2, mb: 2, borderRadius: 4 }}>
-        <Box mb={1}>
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mb: 1, fontWeight: 600 }}
-          >
-            Текущая папка (можно перетащить элемент в любой сегмент пути)
-          </Typography>
-          <Box
-            display="flex"
-            gap={1}
-            flexWrap="wrap"
-            sx={{
-              p: 1,
-              border: "1px solid",
-              borderColor: "divider",
-              borderRadius: 1.5,
-              bgcolor: "background.paper",
-              alignItems: "center",
-            }}
-          >
-            {folderPath.map((folder, index) => {
-              const isDragOver = dragOverFolderPathIndex === index;
-              const isCurrent = index === folderPath.length - 1;
-              return (
-                <Button
-                  key={index}
-                  variant={isCurrent ? "contained" : "text"}
-                  color={isCurrent ? "primary" : "inherit"}
-                  onDragEnter={(e) => handlePathDragEnter(e, index)}
-                  onDragLeave={handlePathDragLeave}
-                  onDragOver={(e) => handlePathDragOver(e, index)}
-                  onDrop={(e) => handlePathDrop(e, index)}
-                  onClick={() => handleBreadcrumbClick(index)}
-                  startIcon={
-                    index === 0 ? (
-                      <Home fontSize="small" />
-                    ) : (
-                      <FolderOutlined fontSize="small" />
-                    )
-                  }
-                  sx={{
-                    textTransform: "none",
-                    minHeight: 38,
-                    borderRadius: 1,
-                    px: 1.25,
-                    border: isDragOver
-                      ? (theme) => `2px solid ${theme.palette.primary.main}`
-                      : undefined,
-                    bgcolor: isDragOver
-                      ? (theme) => alpha(theme.palette.primary.main, 0.2)
-                      : undefined,
-                    boxShadow: isDragOver
-                      ? (theme) =>
-                          `0 0 0 2px ${alpha(theme.palette.primary.main, 0.18)}`
-                      : "none",
-                    maxWidth: 220,
-                    "& .MuiButton-startIcon": {
-                      mr: 0.5,
-                      color: isDragOver ? "primary.main" : "inherit",
-                    },
-                  }}
-                >
-                  <Box
-                    component="span"
+        {/* Mode Switcher */}
+        <Box mb={2}>
+          <DocumentModeSwitcher
+            activeMode={activeMode}
+            onModeChange={setActiveMode}
+          />
+        </Box>
+
+        {/* Folder navigation - only in storage mode */}
+        {activeMode === "storage" && (
+          <Box mb={1}>
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 1, fontWeight: 600 }}
+            >
+              Текущая папка (можно перетащить элемент в любой сегмент пути)
+            </Typography>
+            <Box
+              display="flex"
+              gap={1}
+              flexWrap="wrap"
+              sx={{
+                p: 1,
+                border: "1px solid",
+                borderColor: "divider",
+                borderRadius: 1.5,
+                bgcolor: "background.paper",
+                alignItems: "center",
+              }}
+            >
+              {folderPath.map((folder, index) => {
+                const isDragOver = dragOverFolderPathIndex === index;
+                const isCurrent = index === folderPath.length - 1;
+                return (
+                  <Button
+                    key={index}
+                    variant={isCurrent ? "contained" : "text"}
+                    color={isCurrent ? "primary" : "inherit"}
+                    onDragEnter={(e) => handlePathDragEnter(e, index)}
+                    onDragLeave={handlePathDragLeave}
+                    onDragOver={(e) => handlePathDragOver(e, index)}
+                    onDrop={(e) => handlePathDrop(e, index)}
+                    onClick={() => handleBreadcrumbClick(index)}
+                    startIcon={
+                      index === 0 ? (
+                        <Home fontSize="small" />
+                      ) : (
+                        <FolderOutlined fontSize="small" />
+                      )
+                    }
                     sx={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
+                      textTransform: "none",
+                      minHeight: 38,
+                      borderRadius: 1,
+                      px: 1.25,
+                      border: isDragOver
+                        ? (theme) => `2px solid ${theme.palette.primary.main}`
+                        : undefined,
+                      bgcolor: isDragOver
+                        ? (theme) => alpha(theme.palette.primary.main, 0.2)
+                        : undefined,
+                      boxShadow: isDragOver
+                        ? (theme) =>
+                            `0 0 0 2px ${alpha(theme.palette.primary.main, 0.18)}`
+                        : "none",
+                      maxWidth: 220,
+                      "& .MuiButton-startIcon": {
+                        mr: 0.5,
+                        color: isDragOver ? "primary.main" : "inherit",
+                      },
                     }}
                   >
-                    {sanitizeAndRender(folder.name)}
-                  </Box>
-                </Button>
-              );
-            })}
+                    <Box
+                      component="span"
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {sanitizeAndRender(folder.name)}
+                    </Box>
+                  </Button>
+                );
+              })}
+            </Box>
           </Box>
-        </Box>
+        )}
+
+        {/* Search */}
         <Box display="flex" gap={2} alignItems="center" flexWrap="wrap">
           <TextField
             size="small"
-            placeholder="Поиск файлов и папок"
+            placeholder={activeMode === "storage" ? "Поиск файлов и папок" : "Поиск вложений"}
             value={searchQuery}
             onChange={(e) => {
               setSearchQuery(e.target.value);
               setPage(0);
+              setEmailPage(0);
             }}
             InputProps={{
               startAdornment: <Search sx={{ mr: 1, color: "text.primary" }} />,
@@ -1575,13 +1628,40 @@ export function DocumentsPage() {
           />
           {searchQuery && (
             <Typography variant="body2" color="text.secondary">
-              Поиск в текущей папке
+              {activeMode === "storage" ? "Поиск в текущей папке" : "Поиск в почте"}
             </Typography>
           )}
         </Box>
       </Paper>
 
-      {/* Область для drag-and-drop */}
+      {/* Email Mode View */}
+      {activeMode === "email" && (
+        <EmailDocumentsView
+          attachments={mailAttachmentsResponse?.items ?? []}
+          isLoading={isMailLoading}
+          paginationMeta={mailAttachmentsResponse?.meta}
+          page={emailPage}
+          rowsPerPage={emailRowsPerPage}
+          sortField={emailSortField}
+          sortOrder={emailSortOrder}
+          onSortChange={(field) => {
+            const isAsc = emailSortField === field && emailSortOrder === "asc";
+            setEmailSortOrder(isAsc ? "desc" : "asc");
+            setEmailSortField(field);
+          }}
+          onPageChange={setEmailPage}
+          onRowsPerPageChange={setEmailRowsPerPage}
+          searchQuery={searchQuery}
+          attachmentType={emailAttachmentType}
+          onAttachmentTypeChange={setEmailAttachmentType}
+          onOpenMessage={(messageId) => {
+            navigate(`/crm/mail/inbox/${messageId}`);
+          }}
+        />
+      )}
+
+      {/* Storage Mode View - drag-and-drop area */}
+      {activeMode === "storage" && (
       <Box
         ref={tableAreaRef}
         onMouseDown={(e) => {
@@ -2214,6 +2294,7 @@ export function DocumentsPage() {
           </Box>
         )}
       </Box>
+      )}
 
       <Dialog open={shareDialogOpen} onClose={() => setShareDialogOpen(false)} fullWidth maxWidth="sm">
         <DialogTitle>Передача доступа{shareEntry ? `: ${shareEntry.name}` : ""}</DialogTitle>

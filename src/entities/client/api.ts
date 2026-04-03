@@ -5,6 +5,9 @@ import type {
   ClientUpdateRequest,
   ClientFilters,
   ClientListResponse,
+  Contact,
+  ContactCreate,
+  ContactUpdate,
 } from "./types";
 
 const API_PREFIX = "/clients";
@@ -106,7 +109,7 @@ export const clientApi = {
   },
 
   /**
-   * Обновление клиента
+   * Обновление клиента (PATCH)
    */
   updateClient: (id: string, data: ClientUpdateRequest) => {
     console.log("[CLIENT_API] Обновление клиента:", {
@@ -116,7 +119,7 @@ export const clientApi = {
     });
 
     return api
-      .put<ClientFull>(`${API_PREFIX}/${id}`, data)
+      .patch<ClientFull>(`${API_PREFIX}/${id}`, data)
       .then((res) => {
         console.log("[CLIENT_API] Клиент обновлен:", {
           id: res.data.id,
@@ -152,6 +155,118 @@ export const clientApi = {
       .catch((error) => {
         console.error("[CLIENT_API] Ошибка удаления клиента:", {
           id,
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message,
+        });
+        throw error;
+      });
+  },
+
+  // ===== CONTACTS API =====
+
+  /**
+   * Получение всех контактов клиента
+   */
+  getClientContacts: (clientId: string) => {
+    console.log("[CLIENT_API] Запрос контактов клиента:", {
+      clientId,
+      endpoint: `${API_PREFIX}/${clientId}/contacts`,
+    });
+
+    return api
+      .get<Contact[]>(`${API_PREFIX}/${clientId}/contacts`)
+      .then((res) => {
+        console.log("[CLIENT_API] Контакты получены:", {
+          count: res.data.length,
+        });
+        return res;
+      })
+      .catch((error) => {
+        console.error("[CLIENT_API] Ошибка получения контактов:", {
+          clientId,
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message,
+        });
+        throw error;
+      });
+  },
+
+  /**
+   * Создание контакта для клиента
+   */
+  createContact: (clientId: string, data: ContactCreate) => {
+    console.log("[CLIENT_API] Создание контакта:", {
+      clientId,
+      endpoint: `${API_PREFIX}/${clientId}/contacts`,
+      name: data.name,
+    });
+
+    return api
+      .post<Contact>(`${API_PREFIX}/${clientId}/contacts`, data)
+      .then((res) => {
+        console.log("[CLIENT_API] Контакт создан:", {
+          id: res.data.id,
+          name: res.data.name,
+        });
+        return res;
+      })
+      .catch((error) => {
+        console.error("[CLIENT_API] Ошибка создания контакта:", {
+          clientId,
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message,
+        });
+        throw error;
+      });
+  },
+
+  /**
+   * Обновление контакта
+   */
+  updateContact: (contactId: string, data: ContactUpdate) => {
+    console.log("[CLIENT_API] Обновление контакта:", {
+      contactId,
+      endpoint: `${API_PREFIX}/contacts/${contactId}`,
+      fields: Object.keys(data),
+    });
+
+    return api
+      .patch<Contact>(`${API_PREFIX}/contacts/${contactId}`, data)
+      .then((res) => {
+        console.log("[CLIENT_API] Контакт обновлен:", {
+          id: res.data.id,
+          updatedFields: Object.keys(data),
+        });
+        return res;
+      })
+      .catch((error) => {
+        console.error("[CLIENT_API] Ошибка обновления контакта:", {
+          contactId,
+          status: error.response?.status,
+          message: error.response?.data?.detail || error.message,
+        });
+        throw error;
+      });
+  },
+
+  /**
+   * Удаление контакта
+   */
+  deleteContact: (contactId: string) => {
+    console.log("[CLIENT_API] Удаление контакта:", {
+      contactId,
+      endpoint: `${API_PREFIX}/contacts/${contactId}`,
+    });
+
+    return api
+      .delete(`${API_PREFIX}/contacts/${contactId}`)
+      .then((res) => {
+        console.log("[CLIENT_API] Контакт удален:", { contactId });
+        return res;
+      })
+      .catch((error) => {
+        console.error("[CLIENT_API] Ошибка удаления контакта:", {
+          contactId,
           status: error.response?.status,
           message: error.response?.data?.detail || error.message,
         });
