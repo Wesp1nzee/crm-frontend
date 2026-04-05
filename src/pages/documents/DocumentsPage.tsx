@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -36,6 +36,8 @@ import {
   FormControlLabel,
   RadioGroup,
   Radio,
+  ToggleButton,
+  ToggleButtonGroup,
 } from "@mui/material";
 import {
   Delete,
@@ -56,6 +58,7 @@ import {
   Link as LinkIcon,
   MoveToInbox,
   Close,
+  Mail,
 } from "@mui/icons-material";
 import DOMPurify from "dompurify";
 import dayjs from "dayjs";
@@ -91,7 +94,7 @@ import type { MailAttachmentsListParams } from "../../entities/mail/types";
 type SortField = "name" | "size" | "created_at" | "created_by";
 type SortOrder = "asc" | "desc";
 
-const fileIcons: Record<string, JSX.Element> = {
+const fileIcons: Record<string, React.ReactNode> = {
   pdf: <DescriptionOutlined sx={{ color: "#D32F2F" }} />,
   doc: <DescriptionOutlined sx={{ color: "#2196F3" }} />,
   docx: <DescriptionOutlined sx={{ color: "#2196F3" }} />,
@@ -132,7 +135,8 @@ const walkDirectoryHandle = async (
     : directoryHandle.name;
   const files: File[] = [];
 
-  for await (const entry of directoryHandle.values()) {
+  const handle = directoryHandle as any;
+  for await (const entry of handle.values()) {
     if (entry.kind === "file") {
       const file = await entry.getFile();
       Object.defineProperty(file, "webkitRelativePath", {
@@ -193,9 +197,10 @@ export function DocumentsPage() {
   const [entryToEdit, setEntryToEdit] = useState<FileSystemEntry | null>(null);
 
   const [newFolderName, setNewFolderName] = useState("");
-  const [uploadCaseId, setUploadCaseId] = useState<string>("");
+  const [_uploadCaseId, setUploadCaseId] = useState<string>("");
   const [uploadTitle, setUploadTitle] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const [scope, setScope] = useState<"my" | "all">("my");
   const [caseSearchQuery, setCaseSearchQuery] = useState("");
   const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
@@ -264,6 +269,7 @@ export function DocumentsPage() {
   } = useDocuments({
     folder_id: currentFolderId,
     search: searchQuery || undefined,
+    scope: scope === "my" ? undefined : scope,
     page: page + 1,
     limit: rowsPerPage,
     sort_by: sortField,
@@ -283,7 +289,6 @@ export function DocumentsPage() {
   const {
     data: mailAttachmentsResponse,
     isLoading: isMailLoading,
-    refetch: refetchMail,
   } = useMailAttachments(mailAttachmentsParams);
 
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
@@ -1626,6 +1631,45 @@ export function DocumentsPage() {
               },
             }}
           />
+          {activeMode === "storage" && (
+            <ToggleButtonGroup
+              value={scope}
+              exclusive
+              onChange={(_, newScope) => {
+                if (newScope) {
+                  setScope(newScope);
+                  setPage(0);
+                }
+              }}
+              size="small"
+              aria-label="scope filter"
+            >
+              <ToggleButton
+                value="my"
+                aria-label="my documents"
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 2,
+                }}
+              >
+                <Person sx={{ mr: 0.5, fontSize: 18 }} />
+                Мои
+              </ToggleButton>
+              <ToggleButton
+                value="all"
+                aria-label="all documents"
+                sx={{
+                  textTransform: "none",
+                  fontWeight: 600,
+                  px: 2,
+                }}
+              >
+                <Group sx={{ mr: 0.5, fontSize: 18 }} />
+                Все
+              </ToggleButton>
+            </ToggleButtonGroup>
+          )}
           {searchQuery && (
             <Typography variant="body2" color="text.secondary">
               {activeMode === "storage" ? "Поиск в текущей папке" : "Поиск в почте"}

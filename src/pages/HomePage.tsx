@@ -202,7 +202,7 @@ function AdminHomePage() {
     queryFn: fetchFinancialSummary,
   });
 
-  const cases = casesResponse?.data || [];
+  const cases = casesResponse?.items || [];
   const activeCases = cases.filter((caseItem) => caseItem.status === "in_work");
   const overdueCases = activeCases.filter((caseItem) =>
     dayjs(caseItem.deadline).isBefore(dayjs(), "day"),

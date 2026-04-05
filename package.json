@@ -11,9 +11,10 @@
     "test": "vitest",
     "format": "prettier --write .",
     "build": "vite build",
-    "type-check": "tsc --noEmit",
-    "build:prod": "vite build && npm run type-check"
-  },
+    "build:prod": "vite build && npm run type-check",
+    "type-check": "tsc --noEmit -p tsconfig.app.json",
+    "type-check:all": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
+},
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",

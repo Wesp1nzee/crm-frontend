@@ -1,9 +1,8 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { mailApi } from "../../entities/mail/api";
 import type {
   MailAttachmentsListParams,
   MailAttachmentsResponse,
-  MailAttachmentType,
 } from "../../entities/mail/types";
 
 export const useMailAttachments = (params?: MailAttachmentsListParams) => {

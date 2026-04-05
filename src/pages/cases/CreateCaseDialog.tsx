@@ -33,13 +33,19 @@ import {
   Add as AddIcon,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
-import type { CaseStatus, CaseCreateRequest } from "../../entities/case/types";
+import type {
+  CaseStatus,
+  CaseCreateRequest,
+} from "../../entities/case/types";
 import { useClientsSuggest } from "../../shared/hooks/useClientsSuggest";
 import { useExpertsSuggest } from "../../shared/hooks/useExpertsSuggest";
 import { useCreateClient } from "../../shared/hooks/useClients";
-import type { ClientCreateRequest as ClientCreateRequestType } from "../../entities/client/types";
+import type {
+  ClientCreateRequest as ClientCreateRequestType,
+} from "../../entities/client/types";
 import { ClientCreateDialog } from "../clients/ClientCreateDialog";
 import { notificationService } from "../../shared/services/notifications";
+import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
 
 // ===== КОНСТАНТЫ (вынесены за пределы компонента) =====
 const INPUT_HEIGHT = 54;
@@ -122,9 +128,9 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     start_date: formData.start_date,
     deadline: formData.deadline,
     cost: formData.cost.toFixed(2),
-    bank_transfer_amount: formData.bank_transfer_amount.toFixed(2),
-    cash_amount: formData.cash_amount.toFixed(2),
-    remaining_debt: formData.remaining_debt.toFixed(2),
+    bank_transfer_amount: formData.bank_transfer_amount?.toFixed(2),
+    cash_amount: formData.cash_amount?.toFixed(2),
+    remaining_debt: formData.remaining_debt?.toFixed(2),
     plaintiff: formData.plaintiff?.trim() || null,
     defendant: formData.defendant?.trim() || null,
     remarks: formData.remarks?.trim() || null,
@@ -267,7 +273,7 @@ interface FinancialFieldProps {
 }
 
 const FinancialField = memo(
-  ({ field, label, value, onChange }: FinancialFieldProps) => {
+  ({ label, value, onChange }: Omit<FinancialFieldProps, "field">) => {
     const handleChange = useCallback(
       (e: React.ChangeEvent<HTMLInputElement>) => {
         onChange(e.target.value);
@@ -419,9 +425,9 @@ export const CreateCaseDialog = memo(
       setFormData(initial);
       setFinancialValues({
         cost: initial.cost.toString(),
-        bank_transfer_amount: initial.bank_transfer_amount.toString(),
-        cash_amount: initial.cash_amount.toString(),
-        remaining_debt: initial.remaining_debt.toString(),
+        bank_transfer_amount: (initial.bank_transfer_amount ?? 0).toString(),
+        cash_amount: (initial.cash_amount ?? 0).toString(),
+        remaining_debt: (initial.remaining_debt ?? 0).toString(),
       });
       setErrors({});
       setClientInputValue("");
@@ -507,7 +513,7 @@ export const CreateCaseDialog = memo(
     const handleSubmit = useCallback(async () => {
       if (!validateForm()) return;
       const normalizedData = normalizeCasePayload(formData);
-      await onSubmit(normalizedData as CaseCreateRequest);
+      await onSubmit(normalizedData as unknown as CaseCreateRequest);
     }, [formData, validateForm, onSubmit]);
 
     const handleClientInputChange = useCallback(
@@ -698,10 +704,11 @@ export const CreateCaseDialog = memo(
                       fullWidth
                       options={suggestions}
                       getOptionLabel={(option) => option.name || ""}
-                      value={selectedClient}
+                      value={selectedClient ?? undefined}
                       inputValue={clientInputValue}
                       loading={isSuggestLoading}
                       filterOptions={(options) => options}
+                      disableClearable
                       noOptionsText={
                         clientInputValue.trim().length === 0
                           ? "Начните ввод для поиска..."
@@ -716,9 +723,8 @@ export const CreateCaseDialog = memo(
                       isOptionEqualToValue={(option, value) =>
                         option.id === value?.id
                       }
-                      disableClearable
                       renderOption={(props, option) => (
-                        <li {...props} key={option.id} style={{ cursor: "pointer" }}>
+                        <li {...props} style={{ cursor: "pointer" }}>
                           <Box
                             sx={{ display: "flex", flexDirection: "column" }}
                           >
@@ -870,7 +876,7 @@ export const CreateCaseDialog = memo(
                       })
                     }
                     renderOption={(props, option) => (
-                      <li {...props} key={option.id} style={{ cursor: "pointer" }}>
+                      <li {...props} style={{ cursor: "pointer" }}>
                         <Box sx={{ display: "flex", flexDirection: "column" }}>
                           <Typography variant="body2" fontWeight={500}>
                             {option.name}
@@ -1047,47 +1053,20 @@ export const CreateCaseDialog = memo(
                   />
                 </Grid>
                 <Grid size={{ xs: 12 }}>
-                  <TextField
-                    fullWidth
-                    label="Адрес объекта"
-                    required
-                    multiline
-                    minRows={2}
+                  <AddressSuggestInput
                     value={formData.object_address}
-                    onChange={(e) => {
+                    onChange={(value) => {
                       setFormData((prev) => ({
                         ...prev,
-                        object_address: e.target.value,
+                        object_address: value,
                       }));
-                      if (e.target.value.trim()) clearError("object_address");
+                      if (value.trim()) clearError("object_address");
                     }}
+                    label="Адрес объекта"
+                    placeholder="Начните вводить адрес..."
+                    required={!!errors.object_address}
                     error={!!errors.object_address}
                     helperText={errors.object_address}
-                    sx={{
-                      "& .MuiInputBase-root": {
-                        minHeight: INPUT_HEIGHT * 2,
-                        boxSizing: "border-box",
-                        px: 1.5,
-                        width: "100%",
-                      },
-                      "& .MuiOutlinedInput-input": {
-                        py: 0.75,
-                        boxSizing: "border-box",
-                        width: "100%",
-                      },
-                    }}
-                    InputProps={{
-                      startAdornment: (
-                        <InputAdornment
-                          position="start"
-                          sx={{ alignSelf: "flex-start", mt: 0.5 }}
-                        >
-                          <LocationOnIcon
-                            sx={{ color: "text.disabled", fontSize: 20 }}
-                          />
-                        </InputAdornment>
-                      ),
-                    }}
                   />
                 </Grid>
               </Grid>
@@ -1189,13 +1168,11 @@ export const CreateCaseDialog = memo(
               />
               <Grid container spacing={2.5} alignItems="stretch">
                 <FinancialField
-                  field="cost"
                   label="Стоимость"
                   value={financialValues.cost}
                   onChange={(v) => handleFinancialChange("cost", v)}
                 />
                 <FinancialField
-                  field="bank_transfer_amount"
                   label="Безналичные"
                   value={financialValues.bank_transfer_amount}
                   onChange={(v) =>
@@ -1203,13 +1180,11 @@ export const CreateCaseDialog = memo(
                   }
                 />
                 <FinancialField
-                  field="cash_amount"
                   label="Наличные"
                   value={financialValues.cash_amount}
                   onChange={(v) => handleFinancialChange("cash_amount", v)}
                 />
                 <FinancialField
-                  field="remaining_debt"
                   label="Остаток долга"
                   value={financialValues.remaining_debt}
                   onChange={(v) => handleFinancialChange("remaining_debt", v)}

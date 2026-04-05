@@ -12,13 +12,34 @@ import type {
 
 export const casesApi = {
   getCases: (params?: GetCasesQuery) => {
-    // Очищаем пустые параметры
+    console.log('getCases called with params:', params);
+    
+    // Очищаем пустые параметры, но корректно обрабатываем массивы
     const cleanParams = Object.fromEntries(
       Object.entries(params || {}).filter(
-        ([_, value]) => value !== undefined && value !== null && value !== "",
+        ([_key, value]) => 
+          value !== undefined && 
+          value !== null && 
+          value !== "" && 
+          !(Array.isArray(value) && value.length === 0),
       ),
     );
-    return api.get<GetCasesResponse>("/cases", { params: cleanParams });
+    
+    console.log('After cleanup:', cleanParams);
+    
+    // Сериализуем массивы как comma-separated values для бэкенда
+    const serializedParams: Record<string, string | number | boolean> = {};
+    Object.entries(cleanParams).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        serializedParams[key] = value.join(',');
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        serializedParams[key] = value;
+      }
+    });
+    
+    console.log('Serialized params:', serializedParams);
+    
+    return api.get<GetCasesResponse>("/cases", { params: serializedParams });
   },
 
   getCase: (id: string) => api.get<CaseDetailResponse>(`/cases/${id}`),
@@ -61,6 +82,53 @@ export const casesApi = {
     const link = document.createElement("a");
     link.href = url;
     link.download = `case_${caseId}_documents.zip`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  },
+
+  // Экспорт дел в Excel
+  exportCasesToExcel: async (params?: GetCasesQuery): Promise<void> => {
+    // Очищаем пустые параметры
+    const cleanParams = Object.fromEntries(
+      Object.entries(params || {}).filter(
+        ([_key, value]) =>
+          value !== undefined &&
+          value !== null &&
+          value !== "" &&
+          !(Array.isArray(value) && value.length === 0),
+      ),
+    );
+
+    // Сериализуем массивы
+    const serializedParams: Record<string, string | number | boolean> = {};
+    Object.entries(cleanParams).forEach(([key, value]) => {
+      if (Array.isArray(value)) {
+        serializedParams[key] = value.join(',');
+      } else if (typeof value === 'string' || typeof value === 'number' || typeof value === 'boolean') {
+        serializedParams[key] = value;
+      }
+    });
+
+    const response = await api.get("/cases/export/excel", {
+      params: serializedParams,
+      responseType: "blob",
+    });
+
+    const contentDisposition = response.headers["content-disposition"];
+    let filename = "cases_export.xlsx";
+    if (contentDisposition) {
+      const filenameMatch = contentDisposition.match(/filename="?([^"]+)"?/);
+      if (filenameMatch && filenameMatch[1]) {
+        filename = decodeURIComponent(filenameMatch[1]);
+      }
+    }
+
+    const url = window.URL.createObjectURL(new Blob([response.data]));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = filename;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);

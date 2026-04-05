@@ -548,7 +548,7 @@ export function LeiferTablePage() {
             Объект оценки
           </Typography>
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Регион</InputLabel>
                 <Select
@@ -572,7 +572,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Тип жилья</InputLabel>
                 <Select
@@ -596,7 +596,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Материал стен</InputLabel>
                 <Select
@@ -620,7 +620,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Местоположение</InputLabel>
                 <Select
@@ -644,7 +644,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Лоджия/балкон</InputLabel>
                 <Select
@@ -668,7 +668,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Этажность</InputLabel>
                 <Select
@@ -692,7 +692,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Состояние дома</InputLabel>
                 <Select
@@ -716,7 +716,7 @@ export function LeiferTablePage() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6} md={3}>
+            <Grid size={{ xs: 12, sm: 6, md: 3 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Состояние квартиры</InputLabel>
                 <Select
@@ -759,7 +759,7 @@ export function LeiferTablePage() {
                 Аналог №{analogIndex + 1}
               </Typography>
               <Grid container spacing={2}>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Материал стен</InputLabel>
                     <Select
@@ -787,7 +787,7 @@ export function LeiferTablePage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Местоположение</InputLabel>
                     <Select
@@ -815,7 +815,7 @@ export function LeiferTablePage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Лоджия/балкон</InputLabel>
                     <Select
@@ -843,7 +843,7 @@ export function LeiferTablePage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Этажность</InputLabel>
                     <Select
@@ -871,7 +871,7 @@ export function LeiferTablePage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Состояние дома</InputLabel>
                     <Select
@@ -899,7 +899,7 @@ export function LeiferTablePage() {
                     </Select>
                   </FormControl>
                 </Grid>
-                <Grid item xs={12} sm={6} md={2}>
+                <Grid size={{ xs: 12, sm: 6, md: 2 }}>
                   <FormControl fullWidth size="small">
                     <InputLabel>Состояние квартиры</InputLabel>
                     <Select

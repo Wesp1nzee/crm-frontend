@@ -49,8 +49,13 @@ import {
   useDeleteContact,
 } from "../../shared/hooks/useClients";
 import { useState } from "react";
-import type { ContactType } from "../../entities/client/types";
+import type {
+  ClientFull,
+  ClientUpdateRequest,
+  ContactType,
+} from "../../entities/client/types";
 import { notificationService } from "../../shared/services/notifications";
+import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
 
 // ─── label maps ───────────────────────────────────────────────────────────────
 
@@ -436,6 +441,143 @@ function ContactDialog({
   );
 }
 
+// ─── MainInfoFormData ─────────────────────────────────────────────────────────
+
+interface MainInfoFormData {
+  short_name: string;
+  inn: string;
+  email: string;
+  phone: string;
+  legal_address: string;
+  actual_address: string;
+}
+
+// ─── MainInfoEdit ─────────────────────────────────────────────────────────────
+
+function MainInfoEdit({
+  client,
+  onSave,
+  onCancel,
+  isSaving,
+}: {
+  client: ClientFull;
+  onSave: (data: MainInfoFormData) => Promise<void>;
+  onCancel: () => void;
+  isSaving: boolean;
+}) {
+  const [formData, setFormData] = useState<MainInfoFormData>({
+    short_name: client.short_name ?? "",
+    inn: client.inn ?? "",
+    email: client.email ?? "",
+    phone: client.phone ?? "",
+    legal_address: client.legal_address ?? "",
+    actual_address: client.actual_address ?? "",
+  });
+
+  const fieldSx = {
+    "& .MuiOutlinedInput-root": {
+      borderRadius: "10px",
+      fontSize: "14px",
+      "& fieldset": { borderColor: BORDER },
+      "&:hover fieldset": { borderColor: "#CBD5E1" },
+      "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
+    },
+    "& .MuiInputLabel-root.Mui-focused": { color: ACCENT },
+  };
+
+  const handleSubmit = async () => {
+    await onSave(formData);
+  };
+
+  return (
+    <Stack spacing={2}>
+      <TextField
+        fullWidth
+        label="Краткое название"
+        value={formData.short_name}
+        size="small"
+        onChange={(e) => setFormData((p) => ({ ...p, short_name: e.target.value }))}
+        sx={fieldSx}
+      />
+      <TextField
+        fullWidth
+        label="ИНН"
+        value={formData.inn}
+        size="small"
+        onChange={(e) => setFormData((p) => ({ ...p, inn: e.target.value }))}
+        sx={fieldSx}
+      />
+      <TextField
+        fullWidth
+        label="Email"
+        type="email"
+        value={formData.email}
+        size="small"
+        onChange={(e) => setFormData((p) => ({ ...p, email: e.target.value }))}
+        sx={fieldSx}
+      />
+      <TextField
+        fullWidth
+        label="Телефон"
+        value={formData.phone}
+        size="small"
+        onChange={(e) => setFormData((p) => ({ ...p, phone: e.target.value }))}
+        sx={fieldSx}
+      />
+      <AddressSuggestInput
+        value={formData.legal_address}
+        onChange={(value) => setFormData((p) => ({ ...p, legal_address: value }))}
+        label="Юридический адрес"
+        size="small"
+        sx={fieldSx}
+      />
+      <AddressSuggestInput
+        value={formData.actual_address}
+        onChange={(value) => setFormData((p) => ({ ...p, actual_address: value }))}
+        label="Фактический адрес"
+        size="small"
+        sx={fieldSx}
+      />
+
+      <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
+        <Button
+          size="small"
+          onClick={onCancel}
+          disabled={isSaving}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 600,
+            color: TEXT_SECONDARY,
+            border: `1px solid ${BORDER}`,
+            px: 2,
+            "&:hover": { background: SURFACE_2, border: `1px solid #CBD5E1` },
+          }}
+        >
+          Отмена
+        </Button>
+        <Button
+          size="small"
+          variant="contained"
+          onClick={handleSubmit}
+          disabled={isSaving}
+          sx={{
+            borderRadius: "8px",
+            textTransform: "none",
+            fontWeight: 600,
+            background: ACCENT,
+            px: 2,
+            boxShadow: "none",
+            "&:hover": { background: "#1D4ED8", boxShadow: "none" },
+          }}
+        >
+          {isSaving ? "Сохранение..." : "Сохранить"}
+        </Button>
+      </Stack>
+    </Stack>
+  );
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 
 export function ClientDetailPage() {
@@ -471,6 +613,31 @@ export function ClientDetailPage() {
   const handleEditNotes = () => {
     setNotesValue(client?.notes ?? "");
     setNotesEditing(true);
+  };
+
+  const [mainInfoEditing, setMainInfoEditing] = useState(false);
+
+  const handleMainInfoSave = async (data: MainInfoFormData) => {
+    if (!id) return;
+    const updateData: ClientUpdateRequest = {
+      short_name: data.short_name || null,
+      inn: data.inn || null,
+      email: data.email || null,
+      phone: data.phone || null,
+      legal_address: data.legal_address || null,
+      actual_address: data.actual_address || null,
+    };
+    await updateClient.mutateAsync({ id, data: updateData });
+    setMainInfoEditing(false);
+    notificationService.success("Основная информация обновлена");
+  };
+
+  const handleMainInfoCancel = () => {
+    setMainInfoEditing(false);
+  };
+
+  const handleEditMainInfo = () => {
+    setMainInfoEditing(true);
   };
 
   const handleAddContact = () => {
@@ -647,32 +814,65 @@ export function ClientDetailPage() {
             {/* ── Main Info Card ──────────────────── */}
             <Card sx={card} elevation={0}>
               <CardContent sx={{ p: 2.5 }}>
-                <SectionHeader title="Основная информация" />
-                <Stack spacing={2.25}>
-                  <InfoField label="Краткое название" value={client.short_name} />
-                  <InfoField label="ИНН" value={client.inn} />
-                  <InfoField label="Email" value={email} href={email ? `mailto:${email}` : undefined} />
-                  <InfoField label="Телефон" value={client.phone} href={client.phone ? `tel:${client.phone}` : undefined} />
-                  <InfoField label="Юридический адрес" value={client.legal_address} />
-                  <InfoField label="Фактический адрес" value={client.actual_address} />
-                </Stack>
+                <SectionHeader
+                  title="Основная информация"
+                  action={
+                    !mainInfoEditing ? (
+                      <Tooltip title="Редактировать">
+                        <IconButton
+                          size="small"
+                          onClick={handleEditMainInfo}
+                          sx={{
+                            width: 28, height: 28,
+                            border: `1px solid ${BORDER}`,
+                            borderRadius: "8px",
+                            color: TEXT_SECONDARY,
+                            "&:hover": { background: SURFACE_2, borderColor: "#CBD5E1" },
+                          }}
+                        >
+                          <Edit sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
+                    ) : null
+                  }
+                />
 
-                <Box sx={{ mt: 2.5, pt: 2, borderTop: `1px solid ${BORDER}` }}>
-                  <Stack spacing={1}>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <AccessTime sx={{ fontSize: 13, color: TEXT_MUTED }} />
-                      <Typography sx={{ fontSize: "12px", color: TEXT_MUTED }}>
-                        Создан: {new Date(client.created_at).toLocaleString("ru-RU")}
-                      </Typography>
+                {mainInfoEditing ? (
+                  <MainInfoEdit
+                    client={client}
+                    onSave={handleMainInfoSave}
+                    onCancel={handleMainInfoCancel}
+                    isSaving={updateClient.isPending}
+                  />
+                ) : (
+                  <>
+                    <Stack spacing={2.25}>
+                      <InfoField label="Краткое название" value={client.short_name} />
+                      <InfoField label="ИНН" value={client.inn} />
+                      <InfoField label="Email" value={email} href={email ? `mailto:${email}` : undefined} />
+                      <InfoField label="Телефон" value={client.phone} href={client.phone ? `tel:${client.phone}` : undefined} />
+                      <InfoField label="Юридический адрес" value={client.legal_address} />
+                      <InfoField label="Фактический адрес" value={client.actual_address} />
                     </Stack>
-                    <Stack direction="row" alignItems="center" gap={1}>
-                      <AccessTime sx={{ fontSize: 13, color: TEXT_MUTED }} />
-                      <Typography sx={{ fontSize: "12px", color: TEXT_MUTED }}>
-                        Обновлён: {new Date(client.updated_at).toLocaleString("ru-RU")}
-                      </Typography>
-                    </Stack>
-                  </Stack>
-                </Box>
+
+                    <Box sx={{ mt: 2.5, pt: 2, borderTop: `1px solid ${BORDER}` }}>
+                      <Stack spacing={1}>
+                        <Stack direction="row" alignItems="center" gap={1}>
+                          <AccessTime sx={{ fontSize: 13, color: TEXT_MUTED }} />
+                          <Typography sx={{ fontSize: "12px", color: TEXT_MUTED }}>
+                            Создан: {new Date(client.created_at).toLocaleString("ru-RU")}
+                          </Typography>
+                        </Stack>
+                        <Stack direction="row" alignItems="center" gap={1}>
+                          <AccessTime sx={{ fontSize: 13, color: TEXT_MUTED }} />
+                          <Typography sx={{ fontSize: "12px", color: TEXT_MUTED }}>
+                            Обновлён: {new Date(client.updated_at).toLocaleString("ru-RU")}
+                          </Typography>
+                        </Stack>
+                      </Stack>
+                    </Box>
+                  </>
+                )}
               </CardContent>
             </Card>
 

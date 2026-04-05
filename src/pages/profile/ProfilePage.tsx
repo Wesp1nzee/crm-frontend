@@ -81,7 +81,7 @@ export function ProfilePage() {
         <Divider sx={{ mb: 3 }} />
 
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               label="ФИО"
               fullWidth
@@ -111,7 +111,7 @@ export function ProfilePage() {
             />
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <TextField
               label="Телефон"
               fullWidth

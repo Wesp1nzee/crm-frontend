@@ -8,6 +8,7 @@ import type {
   MailSearchQuery,
   MailSendPayload,
   LinkMailToCaseRequest,
+  MailContactAutocompleteResponse,
 } from "../../entities/mail/types";
 
 const mailQueryKeys = {
@@ -192,4 +193,12 @@ export const useCaseMessages = (caseId: string, params?: { page?: number; page_s
     queryKey: ["mail", "cases", caseId, params],
     queryFn: () => mailApi.getCaseMessages(caseId, params).then((res) => res.data),
     enabled: Boolean(caseId),
+  });
+
+export const useMailContactsAutocomplete = (query: string, enabled = true) =>
+  useQuery<MailContactAutocompleteResponse>({
+    queryKey: ["mail", "contacts", "autocomplete", query],
+    queryFn: () => mailApi.getContactsAutocomplete(query).then((res) => res.data),
+    enabled: enabled && query.length > 0,
+    staleTime: 30_000,
   });

@@ -27,9 +27,9 @@ export const usersApi = {
     if (params?.role) {
       queryParams.append("role", params.role.toString().toLowerCase());
     }
-    if (params?.is_active !== undefined)
+    if (params?.is_active !== undefined && params.is_active !== null)
       queryParams.append("is_active", params.is_active.toString());
-    if (params?.can_authenticate !== undefined)
+    if (params?.can_authenticate !== undefined && params.can_authenticate !== null)
       queryParams.append(
         "can_authenticate",
         params.can_authenticate.toString(),

@@ -12,8 +12,9 @@ export const usePermissions = () => {
     if (!user) return false;
 
     const userPermissions = ROLE_PERMISSIONS[user.role as UserRole];
+    const permissions = userPermissions as readonly string[];
     return (
-      userPermissions.includes("all") || userPermissions.includes(permission)
+      permissions.includes("all") || permissions.includes(permission)
     );
   };
 

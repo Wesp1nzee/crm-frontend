@@ -2,8 +2,6 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  TextField,
-  Badge,
   IconButton,
   Box,
   Menu,
@@ -12,19 +10,13 @@ import {
   ListItemText,
   Divider,
   Avatar,
-  Chip,
 } from "@mui/material";
 import {
-  Search,
-  Notifications,
   AccountCircle,
   Menu as MenuIcon,
   Settings,
   ExitToApp,
   Person,
-  CheckCircle,
-  Warning,
-  Info,
 } from "@mui/icons-material";
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
@@ -35,63 +27,14 @@ interface TopbarProps {
   onMenuClick: () => void;
 }
 
-interface Notification {
-  id: string;
-  type: "info" | "warning" | "success";
-  title: string;
-  message: string;
-  time: string;
-  read: boolean;
-}
-
-const mockNotifications: Notification[] = [
-  {
-    id: "1",
-    type: "warning",
-    title: "Просроченный срок",
-    message: "Дело ЭКС-2024-001 просрочено на 2 дня",
-    time: "2024-01-28T10:30:00Z",
-    read: false,
-  },
-  {
-    id: "2",
-    type: "success",
-    title: "Дело завершено",
-    message: "Эксперт Петров П.П. завершил дело ЭКС-2024-003",
-    time: "2024-01-28T09:15:00Z",
-    read: false,
-  },
-  {
-    id: "3",
-    type: "info",
-    title: "Новый клиент",
-    message: 'Зарегистрирован новый клиент ООО "Строй Плюс"',
-    time: "2024-01-27T16:45:00Z",
-    read: true,
-  },
-];
-
 export function Topbar({ onMenuClick }: TopbarProps) {
   const navigate = useNavigate();
   const { data: user } = useAuth();
   const logout = useLogout();
-  const [notificationAnchor, setNotificationAnchor] =
-    useState<null | HTMLElement>(null);
   const [profileAnchor, setProfileAnchor] = useState<null | HTMLElement>(null);
-  const [notifications, setNotifications] = useState(mockNotifications);
-
-  const unreadCount = notifications.filter((n) => !n.read).length;
-
-  const handleNotificationClick = (event: React.MouseEvent<HTMLElement>) => {
-    setNotificationAnchor(event.currentTarget);
-  };
 
   const handleProfileClick = (event: React.MouseEvent<HTMLElement>) => {
     setProfileAnchor(event.currentTarget);
-  };
-
-  const handleNotificationClose = () => {
-    setNotificationAnchor(null);
   };
 
   const handleProfileClose = () => {
@@ -100,27 +43,6 @@ export function Topbar({ onMenuClick }: TopbarProps) {
 
   const handleLogout = () => {
     logout.mutateAsync();
-  };
-
-  const markAsRead = (id: string) => {
-    setNotifications((prev) =>
-      prev.map((n) => (n.id === id ? { ...n, read: true } : n)),
-    );
-  };
-
-  const markAllAsRead = () => {
-    setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
-  };
-
-  const getNotificationIcon = (type: Notification["type"]) => {
-    switch (type) {
-      case "warning":
-        return <Warning color="warning" />;
-      case "success":
-        return <CheckCircle color="success" />;
-      case "info":
-        return <Info color="info" />;
-    }
   };
 
   return (

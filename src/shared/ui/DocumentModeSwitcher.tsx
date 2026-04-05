@@ -1,5 +1,5 @@
 import { motion } from "framer-motion";
-import { Box, Typography, Stack } from "@mui/material";
+import { Box, Typography } from "@mui/material";
 import FolderOutlined from "@mui/icons-material/FolderOutlined";
 import MailOutlined from "@mui/icons-material/MailOutlined";
 

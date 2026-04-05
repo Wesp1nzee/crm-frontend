@@ -77,6 +77,7 @@ export interface DocumentsListParams {
   folder_id?: string | null;
   case_id?: string | null;
   search?: string;
+  scope?: "my" | "all";
   sort_by?: string;
   order?: "asc" | "desc";
   page?: number;

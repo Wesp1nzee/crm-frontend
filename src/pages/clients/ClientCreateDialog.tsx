@@ -31,8 +31,20 @@ import {
   LocationOn,
 } from "@mui/icons-material";
 import { useState } from "react";
-import type { ClientType, ClientCreateRequest } from "../../entities/client/types";
+import type {
+  ClientType,
+  ClientCreateRequest,
+} from "../../entities/client/types";
 import { useManualDadataLookup } from "../../shared/hooks/useDadataLookup";
+import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
+import CourtSuggestInput from "../../shared/ui/CourtSuggestInput";
+import PartySuggestInput from "../../shared/ui/PartySuggestInput";
+import CourtDetailPanel from "../../shared/ui/CourtDetailPanel";
+import PartyDetailPanel from "../../shared/ui/PartyDetailPanel";
+import type {
+  CourtSuggestion,
+  PartySuggestion,
+} from "../../entities/dadata/types";
 
 interface ClientFormData {
   name: string;
@@ -93,6 +105,12 @@ export function ClientCreateDialog({
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
+  // Court selection state
+  const [selectedCourt, setSelectedCourt] = useState<CourtSuggestion | null>(null);
+
+  // Party selection state
+  const [selectedParty, setSelectedParty] = useState<PartySuggestion | null>(null);
+
   const {
     lookup,
     data: companyData,
@@ -128,6 +146,7 @@ export function ClientCreateDialog({
       short_name: companyData.short_name || prev.short_name,
       inn: companyData.inn || prev.inn,
       legal_address: companyData.address || prev.legal_address,
+      actual_address: companyData.address || prev.actual_address,
     }));
   };
 
@@ -145,21 +164,80 @@ export function ClientCreateDialog({
       });
       reset();
     }
+    // Reset court/party selection when type changes
+    setSelectedCourt(null);
+    setSelectedParty(null);
   };
 
   const handleDialogClose = (_event: unknown, reason: string) => {
-    // Закрываем только если клик на backdrop (reason = "backdropClick")
-    // или Escape (reason = "escapeKeyDown") - данные сохраняем
     if (reason === "backdropClick" || reason === "escapeKeyDown") {
       onClose();
     }
-    // Если клик на крестик - не закрываем (он обрабатывается отдельно)
   };
 
   const handleCancelButtonClick = () => {
-    // Сбрасываем данные DaData при отмене
     reset();
+    setSelectedCourt(null);
+    setSelectedParty(null);
     onClose();
+  };
+
+  const handleCourtSelect = (value: string, suggestion?: CourtSuggestion) => {
+    if (suggestion) {
+      setSelectedCourt(suggestion);
+      setFormData((prev) => ({
+        ...prev,
+        name: value,
+        short_name: suggestion.name,
+        legal_address: suggestion.address,
+      }));
+    } else {
+      setSelectedCourt(null);
+      setFormData((prev) => ({
+        ...prev,
+        name: value,
+      }));
+    }
+  };
+
+  const handlePartySelect = (value: string, suggestion?: PartySuggestion) => {
+    if (suggestion) {
+      setSelectedParty(suggestion);
+      setFormData((prev) => ({
+        ...prev,
+        name: value,
+        short_name: suggestion.name_short,
+        inn: suggestion.inn,
+        legal_address: suggestion.address_unrestricted_value || suggestion.address_value,
+        actual_address: suggestion.address_unrestricted_value || suggestion.address_value,
+      }));
+    } else {
+      setSelectedParty(null);
+      setFormData((prev) => ({
+        ...prev,
+        name: value,
+      }));
+    }
+  };
+
+  const fillFormDataWithCourt = (court: CourtSuggestion) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: court.name,
+      short_name: court.name,
+      legal_address: court.address,
+    }));
+  };
+
+  const fillFormDataWithParty = (party: PartySuggestion) => {
+    setFormData((prev) => ({
+      ...prev,
+      name: party.name_full_with_opf,
+      short_name: party.name_short,
+      inn: party.inn,
+      legal_address: party.address_unrestricted_value || party.address_value,
+      actual_address: party.address_unrestricted_value || party.address_value,
+    }));
   };
 
   const handleChange = (field: keyof ClientFormData, value: string) => {
@@ -187,7 +265,6 @@ export function ClientCreateDialog({
     if (!formData.name.trim()) {
       newErrors.name = "Обязательное поле";
     }
-    // Проверяем ИНН только для юридических лиц
     if (
       formData.type === "legal" &&
       (!formData.inn || !/^\d{10,12}$/.test(formData.inn))
@@ -236,7 +313,7 @@ export function ClientCreateDialog({
     <Dialog
       open={open}
       onClose={handleDialogClose}
-      maxWidth={companyData && !lookupError ? "lg" : "md"}
+      maxWidth={companyData && !lookupError ? "lg" : (selectedCourt || selectedParty) ? "lg" : "md"}
       fullWidth
       scroll="paper"
       TransitionComponent={Slide}
@@ -292,26 +369,8 @@ export function ClientCreateDialog({
               <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                 Основная информация
               </Typography>
-              <TextField
-                fullWidth
-                label="Полное название *"
-                value={formData.name}
-                onChange={(e) => handleChange("name", e.target.value)}
-                error={!!errors.name}
-                helperText={errors.name}
-                autoFocus
-                size="small"
-                inputProps={{ style: { fontSize: "14px" } }}
-              />
-              <TextField
-                fullWidth
-                label="Краткое название"
-                value={formData.short_name}
-                onChange={(e) => handleChange("short_name", e.target.value)}
-                size="small"
-                sx={{ mt: 2 }}
-                inputProps={{ style: { fontSize: "14px" } }}
-              />
+
+              {/* Client type selector — first */}
               <FormControl fullWidth size="small" sx={{ mt: 2 }}>
                 <InputLabel id="client-type-label">Тип клиента *</InputLabel>
                 <Select
@@ -359,6 +418,91 @@ export function ClientCreateDialog({
                   </MenuItem>
                 </Select>
               </FormControl>
+
+              {/* Legal type — PartySuggestInput (single field with debounce + suggestions) */}
+              {formData.type === "legal" && (
+                <>
+                  <Box sx={{ mt: 2 }}>
+                    <PartySuggestInput
+                      value={formData.name}
+                      onChange={handlePartySelect}
+                      label="Название организации *"
+                      placeholder="Начните вводить название или ИНН..."
+                      fullWidth
+                      size="small"
+                      required
+                      partyType="LEGAL"
+                      status={["ACTIVE"]}
+                      error={!!errors.name}
+                      helperText={errors.name}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Краткое название"
+                    value={formData.short_name}
+                    onChange={(e) => handleChange("short_name", e.target.value)}
+                    size="small"
+                    sx={{ mt: 2 }}
+                    inputProps={{ style: { fontSize: "14px" } }}
+                  />
+                </>
+              )}
+
+              {/* Court type — CourtSuggestInput (single field with debounce + suggestions) */}
+              {formData.type === "court" && (
+                <>
+                  <Box sx={{ mt: 2 }}>
+                    <CourtSuggestInput
+                      value={formData.name}
+                      onChange={handleCourtSelect}
+                      label="Название суда *"
+                      placeholder="Начните вводить название суда..."
+                      fullWidth
+                      size="small"
+                      required
+                      error={!!errors.name}
+                      helperText={errors.name}
+                    />
+                  </Box>
+                  <TextField
+                    fullWidth
+                    label="Краткое название суда"
+                    value={formData.short_name}
+                    onChange={(e) => handleChange("short_name", e.target.value)}
+                    size="small"
+                    sx={{ mt: 2 }}
+                    inputProps={{ style: { fontSize: "14px" } }}
+                  />
+                </>
+              )}
+
+              {/* Individual type — regular TextField */}
+              {formData.type === "individual" && (
+                <>
+                  <TextField
+                    fullWidth
+                    label="ФИО *"
+                    value={formData.name}
+                    onChange={(e) => handleChange("name", e.target.value)}
+                    error={!!errors.name}
+                    helperText={errors.name}
+                    autoFocus
+                    size="small"
+                    sx={{ mt: 2 }}
+                    inputProps={{ style: { fontSize: "14px" } }}
+                  />
+                  <TextField
+                    fullWidth
+                    label="Краткое имя"
+                    value={formData.short_name}
+                    onChange={(e) => handleChange("short_name", e.target.value)}
+                    size="small"
+                    sx={{ mt: 2 }}
+                    inputProps={{ style: { fontSize: "14px" } }}
+                  />
+                </>
+              )}
             </Box>
 
             {/* Контакты */}
@@ -471,35 +615,106 @@ export function ClientCreateDialog({
               </Box>
             )}
 
-            {/* Адреса */}
+            {/* Адреса / Суд / Организация */}
             <Box mb={3}>
-              <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                Адреса
-              </Typography>
-              <TextField
-                fullWidth
-                label="Юридический адрес"
-                multiline
-                rows={2}
-                value={formData.legal_address}
-                onChange={(e) => handleChange("legal_address", e.target.value)}
-                size="small"
-                placeholder="Улица, дом, город"
-                sx={{ mt: 2 }}
-                inputProps={{ style: { fontSize: "14px" } }}
-              />
-              <TextField
-                fullWidth
-                label="Фактический адрес"
-                multiline
-                rows={2}
-                value={formData.actual_address}
-                onChange={(e) => handleChange("actual_address", e.target.value)}
-                size="small"
-                placeholder="Если отличается от юридического"
-                sx={{ mt: 2 }}
-                inputProps={{ style: { fontSize: "14px" } }}
-              />
+              {/* Court type — court suggest input */}
+              {formData.type === "court" && (
+                <>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Адрес
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <AddressSuggestInput
+                      value={formData.legal_address}
+                      onChange={(value, suggestion) => {
+                        handleChange("legal_address", value);
+                        if (suggestion) {
+                          console.log("[ClientCreateDialog] Адрес суда выбран:", suggestion.data);
+                        }
+                      }}
+                      label="Адрес суда"
+                      placeholder="Улица, дом, город"
+                      fullWidth
+                      size="small"
+                    />
+                  </Box>
+                </>
+              )}
+
+              {/* Legal type — address fields */}
+              {formData.type === "legal" && (
+                <>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Адреса
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <AddressSuggestInput
+                      value={formData.legal_address}
+                      onChange={(value, suggestion) => {
+                        handleChange("legal_address", value);
+                        if (suggestion) {
+                          console.log("[ClientCreateDialog] Юридический адрес выбран:", suggestion.data);
+                        }
+                      }}
+                      label="Юридический адрес"
+                      placeholder="Улица, дом, город"
+                      fullWidth
+                      size="small"
+                    />
+                  </Box>
+                  <Box sx={{ mt: 3 }}>
+                    <AddressSuggestInput
+                      value={formData.actual_address}
+                      onChange={(value, suggestion) => {
+                        handleChange("actual_address", value);
+                        if (suggestion) {
+                          console.log("[ClientCreateDialog] Фактический адрес выбран:", suggestion.data);
+                        }
+                      }}
+                      label="Фактический адрес"
+                      placeholder="Если отличается от юридического"
+                      fullWidth
+                      size="small"
+                    />
+                  </Box>
+                </>
+              )}
+
+              {/* Individual type — address only */}
+              {formData.type === "individual" && (
+                <>
+                  <Typography
+                    variant="subtitle2"
+                    color="text.secondary"
+                    gutterBottom
+                  >
+                    Адреса
+                  </Typography>
+                  <Box sx={{ mt: 2 }}>
+                    <AddressSuggestInput
+                      value={formData.legal_address}
+                      onChange={(value, suggestion) => {
+                        handleChange("legal_address", value);
+                        if (suggestion) {
+                          console.log("[ClientCreateDialog] Адрес выбран:", suggestion.data);
+                        }
+                      }}
+                      label="Адрес"
+                      placeholder="Улица, дом, город"
+                      fullWidth
+                      size="small"
+                    />
+                  </Box>
+                </>
+              )}
             </Box>
 
             {/* Примечания */}
@@ -797,6 +1012,30 @@ export function ClientCreateDialog({
                     Заполнить форму данными
                   </Button>
                 </Box>
+              </Box>
+            </Grow>
+          )}
+
+          {/* Right Panel - Court Data */}
+          {selectedCourt && formData.type === "court" && (
+            <Grow in timeout={300}>
+              <Box>
+                <CourtDetailPanel
+                  court={selectedCourt}
+                  onFillForm={fillFormDataWithCourt}
+                />
+              </Box>
+            </Grow>
+          )}
+
+          {/* Right Panel - Party Data */}
+          {selectedParty && formData.type === "legal" && (
+            <Grow in timeout={300}>
+              <Box>
+                <PartyDetailPanel
+                  party={selectedParty}
+                  onFillForm={fillFormDataWithParty}
+                />
               </Box>
             </Grow>
           )}

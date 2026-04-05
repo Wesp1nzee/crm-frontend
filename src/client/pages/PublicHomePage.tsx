@@ -431,7 +431,7 @@ export function PublicHomePage() {
         <link rel="canonical" href="https://ooo-ekspertiza.ru/" />
         <link
           rel="alternate"
-          hreflang="ru-RU"
+          hrefLang="ru-RU"
           href="https://ooo-ekspertiza.ru/"
         />
         <link rel="icon" type="image/x-icon" href="/static/image/favicon.ico" />

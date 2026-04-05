@@ -67,6 +67,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { notificationService } from "../../shared/services/notifications";
 import { usePermissions } from "../../shared/hooks/usePermissions";
 import { useExpertsSuggest } from "../../shared/hooks/useExpertsSuggest";
+import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
 
 // ─── design tokens (shared with ClientDetailPage) ─────────────────────────────
 
@@ -240,11 +241,13 @@ interface EditableFieldProps {
   editingField: string | null; editValues: Record<string, string>;
   onEdit: (f: string, v: string) => void; onSave: (f: string) => void; onCancel: () => void;
   multiline?: boolean; type?: string; required?: boolean; canEdit?: boolean;
+  isAddress?: boolean;
 }
 
 function EditableField({
   field, value, displayValue, label, editingField, editValues,
   onEdit, onSave, onCancel, multiline, type = "text", required = false, canEdit = true,
+  isAddress = false,
 }: EditableFieldProps) {
   const isEditing = canEdit && editingField === field;
   const currentValue = isEditing ? (editValues[field] ?? value) : value;
@@ -259,18 +262,36 @@ function EditableField({
           p: 1.5, borderRadius: "10px",
           background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
         }}>
-          <TextField
-            size="small" value={currentValue} autoFocus fullWidth
-            onChange={(e) => onEdit(field, e.target.value)}
-            multiline={multiline} rows={multiline ? 3 : 1} type={type}
-            sx={{
+          {isAddress ? (
+            <Box sx={{
+              flex: 1,
               "& .MuiOutlinedInput-root": {
                 borderRadius: "8px", fontSize: "14px", background: SURFACE,
                 "& fieldset": { borderColor: BORDER },
                 "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
               },
-            }}
-          />
+            }}>
+              <AddressSuggestInput
+                value={currentValue}
+                onChange={(newValue) => onEdit(field, newValue)}
+                label={label}
+                size="small"
+              />
+            </Box>
+          ) : (
+            <TextField
+              size="small" value={currentValue} autoFocus fullWidth
+              onChange={(e) => onEdit(field, e.target.value)}
+              multiline={multiline} rows={multiline ? 3 : 1} type={type}
+              sx={{
+                "& .MuiOutlinedInput-root": {
+                  borderRadius: "8px", fontSize: "14px", background: SURFACE,
+                  "& fieldset": { borderColor: BORDER },
+                  "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
+                },
+              }}
+            />
+          )}
           <Tooltip title="Сохранить">
             <IconButton size="small" onClick={() => onSave(field)} sx={{
               width: 30, height: 30, borderRadius: "8px",
@@ -338,41 +359,6 @@ function StatusBadge({ status, overdue }: { status: CaseStatus; overdue?: boolea
       <Typography sx={{ fontSize: "12px", fontWeight: 700, color: colors.text }}>
         {overdue ? "Просрочено" : statusLabels[status]}
       </Typography>
-    </Box>
-  );
-}
-
-// ─── AmountRow ────────────────────────────────────────────────────────────────
-
-function AmountRow({ label, value, accent, onEdit, canEdit }: {
-  label: string; value: string | number; accent?: string;
-  onEdit?: () => void; canEdit?: boolean;
-}) {
-  return (
-    <Box
-      onClick={canEdit && onEdit ? onEdit : undefined}
-      sx={{
-        display: "flex", justifyContent: "space-between", alignItems: "center",
-        px: 1.75, py: 1.25, borderRadius: "10px",
-        background: SURFACE_2, border: `1px solid ${BORDER}`,
-        cursor: canEdit && onEdit ? "pointer" : "default",
-        transition: "all 0.15s",
-        ...(canEdit && onEdit ? {
-          "&:hover": {
-            background: ACCENT_SOFT, borderColor: ACCENT_MID,
-            boxShadow: `0 0 0 3px ${alpha(ACCENT, 0.06)}`,
-          },
-        } : {}),
-      }}
-    >
-      <Typography sx={{ fontSize: "12px", color: TEXT_SECONDARY, fontWeight: 500 }}>{label}</Typography>
-      <Stack direction="row" alignItems="center" gap={0.75}>
-        <Typography sx={{ fontSize: "14px", fontWeight: 700, color: accent ?? TEXT_PRIMARY,
-          fontFamily: '"JetBrains Mono", monospace' }}>
-          {Number(value).toLocaleString("ru-RU")} ₽
-        </Typography>
-        {canEdit && onEdit && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
-      </Stack>
     </Box>
   );
 }
@@ -832,7 +818,8 @@ export function CaseDetailPage() {
                   <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
                     <EditableField canEdit={canEditCase} field="object_address" value={case_.object_address}
                       label="Адрес объекта" editingField={editingField} editValues={editValues}
-                      onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
+                      onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel}
+                      isAddress />
                   </Box>
                   {case_.plaintiff && (
                     <EditableField canEdit={canEditCase} field="plaintiff" value={case_.plaintiff}
@@ -844,13 +831,11 @@ export function CaseDetailPage() {
                       label="Ответчик" editingField={editingField} editValues={editValues}
                       onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
                   )}
-                  {case_.remarks && (
-                    <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
-                      <EditableField canEdit={canEditCase} field="remarks" value={case_.remarks}
-                        label="Примечания" editingField={editingField} editValues={editValues}
-                        onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} multiline />
-                    </Box>
-                  )}
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <EditableField canEdit={canEditCase} field="remarks" value={case_.remarks || ""}
+                      label="Примечание" editingField={editingField} editValues={editValues}
+                      onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} multiline />
+                  </Box>
                 </Box>
               </CardContent>
             </Card>

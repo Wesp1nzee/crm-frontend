@@ -148,8 +148,9 @@ interface MailViewerProps {
 }
 
 export function MailViewer({ thread }: MailViewerProps) {
+  const mails = (thread as any).mails ?? (thread as any).messages ?? [];
   const [expandedMails, setExpandedMails] = useState<Set<string>>(
-    new Set([thread.mails[thread.mails.length - 1]?.id]),
+    new Set([mails[mails.length - 1]?.id]),
   );
 
   const toggleMailExpansion = (mailId: string) => {
@@ -281,7 +282,7 @@ export function MailViewer({ thread }: MailViewerProps) {
             {thread.subject}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {thread.mails.length} сообщений в переписке
+            {mails.length} сообщений в переписке
           </Typography>
         </Box>
         <Box>
@@ -296,8 +297,8 @@ export function MailViewer({ thread }: MailViewerProps) {
 
       <Divider sx={{ mb: 3 }} />
 
-      {thread.mails.map((mail, index) =>
-        renderMail(mail, index === thread.mails.length - 1),
+      {mails.map((mail: any, index: number) =>
+        renderMail(mail, index === mails.length - 1),
       )}
     </Box>
   );

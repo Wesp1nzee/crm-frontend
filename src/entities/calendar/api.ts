@@ -1,4 +1,3 @@
-import { api } from "../../shared/api/axios";
 import dayjs from "dayjs";
 import type { CalendarEvent } from "./types";
 
@@ -102,7 +101,7 @@ const mockCalendarEvents: CalendarEvent[] = [
 ];
 
 export const calendarApi = {
-  getEvents: (startDate?: string, endDate?: string) =>
+  getEvents: (_startDate?: string, _endDate?: string) =>
     Promise.resolve({ data: mockCalendarEvents }),
   createEvent: (data: Omit<CalendarEvent, "id">) =>
     Promise.resolve({ data: { ...data, id: Date.now().toString() } }),

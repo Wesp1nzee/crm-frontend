@@ -271,6 +271,14 @@ export interface OversizedMailPreviewUrl {
   expires_in: number;
 }
 
+export interface OversizedDownloadUrlItem {
+  file_id: string;
+  filename: string;
+  url: string;
+  content_type: string;
+  file_size: number;
+}
+
 export interface MailAttachmentType {
   id: string;
   filename: string;
@@ -327,6 +335,17 @@ export interface PaginatedMailMessagesForCase {
   page: number;
   page_size: number;
   has_next: boolean;
+}
+
+export interface MailContactAutocompleteItem {
+  email: string;
+  name: string | null;
+  usage_count: number;
+}
+
+export interface MailContactAutocompleteResponse {
+  items: MailContactAutocompleteItem[];
+  total: number;
 }
 
 // Legacy UI types used by mock mail screens (to be removed after full UI migration).

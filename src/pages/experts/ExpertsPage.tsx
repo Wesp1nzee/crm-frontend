@@ -59,7 +59,7 @@ export function ExpertsPage() {
   const [filters, setFilters] = useState({
     search: "",
     status: "all" as "all" | "active" | "inactive",
-    role: "all" as "all" | UserRole.EXPERT | UserRole.ACCOUNTANT,
+    role: "all" as "all" | typeof UserRole.EXPERT | typeof UserRole.ACCOUNTANT,
     page: 1,
     limit: 20,
   });
@@ -123,14 +123,6 @@ export function ExpertsPage() {
     }
   };
 
-  const handleRoleChange = (e: React.ChangeEvent<{ value: unknown }>) => {
-    setFilters({
-      ...filters,
-      role: e.target.value as "all" | UserRole.EXPERT | UserRole.ACCOUNTANT,
-      page: 1,
-    });
-  };
-
   const handleClearFilters = () => {
     setFilters((prev) => ({
       ...prev,
@@ -149,7 +141,7 @@ export function ExpertsPage() {
         email: expert.email,
         phone: expert.phone || "",
         specialization: expert.specialization?.[0] || "",
-        role: expert.role,
+        role: expert.role as typeof UserRole.EXPERT,
         status: expert.status,
         password: "",
       });
@@ -342,7 +334,13 @@ export function ExpertsPage() {
               <Select
                 value={filters.role}
                 label="Роль"
-                onChange={handleRoleChange}
+                onChange={(e) =>
+                  setFilters({
+                    ...filters,
+                    role: e.target.value as typeof filters.role,
+                    page: 1,
+                  })
+                }
               >
                 <MenuItem value="all">Все</MenuItem>
                 <MenuItem value={UserRole.EXPERT}>Эксперт</MenuItem>
@@ -604,7 +602,7 @@ export function ExpertsPage() {
                 value={formData.role}
                 label="Роль"
                 onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value as UserRole })
+                  setFormData({ ...formData, role: e.target.value as typeof UserRole.EXPERT })
                 }
               >
                 <MenuItem value={UserRole.EXPERT}>Эксперт</MenuItem>

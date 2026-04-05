@@ -387,12 +387,6 @@ export function MailPage() {
     navigate(`/crm/mail/${folder}`);
   };
 
-  const selectThread = (thread: MailThreadListItem) => {
-    const threadId = thread.thread_id ?? thread.id;
-    if (!threadId) return;
-    navigate(`/crm/mail/${selectedFolder}/${threadId}`);
-  };
-
   const openMessageById = async (messageId: string, fallbackThreadId?: string) => {
     const response = await mailApi.getMessage(messageId);
     const resolvedThreadId = response.data.thread_id ?? fallbackThreadId;
@@ -791,7 +785,7 @@ export function MailPage() {
               }}
               fullWidth
               size="small"
-              placeholder="Поиск тредов..."
+              placeholder="Поиск сообщений..."
               startAdornment={
                 <InputAdornment position="start">
                   <Search fontSize="small" sx={{ color: "#4B5A7A" }} />
@@ -810,7 +804,7 @@ export function MailPage() {
 
             {(isLoading || isFetching) && <Typography>Загрузка...</Typography>}
             {!isLoading && !isFetching && threads.length === 0 && (
-              <Typography color="text.secondary">Нет тредов в этой папке.</Typography>
+              <Typography color="text.secondary">Нет сообщений в этой папке.</Typography>
             )}
 
             <List sx={{ display: "flex", flexDirection: "column", gap: 0.75, p: 0 }}>
@@ -943,7 +937,7 @@ export function MailPage() {
                             <IconButton
                               size="small"
                               onClick={(event) => openActionsFromButton(event, thread)}
-                              disabled={updatingThreadIds.includes(threadId)}
+                              disabled={updatingThreadIds.includes(threadId!)}
                             >
                               <MoreVert fontSize="small" />
                             </IconButton>
@@ -964,8 +958,8 @@ export function MailPage() {
                                 backgroundColor: alpha("#F8FAFF", 0.9),
                               }}
                             >
-                              {loadingThreadIds.includes(threadId) ? (
-                                <Typography variant="body2" color="text.secondary">Загрузка сообщений треда...</Typography>
+                              {loadingThreadIds.includes(threadId!) ? (
+                                <Typography variant="body2" color="text.secondary">Загрузка сообщений...</Typography>
                               ) : (
                                 <Stack spacing={0.8}>
                                   {(threadMessagesById[threadId] ?? [])
@@ -1319,18 +1313,21 @@ export function MailPage() {
                   }}
                 />
               )}
-              renderOption={(props, option) => (
-                <Box component="li" {...props}>
-                  <Box sx={{ width: "100%" }}>
-                    <Typography variant="body2" fontWeight="bold">
-                      {option.number}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {option.case_number}
-                    </Typography>
+              renderOption={(props, option) => {
+                const { key, ...restProps } = props;
+                return (
+                  <Box component="li" key={key} {...restProps}>
+                    <Box sx={{ width: "100%" }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        {option.number}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {option.case_number}
+                      </Typography>
+                    </Box>
                   </Box>
-                </Box>
-              )}
+                );
+              }}
               noOptionsText={
                 caseSearchQuery.length > 0
                   ? "Дела не найдены"
