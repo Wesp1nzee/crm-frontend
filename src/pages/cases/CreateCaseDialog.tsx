@@ -521,12 +521,22 @@ export const CreateCaseDialog = memo(
         setClientInputValue(newInputValue);
         if (reason === "clear") {
           clearSuggestions();
-        } else if (reason === "input" && newInputValue.trim().length >= 2) {
+          // Fetch all suggestions when cleared and focused
+          fetchSuggestions("");
+        } else if (reason === "input") {
+          // Fetch suggestions for any input, including empty
           fetchSuggestions(newInputValue);
         }
       },
       [fetchSuggestions, clearSuggestions],
     );
+
+    const handleClientFocus = useCallback(() => {
+      // Fetch suggestions when the field receives focus
+      if (!selectedClient) {
+        fetchSuggestions("");
+      }
+    }, [fetchSuggestions, selectedClient]);
 
     const handleClientChange = useCallback(
       (_e: any, value: any, reason: string) => {
@@ -710,13 +720,11 @@ export const CreateCaseDialog = memo(
                       filterOptions={(options) => options}
                       disableClearable
                       noOptionsText={
-                        clientInputValue.trim().length === 0
-                          ? "Начните ввод для поиска..."
-                          : isSuggestLoading
-                            ? "Поиск..."
-                            : clientCreatedFromDialog && selectedClient
-                              ? `Выбран: ${selectedClient.name}`
-                              : "Клиенты не найдены"
+                        isSuggestLoading
+                          ? "Поиск..."
+                          : clientCreatedFromDialog && selectedClient
+                            ? `Выбран: ${selectedClient.name}`
+                            : "Клиенты не найдены"
                       }
                       onInputChange={handleClientInputChange}
                       onChange={handleClientChange}
@@ -750,6 +758,7 @@ export const CreateCaseDialog = memo(
                           error={!!errors.client_id}
                           helperText={errors.client_id}
                           sx={singleLineInputSx}
+                          onFocus={handleClientFocus}
                           InputProps={{
                             ...params.InputProps,
                             endAdornment: (
