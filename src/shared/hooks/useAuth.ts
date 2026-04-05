@@ -41,7 +41,7 @@ async function loginUser(credentials: { email: string; password: string }) {
   console.log("Login response status:", response.status);
 
   if (!response.ok) {
-    let errorData = {};
+    let errorData: { detail?: string } = {};
     try {
       errorData = await response.json();
     } catch (e) {

@@ -21,6 +21,35 @@ export interface Contact extends ContactBase {
   updated_at: string;
 }
 
+export interface ContactCreate extends Omit<ContactBase, "is_main"> {
+  client_id?: string;
+  is_main?: boolean;
+}
+
+export interface ContactUpdate {
+  name?: string | null;
+  position?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  is_main?: boolean | null;
+  contact_type?: ContactType | null;
+}
+
+// ===== ПИСЬМА =====
+export interface ClientEmail {
+  id: string;
+  thread_id: string;
+  subject: string | null;
+  sender_email: string;
+  sender_name: string | null;
+  message_type: "incoming" | "outgoing";
+  folder: "inbox" | "sent" | "drafts" | "spam" | "trash";
+  is_read: boolean;
+  sent_at: string | null;
+  case_id: string | null;
+  case_number: string | null;
+}
+
 // ===== КЛИЕНТЫ =====
 export interface ClientBase {
   name: string;
@@ -31,6 +60,7 @@ export interface ClientBase {
   phone?: string;
   legal_address?: string;
   actual_address?: string;
+  notes?: string;
 }
 
 export interface ClientShort extends ClientBase {
@@ -43,6 +73,7 @@ export interface ClientShort extends ClientBase {
 export interface ClientFull extends ClientShort {
   updated_at: string;
   contacts: Contact[];
+  recent_emails: ClientEmail[];
 }
 
 // ===== ФИЛЬТРЫ И ПАГИНАЦИЯ =====
@@ -74,11 +105,12 @@ export interface ClientCreateRequest extends ClientBase {
 
 export interface ClientUpdateRequest {
   name?: string;
-  short_name?: string;
+  short_name?: string | null;
   type?: ClientType;
-  inn?: string;
-  email?: string;
-  phone?: string;
-  legal_address?: string;
-  actual_address?: string;
+  inn?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  legal_address?: string | null;
+  actual_address?: string | null;
+  notes?: string | null;
 }

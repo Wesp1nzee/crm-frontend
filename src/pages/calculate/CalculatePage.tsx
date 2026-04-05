@@ -150,7 +150,7 @@ export function CalculatePage() {
 
       <Grid container spacing={3}>
         {calculationTypes.map((type) => (
-          <Grid item xs={12} md={6} key={type.id}>
+          <Grid size={{ xs: 12, md: 6 }} key={type.id}>
             <CalculationCard
               type={type}
               tablesCount={getFilteredTables(type.id).length}

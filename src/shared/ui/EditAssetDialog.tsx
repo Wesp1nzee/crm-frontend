@@ -93,7 +93,7 @@ export function EditAssetDialog({
           <Autocomplete
             options={caseSuggestions || []}
             getOptionLabel={(option) =>
-              `${option.case_number} - ${option.authority}`
+              `${option.case_number}`
             }
             value={selectedCase}
             onChange={(_, newValue) => setSelectedCase(newValue)}

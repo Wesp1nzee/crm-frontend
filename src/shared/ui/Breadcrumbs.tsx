@@ -9,6 +9,30 @@ import { Link as RouterLink, useLocation, useNavigate } from "react-router-dom";
 import { ArrowBack, NavigateNext } from "@mui/icons-material";
 import { useCase, useCases } from "../hooks/useCases";
 import { useClient } from "../hooks/useClients";
+
+const segmentTitles: Record<string, string> = {
+  cases: "Дела",
+  clients: "Клиенты",
+  documents: "Документы",
+  finance: "Финансы",
+  reports: "Отчеты",
+  experts: "Эксперты",
+  settings: "Настройки",
+  profile: "Профиль",
+  mail: "Почта",
+  inbox: "Входящие",
+  sent: "Отправленные",
+  drafts: "Черновики",
+  spam: "Спам",
+  trash: "Корзина",
+  archive: "Архив",
+};
+
+const looksLikeTechnicalId = (segment: string) =>
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(segment) ||
+  /^[0-9a-f]{24}$/i.test(segment) ||
+  /^\d{8,}$/.test(segment);
+
 export function Breadcrumbs() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -27,32 +51,37 @@ export function Breadcrumbs() {
   const clientId = clientIdIndex >= 0 ? pathnames[clientIdIndex + 1] : "";
   const { data: client } = useClient(clientId);
 
-  const breadcrumbsSegments =
-    pathnames[0] === "crm" ? pathnames.slice(1) : pathnames;
+  const breadcrumbsSegments = pathnames[0] === "crm" ? pathnames.slice(1) : pathnames;
 
   const getBreadcrumbName = (segment: string, index: number) => {
-    if (segment === "cases") return "Дела";
-    if (segment === "clients") return "Клиенты";
-    if (segment === "documents") return "Документы";
-    if (segment === "finance") return "Финансы";
-    if (segment === "reports") return "Отчеты";
-    if (segment === "experts") return "Эксперты";
-
     const originalIndex = index + (pathnames[0] === "crm" ? 1 : 0);
-    if (originalIndex > 0 && pathnames[originalIndex - 1] === "cases") {
+    const prevSegment = originalIndex > 0 ? pathnames[originalIndex - 1] : "";
+
+    if (segmentTitles[segment]) {
+      return segmentTitles[segment];
+    }
+
+    if (prevSegment === "cases") {
       if (segment === caseId && caseDetails?.case?.case_number) {
         return `Дело ${caseDetails.case.case_number}`;
       }
-
-      const case_ = cases?.data?.find((c) => c.id === segment);
-      return case_ ? `Дело ${case_.case_number}` : `Дело`;
+      const case_ = cases?.items?.find((c: { id: string }) => c.id === segment);
+      return case_ ? `Дело ${case_.case_number}` : "Дело";
     }
 
-    if (originalIndex > 0 && pathnames[originalIndex - 1] === "clients") {
+    if (prevSegment === "clients") {
       return client?.name ?? "Клиент";
     }
 
-    return `Страница ${segment}`;
+    if (prevSegment === "mail" || ["inbox", "sent", "drafts", "spam", "trash", "archive"].includes(prevSegment)) {
+      return "Письмо";
+    }
+
+    if (looksLikeTechnicalId(segment)) {
+      return "Карточка";
+    }
+
+    return "Страница";
   };
 
   if (breadcrumbsSegments.length === 0) {

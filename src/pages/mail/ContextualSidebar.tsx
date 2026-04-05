@@ -1,23 +1,18 @@
-import { useState } from "react";
 import {
   Box,
   Typography,
   Paper,
   Chip,
   Button,
-  Divider,
   List,
   ListItem,
   ListItemText,
   Avatar,
   LinearProgress,
-  Alert,
 } from "@mui/material";
 import {
   Gavel,
   Person,
-  Schedule,
-  AttachMoney,
   Description,
   Visibility,
 } from "@mui/icons-material";
@@ -31,9 +26,9 @@ interface ContextualSidebarProps {
 }
 
 export function ContextualSidebar({ thread }: ContextualSidebarProps) {
-  const { data: relatedCase } = useCase(thread.relatedCaseId || "");
-  const { data: relatedClient } = useClient(thread.relatedClientId || "");
-  const { data: collaborationStatus = [] } = useCollaborationStatus(thread.id);
+  const { data: relatedCase } = useCase((thread as any).relatedCaseId || "");
+  const { data: relatedClient } = useClient((thread as any).relatedClientId || "");
+  const { data: collaborationStatus = [] } = useCollaborationStatus(thread.id!);
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -51,7 +46,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
   };
 
   const isOverdue =
-    relatedCase && dayjs(relatedCase.deadline).isBefore(dayjs(), "day");
+    relatedCase && dayjs(relatedCase.case.deadline).isBefore(dayjs(), "day");
 
   return (
     <Box
@@ -74,7 +69,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
             <Visibility fontSize="small" />
             Сейчас просматривают
           </Typography>
-          {collaborationStatus.map((status) => (
+          {collaborationStatus.map((status: any) => (
             <Box
               key={status.userId}
               sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
@@ -105,17 +100,17 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
 
           <Box sx={{ mb: 2 }}>
             <Typography variant="h6" gutterBottom>
-              {relatedCase.caseNumber}
+              {relatedCase.case.case_number}
             </Typography>
             <Typography variant="body2" color="text.secondary" gutterBottom>
-              {relatedCase.objectAddress}
+              {relatedCase.case.object_address}
             </Typography>
 
             <Box sx={{ display: "flex", gap: 1, mb: 2 }}>
               <Chip
                 size="small"
-                label={relatedCase.status}
-                color={getStatusColor(relatedCase.status)}
+                label={relatedCase.case.status}
+                color={getStatusColor(relatedCase.case.status)}
               />
               {isOverdue && (
                 <Chip size="small" label="Просрочено" color="error" />
@@ -130,7 +125,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
                 variant="body2"
                 color={isOverdue ? "error.main" : "inherit"}
               >
-                {dayjs(relatedCase.deadline).format("DD.MM.YYYY")}
+                {dayjs(relatedCase.case.deadline).format("DD.MM.YYYY")}
               </Typography>
             </Box>
 
@@ -139,7 +134,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
                 Стоимость
               </Typography>
               <Typography variant="body2">
-                {relatedCase.cost.toLocaleString()} ₽
+                {Number(relatedCase.case.cost).toLocaleString()} ₽
               </Typography>
             </Box>
 
@@ -150,7 +145,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
               </Typography>
               <LinearProgress
                 variant="determinate"
-                value={relatedCase.status === "done" ? 100 : 60}
+                value={relatedCase.case.status === "executed" ? 100 : 60}
                 sx={{ mt: 0.5 }}
               />
             </Box>
@@ -181,7 +176,7 @@ export function ContextualSidebar({ thread }: ContextualSidebarProps) {
             {relatedClient.email}
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            {relatedClient.phone}
+            {(relatedClient as any).phone}
           </Typography>
 
           <Button variant="outlined" size="small" fullWidth>

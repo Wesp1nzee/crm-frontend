@@ -34,21 +34,6 @@ const CASE_STATUSES: { value: CaseStatus; label: string }[] = [
   { value: "fssp", label: "ФССП" },
 ];
 
-const SORT_FIELDS = [
-  { value: "created_at", label: "Дата создания" },
-  { value: "updated_at", label: "Дата обновления" },
-  { value: "start_date", label: "Дата начала" },
-  { value: "deadline", label: "Срок выполнения" },
-  { value: "completion_date", label: "Дата завершения" },
-  { value: "number", label: "Номер дела" },
-  { value: "case_number", label: "Номер производства" },
-  { value: "status", label: "Статус" },
-  { value: "cost", label: "Стоимость" },
-  { value: "remaining_debt", label: "Остаток долга" },
-  { value: "client_name", label: "Имя клиента" },
-  { value: "expert_name", label: "Имя эксперта" },
-];
-
 const premiumFieldSx = {
   "& .MuiOutlinedInput-root": {
     minHeight: 48,
@@ -180,7 +165,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
           </Typography>
 
           <Grid container spacing={3}>
-            {/* Client Filter */}
             <Grid size={{ xs: 12, md: 3 }}>
               <FormControl fullWidth size="small" sx={premiumFieldSx}>
                 <InputLabel>Клиент</InputLabel>
@@ -382,40 +366,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
                   },
                 }}
               />
-            </Grid>
-
-            {/* Sorting */}
-            <Grid size={{ xs: 12, md: 4 }}>
-              <FormControl fullWidth size="small" sx={premiumFieldSx}>
-                <InputLabel>Сортировка</InputLabel>
-                <Select
-                  value={filters.sort_field || "created_at"}
-                  label="Сортировка"
-                  onChange={(e) => updateFilter("sort_field", e.target.value)}
-                >
-                  {SORT_FIELDS.map((field) => (
-                    <MenuItem key={field.value} value={field.value}>
-                      {field.label}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-
-            <Grid size={{ xs: 12, md: 2 }}>
-              <FormControl fullWidth size="small" sx={premiumFieldSx}>
-                <InputLabel>Порядок</InputLabel>
-                <Select
-                  value={filters.sort_order || "desc"}
-                  label="Порядок"
-                  onChange={(e) =>
-                    updateFilter("sort_order", e.target.value as "asc" | "desc")
-                  }
-                >
-                  <MenuItem value="desc">По убыванию</MenuItem>
-                  <MenuItem value="asc">По возрастанию</MenuItem>
-                </Select>
-              </FormControl>
             </Grid>
           </Grid>
         </Box>

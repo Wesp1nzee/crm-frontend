@@ -16,9 +16,12 @@ export function ConfirmDialog() {
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    return confirmService.subscribe((event) => {
+    const unsubscribe = confirmService.subscribe((event) => {
       setQueue((prev) => [...prev, event]);
     });
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

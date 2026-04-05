@@ -1,4 +1,4 @@
-import { createBrowserRouter } from "react-router-dom";
+import { Navigate, createBrowserRouter } from "react-router-dom";
 import { lazy, Suspense } from "react";
 import { CircularProgress, Box } from "@mui/material";
 import { Layout } from "../layout/Layout";
@@ -62,7 +62,12 @@ const SettingsPage = lazy(() =>
 // const CalendarPage = lazy(() => import('../pages/calendar/CalendarPage').then(m => ({ default: m.CalendarPage })));
 // const CalculatePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.CalculatePage })));
 // const LeiferTablePage = lazy(() => import('../pages/calculate').then(m => ({ default: m.LeiferTablePage })));
-// const MailPage = lazy(() => import('../pages/mail/MailPage').then(m => ({ default: m.MailPage })));
+const MailPage = lazy(() =>
+  import("../pages/mail/MailPage").then((m) => ({ default: m.MailPage })),
+);
+const SharedFilesPage = lazy(() =>
+  import("../pages/mail/SharedFilesPage").then((m) => ({ default: m.SharedFilesPage })),
+);
 
 const PageLoader = () => (
   <Box
@@ -91,6 +96,24 @@ export const router = createBrowserRouter([
   {
     path: "/share/:token",
     element: <PublicSharePage />,
+  },
+
+  {
+    path: "/mail/oversized/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedFilesPage />
+      </Suspense>
+    ),
+  },
+
+  {
+    path: "/shared-files/:token",
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <SharedFilesPage />
+      </Suspense>
+    ),
   },
 
   // ВСЕ CRM-маршруты теперь под /crm
@@ -198,7 +221,20 @@ export const router = createBrowserRouter([
       // { path: 'calendar', element: <Suspense fallback={<PageLoader />}><CalendarPage /></Suspense> },
       // { path: 'calculate', element: <Suspense fallback={<PageLoader />}><CalculatePage /></Suspense> },
       // { path: 'calculate/leifer', element: <Suspense fallback={<PageLoader />}><LeiferTablePage /></Suspense> },
-      // { path: 'mail', element: <Suspense fallback={<PageLoader />}><RoleGuard allowedRoles={['admin', 'ceo', 'accountant']}><MailPage /></RoleGuard></Suspense> },
+      {
+        path: "mail",
+        element: <Navigate to="/crm/mail/inbox" replace />,
+      },
+      {
+        path: "mail/:folder/:messageId?",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <RoleGuard allowedRoles={["admin", "ceo", "accountant"]}>
+              <MailPage />
+            </RoleGuard>
+          </Suspense>
+        ),
+      },
     ],
   },
 ]);

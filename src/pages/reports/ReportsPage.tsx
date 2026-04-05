@@ -331,7 +331,7 @@ function FinanceDashboard() {
   );
 
   const invoices = mockInvoices;
-  const payments = [];
+  const payments: { id: string; invoiceId: string; amount: number; method: string; receivedAt: string; description: string }[] = [];
   const cases = mockCases;
 
   const filteredInvoices = invoices?.filter(
@@ -403,7 +403,7 @@ function FinanceDashboard() {
 
       {/* Карточки с метриками */}
       <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -425,7 +425,7 @@ function FinanceDashboard() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -447,7 +447,7 @@ function FinanceDashboard() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -469,7 +469,7 @@ function FinanceDashboard() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -616,7 +616,7 @@ function StorageAnalyticsCard() {
       <CardContent>
         <Grid container spacing={3}>
           {/* Overall Progress */}
-          <Grid item xs={12}>
+          <Grid size={{ xs: 12 }}>
             <Box>
               <Box display="flex" justifyContent="space-between" mb={1}>
                 <Typography variant="body2" color="textSecondary">
@@ -643,7 +643,7 @@ function StorageAnalyticsCard() {
           </Grid>
 
           {/* Category Breakdown */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" fontWeight="bold" mb={2}>
               Распределение по категориям
             </Typography>
@@ -655,13 +655,13 @@ function StorageAnalyticsCard() {
                   cy="50%"
                   labelLine={false}
                   label={({ name, percent }) =>
-                    `${name} ${(percent * 100).toFixed(0)}%`
+                    `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
                   }
                   outerRadius={80}
                   fill="#8884d8"
                   dataKey="value"
                 >
-                  {chartData.map((entry, index) => (
+                  {chartData.map((_entry, index) => (
                     <Cell
                       key={`cell-${index}`}
                       fill={COLORS[index % COLORS.length]}
@@ -673,7 +673,7 @@ function StorageAnalyticsCard() {
           </Grid>
 
           {/* Detailed Metrics */}
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" fontWeight="bold" mb={2}>
               Детальная статистика
             </Typography>
@@ -817,7 +817,7 @@ function LoginLogsSection() {
           }}
         >
           <Grid container spacing={2}>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Статус</InputLabel>
                 <Select
@@ -832,7 +832,7 @@ function LoginLogsSection() {
                 </Select>
               </FormControl>
             </Grid>
-            <Grid item xs={12} sm={6}>
+            <Grid size={{ xs: 12, sm: 6 }}>
               <FormControl fullWidth size="small">
                 <InputLabel>Устройство</InputLabel>
                 <Select
@@ -1028,7 +1028,7 @@ function ReportsChartSection() {
       />
       <CardContent>
         <Grid container spacing={3}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" fontWeight="bold" mb={2}>
               Дела и Документы
             </Typography>
@@ -1054,7 +1054,7 @@ function ReportsChartSection() {
             </ResponsiveContainer>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <Typography variant="subtitle2" fontWeight="bold" mb={2}>
               Финансовые показатели
             </Typography>
@@ -1092,14 +1092,13 @@ function ReportsChartSection() {
 }
 
 export default function AnalyticsPage() {
-  const theme = useTheme();
   const [tabValue, setTabValue] = useState(0);
   const [exportDialogOpen, setExportDialogOpen] = useState(false);
   const [exportFormat, setExportFormat] = useState<"pdf" | "excel" | "csv">(
     "pdf",
   );
 
-  const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
   };
 

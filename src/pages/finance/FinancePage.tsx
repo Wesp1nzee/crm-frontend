@@ -60,46 +60,47 @@ export function FinancePage() {
   );
 
   const {
-    invoices,
+    data: invoices,
     isLoading: invoicesLoading,
     error: invoicesError,
   } = useInvoices();
-  const { payments, isLoading: paymentsLoading } = usePayments();
-  const { cases } = useCases();
+  const { data: payments, isLoading: paymentsLoading } = usePayments();
+  const { data: cases } = useCases();
 
   const filteredInvoices = invoices?.filter(
-    (invoice) => filterStatus === "all" || invoice.status === filterStatus,
+    (invoice: Invoice) => filterStatus === "all" || invoice.status === filterStatus,
   );
 
   // Проверяем, что cases - это массив, иначе используем пустой массив
-  const casesArray = Array.isArray(cases) ? cases : [];
+  const casesData = cases as any;
+  const casesArray = Array.isArray(casesData) ? casesData : (casesData?.items ?? []);
 
   const getCaseName = (caseId: string) => {
-    const caseItem = casesArray.find((c) => c.id === caseId);
+    const caseItem = casesArray.find((c: { id: string; caseNumber?: string }) => c.id === caseId);
     return caseItem?.caseNumber || caseId;
   };
 
   // Получаем имя клиента напрямую из данных дела
   const getClientName = (caseId: string) => {
-    const caseItem = casesArray.find((c) => c.id === caseId);
+    const caseItem = casesArray.find((c: { id: string; clientName?: string; client?: { name?: string } }) => c.id === caseId);
     return caseItem?.clientName || caseItem?.client?.name || "-";
   };
 
   // Аналитика
   const totalRevenue =
     invoices
-      ?.filter((i) => i.status === "paid")
-      .reduce((sum, i) => sum + i.amount, 0) || 0;
+      ?.filter((i: Invoice) => i.status === "paid")
+      .reduce((sum: number, i: Invoice) => sum + i.amount, 0) || 0;
   const pendingAmount =
     invoices
-      ?.filter((i) => ["sent", "overdue"].includes(i.status))
-      .reduce((sum, i) => sum + i.amount, 0) || 0;
+      ?.filter((i: Invoice) => ["sent", "overdue"].includes(i.status))
+      .reduce((sum: number, i: Invoice) => sum + i.amount, 0) || 0;
   const overdueCount =
-    invoices?.filter((i) => i.status === "overdue").length || 0;
+    invoices?.filter((i: Invoice) => i.status === "overdue").length || 0;
   const thisMonthRevenue =
     payments
-      ?.filter((p) => dayjs(p.receivedAt).isAfter(dayjs().startOf("month")))
-      .reduce((sum, p) => sum + p.amount, 0) || 0;
+      ?.filter((p: { receivedAt: string | Date }) => dayjs(p.receivedAt).isAfter(dayjs().startOf("month")))
+      .reduce((sum: number, p: { amount: number }) => sum + p.amount, 0) || 0;
 
   if (invoicesLoading || paymentsLoading) {
     return (
@@ -121,7 +122,7 @@ export function FinancePage() {
 
       {/* Карточки с метриками */}
       <Grid container spacing={3} mb={3}>
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -143,7 +144,7 @@ export function FinancePage() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -165,7 +166,7 @@ export function FinancePage() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -187,7 +188,7 @@ export function FinancePage() {
           </Card>
         </Grid>
 
-        <Grid item xs={12} sm={6} md={3}>
+        <Grid size={{ xs: 12, sm: 6, md: 3 }}>
           <Card>
             <CardContent>
               <Box
@@ -253,7 +254,7 @@ export function FinancePage() {
             </TableRow>
           </TableHead>
           <TableBody>
-            {filteredInvoices?.map((invoice) => (
+            {filteredInvoices?.map((invoice: Invoice) => (
               <TableRow key={invoice.id} hover>
                 <TableCell>
                   <Typography variant="body2" fontWeight="medium">

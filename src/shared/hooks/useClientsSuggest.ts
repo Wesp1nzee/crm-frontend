@@ -23,21 +23,20 @@ export function useClientsSuggest() {
       timerRef.current = null;
     }
 
-    if (!trimmed) {
-      latestQueryRef.current = "";
-      setSuggestions([]);
-      setIsLoading(false);
-      return;
-    }
-
+    // Allow empty queries to fetch all/recent clients
     setIsLoading(true);
 
     timerRef.current = setTimeout(async () => {
       latestQueryRef.current = trimmed;
 
       try {
+        const params: Record<string, string> = {};
+        if (trimmed) {
+          params.q = trimmed;
+        }
+        
         const response = await axios.get("/api/clients/suggest", {
-          params: { q: trimmed },
+          params,
         });
 
         if (latestQueryRef.current !== trimmed) {

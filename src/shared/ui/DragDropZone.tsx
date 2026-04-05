@@ -35,7 +35,7 @@ const DragOverlay = styled(Box)(({ theme }) => ({
   animation: `${pulse} 1.5s ease-in-out infinite`,
 }));
 
-const DragItem = styled(Box)(({ theme }) => ({
+const DragItem = styled(Box)((_props) => ({
   opacity: 0.5,
   transform: "rotate(5deg)",
   transition: "all 0.2s ease-in-out",
@@ -62,11 +62,11 @@ export function DragDropZone({
   children,
   onDrop,
   onAssetDrop,
-  accept = "*",
+  accept: _accept = "*",
   disabled = false,
 }: DragDropZoneProps) {
   const [dragOver, setDragOver] = useState(false);
-  const [draggedAsset, setDraggedAsset] = useState<{
+  const [_draggedAsset, _setDraggedAsset] = useState<{
     id: string;
     type: "file" | "folder";
   } | null>(null);

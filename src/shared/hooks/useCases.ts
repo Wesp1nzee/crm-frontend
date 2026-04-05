@@ -9,10 +9,11 @@ import type {
   CaseDetailResponse,
   CasePatchRequest,
   CaseExpertsUpdateRequest,
+  Invoice,
+  Payment,
 } from "../../entities/case/types";
 
 export const useCases = (params: GetCasesQuery = {}) => {
-  console.log("useCases params:", params);
   return useQuery<GetCasesResponse>({
     queryKey: ["cases", params],
     queryFn: () => casesApi.getCases(params).then((res) => res.data),
@@ -114,18 +115,21 @@ export const useDownloadCaseDocuments = () => {
 };
 
 // Mock data for invoices and payments
-const mockInvoices = [
+const mockInvoices: Invoice[] = [
   {
     id: "1",
+    number: "INV-001",
     caseId: "1",
     amount: 50000,
     status: "paid" as const,
     createdAt: "2024-01-15",
     dueDate: "2024-02-15",
+    paidAt: "2024-02-10",
     description: "Экспертиза",
   },
   {
     id: "2",
+    number: "INV-002",
     caseId: "2",
     amount: 75000,
     status: "sent" as const,
@@ -135,7 +139,7 @@ const mockInvoices = [
   },
 ];
 
-const mockPayments = [
+const mockPayments: Payment[] = [
   {
     id: "1",
     invoiceId: "1",

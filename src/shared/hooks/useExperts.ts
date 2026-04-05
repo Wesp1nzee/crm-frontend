@@ -91,7 +91,7 @@ const mapUserToExpert = (user: UserRead): Expert => ({
   status: user.is_active ? "active" : "inactive",
   workload: user.active_cases_count ?? 0,
   count_case: user.active_cases_count ?? 0,
-  phone: user.settings?.phone || "",
+  phone: (user.settings?.phone as string) || "",
 });
 
 export const useExperts = (filters: ExpertFilters = {}) => {

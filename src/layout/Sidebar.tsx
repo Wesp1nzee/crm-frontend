@@ -15,10 +15,10 @@ import {
   People,
   Engineering,
   Description,
+  Email,
   // AccountBalance,
   // CalendarMonth,
   // Calculate,
-  // Email
 } from "@mui/icons-material";
 import { usePermissions } from "../shared/hooks/usePermissions";
 
@@ -36,7 +36,7 @@ const menuItems = [
   // { text: 'Отчеты', path: '/reports', icon: <Assessment /> },
   // { text: 'Календарь', path: '/calendar', icon: <CalendarMonth /> },
   // { text: 'Расчеты', path: '/calculate', icon: <Calculate /> },
-  // { text: 'Почта', path: '/mail', icon: <Email /> },
+  { text: "Почта", path: "/crm/mail", icon: <Email /> },
 ];
 
 interface SidebarProps {

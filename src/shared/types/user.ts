@@ -1,11 +1,13 @@
 import { z } from "zod";
 
-export enum UserRole {
-  ADMIN = "ADMIN",
-  CEO = "CEO",
-  ACCOUNTANT = "ACCOUNTANT",
-  EXPERT = "EXPERT",
-}
+export const UserRole = {
+  ADMIN: "ADMIN",
+  CEO: "CEO",
+  ACCOUNTANT: "ACCOUNTANT",
+  EXPERT: "EXPERT",
+} as const;
+
+export type UserRole = (typeof UserRole)[keyof typeof UserRole];
 
 // Схемы для валидации с помощью Zod
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -42,7 +44,7 @@ export const UserBaseSchema = z.object({
 export const UserCreateSchema = UserBaseSchema.extend({
   password: z.string().min(12, "Пароль должен быть не менее 12 символов"),
   email_config: EmailConfigCreateSchema.nullable().optional(),
-  settings: z.record(z.any()).default({}),
+  settings: z.record(z.string(), z.any()).default({}),
 });
 
 export const UserReadSchema = UserBaseSchema.extend({
@@ -50,7 +52,7 @@ export const UserReadSchema = UserBaseSchema.extend({
   is_active: z.boolean(),
   can_authenticate: z.boolean(),
   company_id: z.string().uuid(),
-  settings: z.record(z.any()),
+  settings: z.record(z.string(), z.any()),
   last_login: z.string().datetime().nullable().optional(),
   active_cases_count: z.number().int().optional(),
   total_documents_count: z.number().int().optional(),
@@ -69,7 +71,7 @@ export const UserUpdateSchema = z.object({
     .nullable(),
   is_active: z.boolean().optional().nullable(),
   can_authenticate: z.boolean().optional().nullable(),
-  settings: z.record(z.any()).optional().nullable(),
+  settings: z.record(z.string(), z.any()).optional().nullable(),
 });
 
 export const UserLoginSchema = z.object({
