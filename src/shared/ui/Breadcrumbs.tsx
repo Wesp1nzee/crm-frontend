@@ -65,7 +65,7 @@ export function Breadcrumbs() {
       if (segment === caseId && caseDetails?.case?.case_number) {
         return `Дело ${caseDetails.case.case_number}`;
       }
-      const case_ = cases?.data?.find((c) => c.id === segment);
+      const case_ = cases?.items?.find((c: { id: string }) => c.id === segment);
       return case_ ? `Дело ${case_.case_number}` : "Дело";
     }
 

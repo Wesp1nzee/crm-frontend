@@ -1,5 +1,5 @@
 // src/pages/cases/CaseListPage.tsx
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import {
   Box,
   Typography,
@@ -32,6 +32,9 @@ import {
   Warning as WarningIcon,
   Info as InfoIcon,
   Person as PersonIcon,
+  ArrowUpward as ArrowUpwardIcon,
+  ArrowDownward as ArrowDownwardIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import dayjs from "dayjs";
@@ -41,6 +44,7 @@ import {
   useDeleteCase,
 } from "../../shared/hooks/useCases";
 import type { CaseStatus, GetCasesQuery } from "../../entities/case/types";
+import { casesApi } from "../../entities/case/api";
 import { CreateCaseDialog } from "./CreateCaseDialog";
 import { CaseFilters } from "./CaseFilters";
 import { notificationService } from "../../shared/services/notifications";
@@ -69,24 +73,25 @@ export function CaseListPage() {
   const navigate = useNavigate();
   const { isExpert } = usePermissions();
   const [searchParams] = useSearchParams();
-  const [filters, setFilters] = useState<GetCasesQuery>({
-    page: 1,
-    limit: 20,
-    sort_field: "created_at",
-    sort_order: "desc",
-  });
-
-  useEffect(() => {
+  const [filters, setFilters] = useState<GetCasesQuery>(() => {
+    // Initialize filters, checking for client_id from URL params
     const clientId = searchParams.get("client");
+    const baseFilters: GetCasesQuery = {
+      page: 1,
+      limit: 20,
+      sort_field: "created_at",
+      sort_order: "desc",
+    };
     if (clientId) {
-      console.log("Setting client filter:", clientId);
-      setFilters((prev) => ({ ...prev, client_id: clientId }));
+      baseFilters.client_id = clientId;
     }
-  }, [searchParams]);
+    return baseFilters;
+  });
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deletingCaseId, setDeletingCaseId] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: casesResponse, isLoading, error, refetch } = useCases(filters);
 
@@ -150,6 +155,25 @@ export function CaseListPage() {
     setDeletingCaseId("");
   };
 
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      // Экспортируем все данные, без пагинации
+      const exportParams = { ...filters };
+      delete exportParams.page;
+      delete exportParams.limit;
+      
+      await casesApi.exportCasesToExcel(exportParams);
+      notificationService.success("Файл Excel успешно загружен");
+    } catch (err: any) {
+      notificationService.error(
+        err.response?.data?.detail || "Ошибка экспорта в Excel",
+      );
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   // ── Pagination handlers ──────────────────────────────────────────────────
   const handlePrevPage = () => {
     setFilters((prev) => ({
@@ -164,6 +188,29 @@ export function CaseListPage() {
 
   const handleChangeLimit = (newLimit: number) => {
     setFilters((prev) => ({ ...prev, limit: newLimit, page: 1 }));
+  };
+
+  // ── Sort handlers ────────────────────────────────────────────────────────
+  const handleSortClick = (field: string) => {
+    setFilters((prev) => {
+      const currentField = prev.sort_field || "created_at";
+      const currentOrder = prev.sort_order || "desc";
+      
+      if (currentField === field) {
+        // Toggle order if same field
+        return {
+          ...prev,
+          sort_order: currentOrder === "asc" ? "desc" : "asc",
+        };
+      }
+      
+      // Change field and reset to asc
+      return {
+        ...prev,
+        sort_field: field,
+        sort_order: "asc",
+      };
+    });
   };
 
   // ── Loading / Error states ───────────────────────────────────────────────
@@ -209,15 +256,27 @@ export function CaseListPage() {
           </Typography>
         </Box>
         {!isExpert && (
-          <Button
-            variant="contained"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateDialogOpen(true)}
-            size="large"
-            sx={{ borderRadius: 1.5, px: 2.25 }}
-          >
-            Создать дело
-          </Button>
+          <Stack direction="row" spacing={1}>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleExportExcel}
+              disabled={isExporting}
+              size="large"
+              sx={{ borderRadius: 1.5, px: 2.25 }}
+            >
+              {isExporting ? <CircularProgress size={20} /> : "Экспорт в Excel"}
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<AddIcon />}
+              onClick={() => setCreateDialogOpen(true)}
+              size="large"
+              sx={{ borderRadius: 1.5, px: 2.25 }}
+            >
+              Создать дело
+            </Button>
+          </Stack>
         )}
       </Box>
 
@@ -238,13 +297,68 @@ export function CaseListPage() {
           >
             <TableHead>
               <TableRow sx={{ backgroundColor: "background.paper" }}>
-                <TableCell width="5%">№</TableCell>
-                <TableCell width="15%">Номер дела</TableCell>
+                <TableCell 
+                  width="5%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("number")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    №
+                    {filters.sort_field === "number" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell 
+                  width="15%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("case_number")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Номер дела
+                    {filters.sort_field === "case_number" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell width="15%">Суд / Орган</TableCell>
                 <TableCell width="20%">Адрес объекта</TableCell>
-                <TableCell width="10%">Статус</TableCell>
-                <TableCell width="10%">Срок</TableCell>
-                <TableCell width="10%">Стоимость</TableCell>
+                <TableCell 
+                  width="10%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("status")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Статус
+                    {filters.sort_field === "status" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell 
+                  width="10%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("deadline")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Срок
+                    {filters.sort_field === "deadline" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell 
+                  width="10%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("cost")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Стоимость
+                    {filters.sort_field === "cost" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell width="12%">Эксперт</TableCell>
                 <TableCell width="13%" align="center">
                   Действия

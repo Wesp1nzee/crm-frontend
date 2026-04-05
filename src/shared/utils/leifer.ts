@@ -17,7 +17,7 @@ export function getLeiferCoefficient(
 ): number {
   try {
     const corrections =
-      leiferData.reference_books["Лейфер 2024 Квартиры"].corrections;
+      (leiferData as Record<string, any>).reference_books["Лейфер 2024 Квартиры"].corrections;
     const correction = corrections[correctionName];
 
     if (!correction) return 1.0;

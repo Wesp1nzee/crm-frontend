@@ -9,6 +9,7 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   IconButton,
   List,
   ListItem,
@@ -42,7 +43,7 @@ import {
   Send,
 } from "@mui/icons-material";
 import { useAuth } from "../../shared/hooks/useAuth";
-import { useSendMail } from "../../shared/hooks/useMail";
+import { useSendMail, useMailContactsAutocomplete } from "../../shared/hooks/useMail";
 import { notificationService } from "../../shared/services/notifications";
 import type { MailRecipientType, MailSendPayload } from "../../entities/mail/types";
 
@@ -101,7 +102,6 @@ const parseRecipientsText = (value?: string) =>
 
 const normalizeFontName = (value: string) => {
   const cleaned = value.replace(/['"]/g, "").toLowerCase();
-
   const option = FONT_OPTIONS.find((font) => cleaned.includes(font.toLowerCase()));
   return option ?? DEFAULT_FONT;
 };
@@ -110,69 +110,45 @@ const getPlainTextFromHtml = (html: string) => {
   if (typeof document === "undefined") {
     return html.replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
   }
-
   const container = document.createElement("div");
   container.innerHTML = html;
   return (container.textContent ?? "").trim();
 };
 
 const convertPlainTextToHtml = (text: string) => {
-  if (!text.trim()) {
-    return "";
-  }
-
+  if (!text.trim()) return "";
   if (typeof document === "undefined") {
-    return text
-      .split("\n")
-      .map((line) => `<p>${line}</p>`)
-      .join("");
+    return text.split("\n").map((line) => `<p>${line}</p>`).join("");
   }
-
   const container = document.createElement("div");
   text.split("\n").forEach((line) => {
     const paragraph = document.createElement("p");
     paragraph.textContent = line;
     container.appendChild(paragraph);
   });
-
   return container.innerHTML;
 };
 
 const getBlockTypeLabel = (rawValue: string) => {
   const value = rawValue.toLowerCase().replace(/[<>]/g, "");
-
   if (value.includes("h1")) return "h1";
   if (value.includes("h2")) return "h2";
   if (value.includes("h3")) return "h3";
-
   return "p";
 };
 
 const getSafeQueryState = (command: string) => {
-  try {
-    return document.queryCommandState(command);
-  } catch {
-    return false;
-  }
+  try { return document.queryCommandState(command); } catch { return false; }
 };
 
 const getSafeQueryValue = (command: string) => {
-  try {
-    return document.queryCommandValue(command);
-  } catch {
-    return "";
-  }
+  try { return document.queryCommandValue(command); } catch { return ""; }
 };
 
-const controlSizeSx = {
-  width: 24,
-  height: 24,
-  p: 0,
-};
+// ─── Стили ────────────────────────────────────────────────────────────────────
 
-const selectSx = {
-  width: 96,
-  height: 24,
+const toolbarSelectSx = {
+  height: 26,
   "& .MuiSelect-select": {
     py: 0,
     px: 0.75,
@@ -180,6 +156,17 @@ const selectSx = {
     display: "flex",
     alignItems: "center",
   },
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderColor: "divider",
+  },
+};
+
+const toolbarBtnSx = {
+  width: 26,
+  height: 26,
+  p: 0,
+  borderRadius: 0.75,
+  "& svg": { fontSize: 15 },
 };
 
 const initialEditorState: EditorCommandState = {
@@ -196,6 +183,190 @@ const initialEditorState: EditorCommandState = {
   fontName: DEFAULT_FONT,
   fontSize: DEFAULT_FONT_SIZE,
 };
+
+// ─── Вспомогательные компоненты ───────────────────────────────────────────────
+
+/** Кнопка тулбара с подсветкой активного состояния */
+function ToolbarBtn({
+  title,
+  active,
+  onClick,
+  children,
+}: {
+  title: string;
+  active?: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+}) {
+  return (
+    <Tooltip title={title} enterDelay={600}>
+      <IconButton
+        size="small"
+        onMouseDown={(e) => e.preventDefault()}
+        onClick={onClick}
+        sx={{
+          ...toolbarBtnSx,
+          color: active ? "primary.main" : "text.secondary",
+          bgcolor: active ? "primary.50" : "transparent",
+          "&:hover": {
+            bgcolor: active ? "primary.100" : "action.hover",
+          },
+        }}
+      >
+        {children}
+      </IconButton>
+    </Tooltip>
+  );
+}
+
+/** Вертикальный разделитель между группами тулбара */
+function ToolbarDivider() {
+  return (
+    <Divider
+      orientation="vertical"
+      flexItem
+      sx={{ mx: 0.5, my: 0.25, borderColor: "divider" }}
+    />
+  );
+}
+
+/** Autocomplete для получателей с авто-созданием чипа при уходе фокуса */
+function RecipientAutocomplete({
+  label,
+  placeholder,
+  value,
+  onChange,
+  required,
+}: {
+  label: string;
+  placeholder: string;
+  value: string[];
+  onChange: (emails: string[]) => void;
+  required?: boolean;
+}) {
+  const [inputValue, setInputValue] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const debounceTimerRef = useRef<number | null>(null);
+
+  // Debounced search query
+  useEffect(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+
+    if (inputValue.trim().length === 0) {
+      setSearchQuery("");
+      return;
+    }
+
+    debounceTimerRef.current = setTimeout(() => {
+      setSearchQuery(inputValue.trim());
+    }, 300);
+
+    return () => {
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [inputValue]);
+
+  const { data: autocompleteData } = useMailContactsAutocomplete(searchQuery, searchQuery.length > 0);
+
+  // Filter out already selected emails
+  const options = useMemo(() => {
+    if (!autocompleteData?.items) return [];
+    return autocompleteData.items.filter(
+      (item) => !value.includes(item.email)
+    );
+  }, [autocompleteData, value]);
+
+  // Фиксирует текущий inputValue как чип
+  const commitInput = useCallback(
+    (raw: string) => {
+      const trimmed = raw.trim();
+      if (trimmed && !value.includes(trimmed)) {
+        onChange([...value, trimmed]);
+      }
+      setInputValue("");
+      setSearchQuery("");
+    },
+    [value, onChange],
+  );
+
+  return (
+    <Autocomplete
+      multiple
+      freeSolo
+      open={options.length > 0}
+      options={options}
+      getOptionLabel={(option) =>
+        typeof option === "string" ? option : option.email
+      }
+      value={value}
+      inputValue={inputValue}
+      onInputChange={(_, newValue, reason) => {
+        // При выборе из дропдауна reason === "reset" — не перезаписываем вручную
+        if (reason !== "reset") setInputValue(newValue);
+      }}
+      onChange={(_, newValue) => {
+        onChange(newValue.map((item) => (typeof item === "string" ? item : item.email)));
+        setInputValue("");
+        setSearchQuery("");
+      }}
+      // ↓ Главное исправление: фиксируем чип при уходе фокуса
+      onBlur={() => commitInput(inputValue)}
+      renderOption={(props, option) => (
+        <li {...props} key={option.email}>
+          <Box sx={{ display: "flex", flexDirection: "column", width: "100%" }}>
+            <Typography variant="body2" sx={{ fontSize: 14 }}>
+              {option.email}
+            </Typography>
+            {option.name && (
+              <Typography variant="caption" color="text.secondary" sx={{ fontSize: 12 }}>
+                {option.name}
+              </Typography>
+            )}
+          </Box>
+        </li>
+      )}
+      renderTags={(tagValues, getTagProps) =>
+        tagValues.map((option, index) => (
+          <Chip
+            {...getTagProps({ index })}
+            key={`${option}-${index}`}
+            label={String(option)}
+            size="small"
+            sx={{
+              borderRadius: "999px",
+              bgcolor: "primary.50",
+              border: "1px solid",
+              borderColor: "primary.200",
+              fontSize: 12,
+            }}
+          />
+        ))
+      }
+      renderInput={(params) => (
+        <TextField
+          {...params}
+          label={label}
+          placeholder={placeholder}
+          required={required}
+          fullWidth
+          variant="outlined"
+          size="small"
+          sx={{
+            "& .MuiInputBase-root:before, & .MuiInputBase-root:after": {
+              display: "none",
+            },
+          }}
+        />
+      )}
+    />
+  );
+}
+
+// ─── Основной компонент ───────────────────────────────────────────────────────
 
 export function MailComposer({
   open,
@@ -220,10 +391,7 @@ export function MailComposer({
   const editorRef = useRef<HTMLDivElement | null>(null);
 
   const syncEditorState = useCallback(() => {
-    if (!editorRef.current || typeof document === "undefined") {
-      return;
-    }
-
+    if (!editorRef.current || typeof document === "undefined") return;
     setEditorState({
       bold: getSafeQueryState("bold"),
       italic: getSafeQueryState("italic"),
@@ -259,13 +427,9 @@ export function MailComposer({
   }, [bodyHtml, syncEditorState]);
 
   useEffect(() => {
-    if (typeof document === "undefined") {
-      return;
-    }
-
+    if (typeof document === "undefined") return;
     const handler = () => syncEditorState();
     document.addEventListener("selectionchange", handler);
-
     return () => document.removeEventListener("selectionchange", handler);
   }, [syncEditorState]);
 
@@ -275,47 +439,36 @@ export function MailComposer({
   );
 
   const hasOversizedAttachments = totalAttachmentBytes > MAX_TOTAL_ATTACHMENT_BYTES;
-
   const plainBody = useMemo(() => getPlainTextFromHtml(bodyHtml), [bodyHtml]);
-
   const canSend = useMemo(() => to.length > 0 && plainBody.length > 0, [to, plainBody]);
 
   const buildRecipients = (emails: string[], type: MailRecipientType) =>
     emails.map((email_address) => ({ email_address, recipient_type: type }));
 
   const handleClose = () => {
-    if (!sendMail.isPending) {
-      onMinimize();
-    }
+    if (!sendMail.isPending) onMinimize();
   };
 
   const handleAddFiles = (files: FileList | null) => {
     if (!files) return;
     setFormError(null);
-
     setAttachments((prev) => {
-      const existing = new Set(prev.map((file) => `${file.name}-${file.size}-${file.lastModified}`));
+      const existing = new Set(prev.map((f) => `${f.name}-${f.size}-${f.lastModified}`));
       const next = [...prev];
-
       Array.from(files).forEach((file) => {
         const key = `${file.name}-${file.size}-${file.lastModified}`;
-        if (!existing.has(key)) {
-          existing.add(key);
-          next.push(file);
-        }
+        if (!existing.has(key)) { existing.add(key); next.push(file); }
       });
-
       return next;
     });
   };
 
   const handleRemoveAttachment = (index: number) => {
-    setAttachments((prev) => prev.filter((_, currentIndex) => currentIndex !== index));
+    setAttachments((prev) => prev.filter((_, i) => i !== index));
   };
 
   const executeCommand = (command: string, value?: string) => {
     if (!editorRef.current) return;
-
     editorRef.current.focus();
     document.execCommand(command, false, value);
     setBodyHtml(editorRef.current.innerHTML);
@@ -325,32 +478,16 @@ export function MailComposer({
   const handleCreateLink = () => {
     const url = window.prompt("Введите URL", "https://");
     if (!url) return;
-
     executeCommand("createLink", url);
   };
 
-  const handleBlockTypeChange = (event: SelectChangeEvent) => {
-    const value = event.target.value;
-
-    if (value === "p") {
-      executeCommand("formatBlock", "<p>");
-      return;
-    }
-
-    executeCommand("formatBlock", `<${value}>`);
-  };
-
-  const handleFontNameChange = (event: SelectChangeEvent) => {
-    executeCommand("fontName", event.target.value);
-  };
-
-  const handleFontSizeChange = (event: SelectChangeEvent) => {
-    executeCommand("fontSize", event.target.value);
+  const handleBlockTypeChange = (e: SelectChangeEvent) => {
+    const v = e.target.value;
+    executeCommand("formatBlock", v === "p" ? "<p>" : `<${v}>`);
   };
 
   const handleSend = async () => {
     setFormError(null);
-
     const html = bodyHtml.trim();
     const text = getPlainTextFromHtml(html);
 
@@ -363,11 +500,7 @@ export function MailComposer({
         ...buildRecipients(cc, "cc"),
         ...buildRecipients(bcc, "bcc"),
       ],
-      content: {
-        body_text: text,
-        body_html: html,
-        html_body: html,
-      },
+      content: { body_text: text, body_html: html, html_body: html },
     };
 
     try {
@@ -399,248 +532,193 @@ export function MailComposer({
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
-      <DialogTitle>
+      <DialogTitle sx={{ pb: 1 }}>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          <Typography variant="h6">Новое письмо</Typography>
-          <IconButton onClick={handleClose}>
-            <Close />
+          <Typography variant="h6" fontWeight={600}>Новое письмо</Typography>
+          <IconButton onClick={handleClose} size="small">
+            <Close fontSize="small" />
           </IconButton>
         </Box>
       </DialogTitle>
 
-      <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pt: 1 }}>
-          {formError && <Alert severity="error">{formError}</Alert>}
+      <DialogContent sx={{ pt: 1 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5, pt: 0.5 }}>
+          {formError && <Alert severity="error" sx={{ py: 0.5 }}>{formError}</Alert>}
 
-          <Autocomplete
-            multiple
-            freeSolo
-            options={[]}
+          {/* ── Получатели ── */}
+          <RecipientAutocomplete
+            label="Кому"
+            placeholder="Введите email"
             value={to}
-            onChange={(_, value) => setTo(value.map((item) => item.trim()).filter(Boolean))}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={`${option}-${index}`}
-                  label={option}
-                  size="small"
-                  sx={{ borderRadius: "999px", bgcolor: "primary.50", border: "1px solid", borderColor: "primary.200" }}
-                />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Кому"
-                placeholder="Добавьте получателя"
-                required
-                fullWidth
-                variant="outlined"
-                sx={{
-                  "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" },
-                }}
-              />
-            )}
+            onChange={setTo}
+            required
           />
-          <Autocomplete
-            multiple
-            freeSolo
-            options={[]}
+          <RecipientAutocomplete
+            label="Копия (CC)"
+            placeholder="Введите email"
             value={cc}
-            onChange={(_, value) => setCc(value.map((item) => item.trim()).filter(Boolean))}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={`${option}-${index}`}
-                  label={option}
-                  size="small"
-                  sx={{ borderRadius: "999px", bgcolor: "grey.100" }}
-                />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Копия (CC)"
-                placeholder="Добавьте копию"
-                fullWidth
-                variant="outlined"
-                sx={{ "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" } }}
-              />
-            )}
+            onChange={setCc}
           />
-          <Autocomplete
-            multiple
-            freeSolo
-            options={[]}
+          <RecipientAutocomplete
+            label="Скрытая копия (BCC)"
+            placeholder="Введите email"
             value={bcc}
-            onChange={(_, value) => setBcc(value.map((item) => item.trim()).filter(Boolean))}
-            renderTags={(value, getTagProps) =>
-              value.map((option, index) => (
-                <Chip
-                  {...getTagProps({ index })}
-                  key={`${option}-${index}`}
-                  label={option}
-                  size="small"
-                  sx={{ borderRadius: "999px", bgcolor: "grey.100" }}
-                />
-              ))
-            }
-            renderInput={(params) => (
-              <TextField
-                {...params}
-                label="Скрытая копия (BCC)"
-                placeholder="Добавьте скрытую копию"
-                fullWidth
-                variant="outlined"
-                sx={{ "& .MuiInputBase-root:before, & .MuiInputBase-root:after": { display: "none" } }}
-              />
-            )}
+            onChange={setBcc}
           />
+
           <TextField
             label="Тема"
             value={subject}
-            onChange={(event) => setSubject(event.target.value)}
+            onChange={(e) => setSubject(e.target.value)}
             fullWidth
+            size="small"
           />
 
+          {/* ── Редактор ── */}
           <Box>
-            <Typography variant="subtitle2" sx={{ mb: 1 }}>
+            <Typography variant="subtitle2" color="text.secondary" sx={{ mb: 0.75 }}>
               Сообщение
             </Typography>
 
+            {/* Тулбар форматирования */}
             <Stack
               direction="row"
+              alignItems="center"
               spacing={0.25}
               useFlexGap
               flexWrap="wrap"
-              sx={{ border: "1px solid", borderColor: "divider", borderRadius: 1, p: 0.75 }}
+              sx={{
+                border: "1px solid",
+                borderColor: "divider",
+                borderBottom: "none",
+                borderRadius: "6px 6px 0 0",
+                bgcolor: "grey.50",
+                p: 0.75,
+                gap: 0.25,
+              }}
             >
-              <Select size="small" value={editorState.blockType} onChange={handleBlockTypeChange} sx={selectSx}>
-                <MenuItem value="p">P</MenuItem>
-                <MenuItem value="h1">H1</MenuItem>
-                <MenuItem value="h2">H2</MenuItem>
-                <MenuItem value="h3">H3</MenuItem>
+              {/* Группа 1: стиль блока и шрифты */}
+              <Select
+                size="small"
+                value={editorState.blockType}
+                onChange={handleBlockTypeChange}
+                sx={{ ...toolbarSelectSx, width: 58 }}
+              >
+                <MenuItem value="p" sx={{ fontSize: 13 }}>P</MenuItem>
+                <MenuItem value="h1" sx={{ fontSize: 13, fontWeight: 700 }}>H1</MenuItem>
+                <MenuItem value="h2" sx={{ fontSize: 13, fontWeight: 700 }}>H2</MenuItem>
+                <MenuItem value="h3" sx={{ fontSize: 13, fontWeight: 700 }}>H3</MenuItem>
               </Select>
 
-              <Select size="small" value={editorState.fontName} onChange={handleFontNameChange} sx={selectSx}>
+              <Select
+                size="small"
+                value={editorState.fontName}
+                onChange={(e) => executeCommand("fontName", e.target.value)}
+                sx={{ ...toolbarSelectSx, width: 130 }}
+              >
                 {FONT_OPTIONS.map((font) => (
-                  <MenuItem key={font} value={font} sx={{ fontFamily: font }}>
+                  <MenuItem key={font} value={font} sx={{ fontFamily: font, fontSize: 13 }}>
                     {font}
                   </MenuItem>
                 ))}
               </Select>
 
-              <Select size="small" value={editorState.fontSize} onChange={handleFontSizeChange} sx={selectSx}>
-                {FONT_SIZE_OPTIONS.map((size) => (
-                  <MenuItem key={size.value} value={size.value}>
-                    {size.label}
+              <Select
+                size="small"
+                value={editorState.fontSize}
+                onChange={(e) => executeCommand("fontSize", e.target.value)}
+                sx={{ ...toolbarSelectSx, width: 68 }}
+              >
+                {FONT_SIZE_OPTIONS.map((s) => (
+                  <MenuItem key={s.value} value={s.value} sx={{ fontSize: 13 }}>
+                    {s.label}
                   </MenuItem>
                 ))}
               </Select>
 
-              <Tooltip title="Полужирный">
-                <IconButton color={editorState.bold ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("bold")}>
-                  <FormatBold sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Курсив">
-                <IconButton color={editorState.italic ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("italic")}>
-                  <FormatItalic sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Подчеркивание">
-                <IconButton color={editorState.underline ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("underline")}>
-                  <FormatUnderlined sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Зачеркивание">
-                <IconButton color={editorState.strikeThrough ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("strikeThrough")}>
-                  <FormatStrikethrough sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Маркированный список">
-                <IconButton color={editorState.unorderedList ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertUnorderedList")}>
-                  <FormatListBulleted sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Нумерованный список">
-                <IconButton color={editorState.orderedList ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertOrderedList")}>
-                  <FormatListNumbered sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Разделительная линия">
-                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("insertHorizontalRule")}>
-                  <HorizontalRule sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Выравнивание по левому краю">
-                <IconButton color={editorState.alignLeft ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyLeft")}>
-                  <FormatAlignLeft sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Выравнивание по центру">
-                <IconButton color={editorState.alignCenter ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyCenter")}>
-                  <FormatAlignCenter sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Выравнивание по ширине">
-                <IconButton color={editorState.alignJustify ? "primary" : "default"} size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("justifyFull")}>
-                  <FormatAlignJustify sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Увеличить отступ">
-                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("indent")}>
-                  <FormatIndentIncrease sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Уменьшить отступ">
-                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("outdent")}>
-                  <FormatIndentDecrease sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Вставить ссылку">
-                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={handleCreateLink}>
-                  <Link sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
-              <Tooltip title="Очистить форматирование">
-                <IconButton size="small" sx={controlSizeSx} onMouseDown={(event) => event.preventDefault()} onClick={() => executeCommand("removeFormat")}>
-                  <FormatClear sx={{ fontSize: 16 }} />
-                </IconButton>
-              </Tooltip>
+              <ToolbarDivider />
+
+              {/* Группа 2: начертание */}
+              <ToolbarBtn title="Полужирный" active={editorState.bold} onClick={() => executeCommand("bold")}>
+                <FormatBold />
+              </ToolbarBtn>
+              <ToolbarBtn title="Курсив" active={editorState.italic} onClick={() => executeCommand("italic")}>
+                <FormatItalic />
+              </ToolbarBtn>
+              <ToolbarBtn title="Подчёркивание" active={editorState.underline} onClick={() => executeCommand("underline")}>
+                <FormatUnderlined />
+              </ToolbarBtn>
+              <ToolbarBtn title="Зачёркивание" active={editorState.strikeThrough} onClick={() => executeCommand("strikeThrough")}>
+                <FormatStrikethrough />
+              </ToolbarBtn>
+
+              <ToolbarDivider />
+
+              {/* Группа 3: списки */}
+              <ToolbarBtn title="Маркированный список" active={editorState.unorderedList} onClick={() => executeCommand("insertUnorderedList")}>
+                <FormatListBulleted />
+              </ToolbarBtn>
+              <ToolbarBtn title="Нумерованный список" active={editorState.orderedList} onClick={() => executeCommand("insertOrderedList")}>
+                <FormatListNumbered />
+              </ToolbarBtn>
+              <ToolbarBtn title="Увеличить отступ" onClick={() => executeCommand("indent")}>
+                <FormatIndentIncrease />
+              </ToolbarBtn>
+              <ToolbarBtn title="Уменьшить отступ" onClick={() => executeCommand("outdent")}>
+                <FormatIndentDecrease />
+              </ToolbarBtn>
+
+              <ToolbarDivider />
+
+              {/* Группа 4: выравнивание */}
+              <ToolbarBtn title="По левому краю" active={editorState.alignLeft} onClick={() => executeCommand("justifyLeft")}>
+                <FormatAlignLeft />
+              </ToolbarBtn>
+              <ToolbarBtn title="По центру" active={editorState.alignCenter} onClick={() => executeCommand("justifyCenter")}>
+                <FormatAlignCenter />
+              </ToolbarBtn>
+              <ToolbarBtn title="По ширине" active={editorState.alignJustify} onClick={() => executeCommand("justifyFull")}>
+                <FormatAlignJustify />
+              </ToolbarBtn>
+
+              <ToolbarDivider />
+
+              {/* Группа 5: вставка и очистка */}
+              <ToolbarBtn title="Разделительная линия" onClick={() => executeCommand("insertHorizontalRule")}>
+                <HorizontalRule />
+              </ToolbarBtn>
+              <ToolbarBtn title="Вставить ссылку" onClick={handleCreateLink}>
+                <Link />
+              </ToolbarBtn>
+              <ToolbarBtn title="Очистить форматирование" onClick={() => executeCommand("removeFormat")}>
+                <FormatClear />
+              </ToolbarBtn>
             </Stack>
 
+            {/* Поле ввода сообщения */}
             <Box
               ref={editorRef}
               contentEditable
               suppressContentEditableWarning
-              onInput={(event) => {
-                setBodyHtml(event.currentTarget.innerHTML);
-                syncEditorState();
-              }}
+              onInput={(e) => { setBodyHtml(e.currentTarget.innerHTML); syncEditorState(); }}
               onFocus={syncEditorState}
               sx={{
                 border: "1px solid",
                 borderColor: "divider",
-                borderRadius: 1,
-                minHeight: 240,
+                borderRadius: "0 0 6px 6px",
+                minHeight: 220,
                 p: 1.5,
-                mt: 1,
                 outline: "none",
                 overflowWrap: "anywhere",
-                lineHeight: 1.5,
+                lineHeight: 1.6,
+                fontSize: 14,
+                bgcolor: "background.paper",
                 "&:focus": {
                   borderColor: "primary.main",
-                  boxShadow: (theme) => `0 0 0 1px ${theme.palette.primary.main}`,
+                  boxShadow: (t) => `0 0 0 1px ${t.palette.primary.main}`,
                 },
-                "& h1, & h2, & h3": { marginTop: 1, marginBottom: 1 },
-                "& ul, & ol": {
-                  paddingInlineStart: "24px",
-                  margin: "8px 0",
-                },
+                "& h1, & h2, & h3": { mt: 1, mb: 0.5 },
+                "& ul, & ol": { paddingInlineStart: "24px", my: 1 },
                 "& ul": { listStyleType: "disc" },
                 "& ol": { listStyleType: "decimal" },
                 "& li": { display: "list-item" },
@@ -648,11 +726,13 @@ export function MailComposer({
             />
           </Box>
 
+          {/* ── Вложения ── */}
           <Box>
             <Button
               startIcon={<AttachFile />}
               onClick={() => fileInputRef.current?.click()}
               variant="outlined"
+              size="small"
             >
               Добавить вложения
             </Button>
@@ -660,24 +740,21 @@ export function MailComposer({
               ref={fileInputRef}
               type="file"
               multiple
-              onChange={(event) => {
-                handleAddFiles(event.target.files);
-                event.target.value = "";
-              }}
+              onChange={(e) => { handleAddFiles(e.target.files); e.target.value = ""; }}
               style={{ display: "none" }}
             />
 
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              При суммарном объеме файлов больше {LARGE_ATTACHMENT_HINT_MB} МБ вложения будут отправлены как ссылка для скачивания.
+            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 0.75 }}>
+              При суммарном объёме файлов больше {LARGE_ATTACHMENT_HINT_MB} МБ вложения будут отправлены как ссылка для скачивания.
             </Typography>
 
-            <Typography variant="body2" sx={{ mt: 0.5 }}>
+            <Typography variant="body2" sx={{ mt: 0.5, color: "text.secondary" }}>
               📎 {attachments.length} файла(ов) · {formatMb(totalAttachmentBytes)}
             </Typography>
 
             {hasOversizedAttachments && (
-              <Alert severity="warning" sx={{ mt: 1 }}>
-                ⚠️ Файлы больше 25 МБ будут отправлены как ссылка для скачивания.
+              <Alert severity="warning" sx={{ mt: 1, py: 0.5 }}>
+                Файлы больше 25 МБ будут отправлены как ссылка для скачивания.
               </Alert>
             )}
 
@@ -687,12 +764,17 @@ export function MailComposer({
                   <ListItem
                     key={`${file.name}-${file.size}-${file.lastModified}`}
                     secondaryAction={
-                      <IconButton edge="end" onClick={() => handleRemoveAttachment(index)}>
+                      <IconButton edge="end" size="small" onClick={() => handleRemoveAttachment(index)}>
                         <DeleteOutline fontSize="small" />
                       </IconButton>
                     }
                   >
-                    <ListItemText primary={file.name} secondary={formatMb(file.size)} />
+                    <ListItemText
+                      primary={file.name}
+                      secondary={formatMb(file.size)}
+                      primaryTypographyProps={{ variant: "body2" }}
+                      secondaryTypographyProps={{ variant: "caption" }}
+                    />
                   </ListItem>
                 ))}
               </List>
@@ -701,8 +783,8 @@ export function MailComposer({
         </Box>
       </DialogContent>
 
-      <DialogActions>
-        <Button onClick={handleClose} disabled={sendMail.isPending}>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button onClick={handleClose} disabled={sendMail.isPending} color="inherit">
           Свернуть
         </Button>
         <Button
@@ -710,6 +792,7 @@ export function MailComposer({
           startIcon={<Send />}
           onClick={() => void handleSend()}
           disabled={!canSend || sendMail.isPending || !user?.email}
+          disableElevation
         >
           {sendMail.isPending ? "Отправка..." : "Отправить"}
         </Button>

@@ -2,14 +2,23 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Add,
-  Archive,
   ArrowBack,
   ExpandLess,
   ExpandMore,
   Delete,
   Drafts,
   Inbox,
+  MarkEmailRead,
+  MarkEmailUnread,
   Menu,
+  MoreVert,
+  Star,
+  StarBorder,
+  LabelImportant,
+  LabelImportantOutline,
+  Report,
+  OutlinedFlag,
+  DeleteOutline,
   Refresh,
   Reply,
   Search,
@@ -18,6 +27,7 @@ import {
   OpenInFull,
   Remove,
   Close,
+  Link,
 } from "@mui/icons-material";
 import {
   alpha,
@@ -26,31 +36,53 @@ import {
   Button,
   Chip,
   Collapse,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
   Divider,
   Drawer,
   IconButton,
   InputAdornment,
   List,
   ListItem,
+  Menu as MuiMenu,
+  MenuItem,
   OutlinedInput,
   Paper,
   Stack,
+  Switch,
   Tooltip,
   Typography,
   useMediaQuery,
   useTheme,
+  Autocomplete,
+  TextField,
+  CircularProgress,
+  Alert,
 } from "@mui/material";
 import DOMPurify from "dompurify";
 import { useNavigate, useParams } from "react-router-dom";
 import { mailApi } from "../../entities/mail/api";
-import type { MailFolder, MailMessageRead, MailRecipient, MailThreadListItem } from "../../entities/mail/types";
+import { casesApi } from "../../entities/case/api";
+import type {
+  MailFolder,
+  MailMessagePatch,
+  MailMessageRead,
+  MailRecipient,
+  MailThreadListItem,
+} from "../../entities/mail/types";
+import type { CaseSuggestion } from "../../entities/case/types";
 import {
   useMailThread,
+  usePatchMailMessage,
   useMailStats,
   useSyncMailMessages,
+  useLinkMailToCase,
 } from "../../shared/hooks/useMail";
 import { useDebounce } from "../../shared/hooks/useDebounce";
 import { MailComposer } from "./MailComposer";
+import { notificationService } from "../../shared/services/notifications";
 
 const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "inbox", label: "Входящие" },
@@ -58,18 +90,17 @@ const folderMeta: Array<{ id: MailFolder; label: string }> = [
   { id: "drafts", label: "Черновики" },
   { id: "spam", label: "Спам" },
   { id: "trash", label: "Корзина" },
-  { id: "archive", label: "Архив" },
 ];
 
 const folderSet = new Set<MailFolder>(folderMeta.map((folder) => folder.id));
 const PAGE_SIZE = 20;
+const DEFAULT_THREAD_MESSAGES_LIMIT = 100;
 
 const folderIcon = (folder: MailFolder) => {
   if (folder === "inbox") return <Inbox fontSize="small" />;
   if (folder === "sent") return <Send fontSize="small" />;
   if (folder === "drafts") return <Drafts fontSize="small" />;
   if (folder === "spam") return <Delete fontSize="small" />;
-  if (folder === "archive") return <Archive fontSize="small" />;
   return <Delete fontSize="small" />;
 };
 
@@ -152,6 +183,11 @@ export function MailPage() {
   const [expandedThreadIds, setExpandedThreadIds] = useState<string[]>([]);
   const [threadMessagesById, setThreadMessagesById] = useState<Record<string, MailMessageRead[]>>({});
   const [loadingThreadIds, setLoadingThreadIds] = useState<string[]>([]);
+  const [filters, setFilters] = useState<{
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }>({});
   const listContainerRef = useRef<HTMLDivElement | null>(null);
   const loadMoreTriggerRef = useRef<HTMLDivElement | null>(null);
 
@@ -170,19 +206,33 @@ export function MailPage() {
     isFetchingNextPage,
     fetchNextPage,
   } = useInfiniteQuery({
-    queryKey: ["mail", "threads", selectedFolder, debouncedSearch],
+    queryKey: ["mail", "threads", selectedFolder, debouncedSearch, filters],
     initialPageParam: 1,
     queryFn: ({ pageParam }) => {
       const page = Number(pageParam);
 
       if (debouncedSearch.length > 1) {
         return mailApi
-          .searchThreads({ q: debouncedSearch, page, page_size: PAGE_SIZE })
+          .searchThreads({
+            q: debouncedSearch,
+            page,
+            page_size: PAGE_SIZE,
+            is_read: filters.is_read,
+            is_starred: filters.is_starred,
+            is_important: filters.is_important,
+          })
           .then((response) => response.data);
       }
 
       return mailApi
-        .getThreads({ folder: selectedFolder, page, page_size: PAGE_SIZE })
+        .getThreads({
+          folder: selectedFolder,
+          page,
+          page_size: PAGE_SIZE,
+          is_read: filters.is_read,
+          is_starred: filters.is_starred,
+          is_important: filters.is_important,
+        })
         .then((response) => response.data);
     },
     getNextPageParam: (lastPage) =>
@@ -190,8 +240,80 @@ export function MailPage() {
   });
 
   const { data: selectedThread } = useMailThread(selectedThreadId ?? "");
+  const patchMailMessage = usePatchMailMessage();
   const syncMessages = useSyncMailMessages();
   const [lastSyncedAt, setLastSyncedAt] = useState<number>(0);
+  const [actionMenuState, setActionMenuState] = useState<{
+    item: MailThreadListItem;
+    anchorEl: HTMLElement | null;
+    mouseX: number | null;
+    mouseY: number | null;
+  } | null>(null);
+  const [actionMenuFlags, setActionMenuFlags] = useState<{
+    hasUnread: boolean;
+    hasStarred: boolean;
+    hasImportant: boolean;
+    hasSpam: boolean;
+  } | null>(null);
+  const [updatingThreadIds, setUpdatingThreadIds] = useState<string[]>([]);
+  
+  // Link to case dialog state
+  const [linkDialogOpen, setLinkDialogOpen] = useState(false);
+  const [linkingMessageId, setLinkingMessageId] = useState<string | null>(null);
+  const [selectedCase, setSelectedCase] = useState<CaseSuggestion | null>(null);
+  const [caseSearchQuery, setCaseSearchQuery] = useState("");
+  const [caseSuggestions, setCaseSuggestions] = useState<CaseSuggestion[]>([]);
+  const [isLoadingCases, setIsLoadingCases] = useState(false);
+  const linkMailToCase = useLinkMailToCase();
+
+  const handleOpenLinkDialog = (messageId: string) => {
+    setLinkingMessageId(messageId);
+    setLinkDialogOpen(true);
+    setSelectedCase(null);
+    setCaseSearchQuery("");
+    setCaseSuggestions([]);
+  };
+
+  const handleCloseLinkDialog = () => {
+    setLinkDialogOpen(false);
+    setLinkingMessageId(null);
+    setSelectedCase(null);
+    setCaseSearchQuery("");
+    setCaseSuggestions([]);
+  };
+
+  const handleLinkToCase = async () => {
+    if (!linkingMessageId || !selectedCase) return;
+    
+    try {
+      await linkMailToCase.mutateAsync({
+        messageId: linkingMessageId,
+        payload: { case_id: selectedCase.id },
+      });
+      notificationService.success("Письмо успешно привязано к делу");
+      handleCloseLinkDialog();
+    } catch {
+      notificationService.error("Не удалось привязать письмо к делу");
+    }
+  };
+
+  const searchCases = async (query: string) => {
+    if (!query.trim()) {
+      setCaseSuggestions([]);
+      return;
+    }
+    
+    setIsLoadingCases(true);
+    try {
+      const suggestions = await casesApi.getSuggestions(query);
+      setCaseSuggestions(suggestions);
+    } catch (error) {
+      console.error("Error searching cases:", error);
+      setCaseSuggestions([]);
+    } finally {
+      setIsLoadingCases(false);
+    }
+  };
 
   const threads = useMemo(() => {
     const allItems = (threadsPages?.pages ?? []).flatMap((page) => page.items ?? []);
@@ -265,12 +387,6 @@ export function MailPage() {
     navigate(`/crm/mail/${folder}`);
   };
 
-  const selectThread = (thread: MailThreadListItem) => {
-    const threadId = thread.thread_id ?? thread.id;
-    if (!threadId) return;
-    navigate(`/crm/mail/${selectedFolder}/${threadId}`);
-  };
-
   const openMessageById = async (messageId: string, fallbackThreadId?: string) => {
     const response = await mailApi.getMessage(messageId);
     const resolvedThreadId = response.data.thread_id ?? fallbackThreadId;
@@ -309,6 +425,129 @@ export function MailPage() {
 
     void toggleThreadExpansion(item);
   };
+
+  const getItemKey = (item: MailThreadListItem) => item.thread_id ?? item.id;
+
+  const resolveMessagesForItem = async (item: MailThreadListItem): Promise<MailMessageRead[]> => {
+    if (item.type === "message" && item.message_id) {
+      const response = await mailApi.getMessage(item.message_id);
+      return [response.data];
+    }
+
+    const threadId = item.thread_id ?? item.id;
+    if (!threadId) return [];
+
+    const knownMessages = threadMessagesById[threadId];
+    const messages =
+      knownMessages ??
+      (
+        await mailApi.getThreadMessages(threadId, {
+          page: 1,
+          page_size: DEFAULT_THREAD_MESSAGES_LIMIT,
+        })
+      ).data.items;
+
+    return messages ?? [];
+  };
+
+  const updateMessagesByPatch = async (
+    item: MailThreadListItem,
+    payload: MailMessagePatch,
+    predicate?: (message: MailMessageRead) => boolean,
+  ) => {
+    const itemKey = getItemKey(item);
+    if (!itemKey) return;
+
+    setUpdatingThreadIds((prev) => [...prev, itemKey]);
+    try {
+      const messages = await resolveMessagesForItem(item);
+      const messageIds = messages
+        .filter((message) => (predicate ? predicate(message) : true))
+        .map((message) => message.id);
+
+      if (messageIds.length === 0) return;
+
+      await Promise.allSettled(
+        messageIds.map((messageId) =>
+          patchMailMessage.mutateAsync({
+            messageId,
+            payload,
+          }),
+        ),
+      );
+    } finally {
+      setUpdatingThreadIds((prev) => prev.filter((id) => id !== itemKey));
+    }
+  };
+
+  const buildActionMenuFlags = (messages: MailMessageRead[], fallbackUnread = false) => {
+    if (messages.length === 0) {
+      return {
+        hasUnread: fallbackUnread,
+        hasStarred: false,
+        hasImportant: false,
+        hasSpam: false,
+      };
+    }
+
+    return {
+      hasUnread: messages.some((message) => !message.is_read),
+      hasStarred: messages.some((message) => message.is_starred),
+      hasImportant: messages.some((message) => message.is_important),
+      hasSpam: messages.some((message) => message.is_spam || message.folder === "spam"),
+    };
+  };
+
+  const openActionsMenu = (
+    item: MailThreadListItem,
+    anchorEl: HTMLElement | null,
+    mouseX: number | null,
+    mouseY: number | null,
+  ) => {
+    setActionMenuState({
+      item,
+      anchorEl,
+      mouseX,
+      mouseY,
+    });
+    setActionMenuFlags(
+      buildActionMenuFlags([], item.unread_count > 0),
+    );
+
+    void resolveMessagesForItem(item)
+      .then((messages) => {
+        setActionMenuFlags(buildActionMenuFlags(messages, item.unread_count > 0));
+      })
+      .catch(() => {
+        setActionMenuFlags(buildActionMenuFlags([], item.unread_count > 0));
+      });
+  };
+
+  const openActionsFromButton = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
+    event.preventDefault();
+    event.stopPropagation();
+    openActionsMenu(item, event.currentTarget, null, null);
+  };
+
+  const openActionsFromContextMenu = (event: React.MouseEvent<HTMLElement>, item: MailThreadListItem) => {
+    event.preventDefault();
+    openActionsMenu(item, null, event.clientX, event.clientY);
+  };
+
+  const closeActionMenu = () => {
+    setActionMenuState(null);
+    setActionMenuFlags(null);
+  };
+
+  const canMarkAsRead = actionMenuFlags?.hasUnread ?? false;
+
+  const contextMenuPosition =
+    actionMenuState &&
+    actionMenuState.anchorEl === null &&
+    typeof actionMenuState.mouseX === "number" &&
+    typeof actionMenuState.mouseY === "number"
+      ? { top: actionMenuState.mouseY, left: actionMenuState.mouseX }
+      : undefined;
 
   const orderedMessages = useMemo(() => {
     return [...(selectedThread?.messages ?? [])].sort(
@@ -437,6 +676,55 @@ export function MailPage() {
       </List>
 
       <Divider sx={{ my: 0.5 }} />
+      <Box sx={{ px: 1, py: 0.5 }}>
+        <Typography variant="caption" sx={{ color: "#4A5F89", fontWeight: 700 }}>
+          Фильтры
+        </Typography>
+        <Stack spacing={0.75} sx={{ mt: 1 }}>
+          <Button
+            variant={filters.is_read === false ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_read: prev.is_read === false ? undefined : false,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_read === false} />}
+          >
+            Непрочитанные
+          </Button>
+          <Button
+            variant={filters.is_starred === true ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_starred: prev.is_starred === true ? undefined : true,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_starred === true} />}
+          >
+            Избранные
+          </Button>
+          <Button
+            variant={filters.is_important === true ? "contained" : "outlined"}
+            onClick={() =>
+              setFilters((prev) => ({
+                ...prev,
+                is_important: prev.is_important === true ? undefined : true,
+              }))
+            }
+            size="small"
+            sx={{ justifyContent: "space-between", borderRadius: 99 }}
+            endIcon={<Switch size="small" checked={filters.is_important === true} />}
+          >
+            Важные
+          </Button>
+        </Stack>
+      </Box>
     </Box>
   );
 
@@ -497,7 +785,7 @@ export function MailPage() {
               }}
               fullWidth
               size="small"
-              placeholder="Поиск тредов..."
+              placeholder="Поиск сообщений..."
               startAdornment={
                 <InputAdornment position="start">
                   <Search fontSize="small" sx={{ color: "#4B5A7A" }} />
@@ -516,7 +804,7 @@ export function MailPage() {
 
             {(isLoading || isFetching) && <Typography>Загрузка...</Typography>}
             {!isLoading && !isFetching && threads.length === 0 && (
-              <Typography color="text.secondary">Нет тредов в этой папке.</Typography>
+              <Typography color="text.secondary">Нет сообщений в этой папке.</Typography>
             )}
 
             <List sx={{ display: "flex", flexDirection: "column", gap: 0.75, p: 0 }}>
@@ -540,10 +828,15 @@ export function MailPage() {
                       const threadId = thread.thread_id ?? thread.id;
                       const isThreadType = thread.type === "thread" || (thread.message_count ?? 0) > 1;
                       const expanded = !!threadId && expandedThreadIds.includes(threadId);
+                      const isActiveThread = Boolean(selectedThreadId && threadId === selectedThreadId);
+                      const isUnreadThread = thread.unread_count > 0;
+                      const isImportantThread = Boolean(thread.is_important);
+                      const isStarredThread = Boolean(thread.is_starred);
 
                       return (
                       <Box key={threadId}>
                         <Paper
+                          className="thread-card"
                           variant="outlined"
                           sx={{
                             px: 1.2,
@@ -554,15 +847,58 @@ export function MailPage() {
                             display: "flex",
                             alignItems: "center",
                             gap: 1,
-                            borderColor: alpha(thread.unread_count > 0 ? "#2563EB" : "#8EA4CC", thread.unread_count > 0 ? 0.55 : 0.35),
-                            backgroundColor: alpha("#FFFFFF", thread.unread_count > 0 ? 0.86 : 0.68),
+                            borderColor: isActiveThread
+                              ? alpha("#1D4ED8", 0.9)
+                              : alpha(isUnreadThread ? "#2563EB" : "#8EA4CC", isUnreadThread ? 0.55 : 0.35),
+                            backgroundColor: isActiveThread
+                              ? alpha("#DBEAFE", 0.95)
+                              : isImportantThread
+                                ? alpha("#FEF3C7", 0.55)
+                                : alpha("#FFFFFF", isUnreadThread ? 0.86 : 0.68),
+                            boxShadow: isActiveThread
+                              ? `0 0 0 1px ${alpha("#1D4ED8", 0.45)}, 0 12px 26px ${alpha("#1E3A8A", 0.2)}`
+                              : "none",
                             transition: "all 0.2s ease",
                             "&:hover": {
                               boxShadow: `0 10px 24px ${alpha("#5D74A1", 0.16)}`,
                             },
+                            "&:hover .thread-read-toggle": {
+                              opacity: 1,
+                            },
                           }}
                           onClick={() => handleListItemClick(thread)}
+                          onContextMenu={(event) => openActionsFromContextMenu(event, thread)}
                         >
+                          <Tooltip title={thread.unread_count > 0 ? "Пометить как прочитанное" : "Пометить как непрочитанное"}>
+                            <Box
+                              className="thread-read-toggle"
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void updateMessagesByPatch(
+                                  thread,
+                                  { is_read: thread.unread_count > 0 },
+                                  (message) => message.is_read !== (thread.unread_count > 0),
+                                );
+                              }}
+                              sx={{
+                                width: 10,
+                                height: 10,
+                                borderRadius: "50%",
+                                flexShrink: 0,
+                                bgcolor: thread.unread_count > 0 ? "#2563EB" : alpha("#2563EB", 0.12),
+                                border: thread.unread_count > 0 ? "none" : `1px solid ${alpha("#2563EB", 0.45)}`,
+                                opacity: thread.unread_count > 0 ? 1 : 0,
+                                transition: "opacity 0.2s ease, background-color 0.2s ease",
+                                cursor: "pointer",
+                              }}
+                            />
+                          </Tooltip>
+                          {isStarredThread && (
+                            <Star fontSize="small" sx={{ color: "#F59E0B" }} />
+                          )}
+                          {isImportantThread && (
+                            <LabelImportant fontSize="small" sx={{ color: "#DC2626" }} />
+                          )}
                           <Box sx={{ minWidth: 190, maxWidth: 220 }}>
                             <Typography variant="body2" sx={{ color: "#5A6885" }} noWrap>
                               {thread.sender_name || thread.sender_email || (thread.participants ?? []).join(", ") || "Участники неизвестны"}
@@ -573,7 +909,7 @@ export function MailPage() {
                             <Typography
                               variant="body2"
                               noWrap
-                              sx={{ fontWeight: thread.unread_count > 0 ? 800 : 600, color: "#1C2B4D" }}
+                              sx={{ fontWeight: isUnreadThread ? 800 : 600, color: "#1C2B4D" }}
                             >
                               {thread.subject || "(без темы)"}
                             </Typography>
@@ -598,6 +934,13 @@ export function MailPage() {
                             <Typography variant="caption" sx={{ color: "#607193", minWidth: 120 }}>
                               {new Date(thread.last_message_at).toLocaleString("ru-RU")}
                             </Typography>
+                            <IconButton
+                              size="small"
+                              onClick={(event) => openActionsFromButton(event, thread)}
+                              disabled={updatingThreadIds.includes(threadId!)}
+                            >
+                              <MoreVert fontSize="small" />
+                            </IconButton>
                           </Stack>
                         </Paper>
 
@@ -615,8 +958,8 @@ export function MailPage() {
                                 backgroundColor: alpha("#F8FAFF", 0.9),
                               }}
                             >
-                              {loadingThreadIds.includes(threadId) ? (
-                                <Typography variant="body2" color="text.secondary">Загрузка сообщений треда...</Typography>
+                              {loadingThreadIds.includes(threadId!) ? (
+                                <Typography variant="body2" color="text.secondary">Загрузка сообщений...</Typography>
                               ) : (
                                 <Stack spacing={0.8}>
                                   {(threadMessagesById[threadId] ?? [])
@@ -816,6 +1159,203 @@ export function MailPage() {
           </Stack>
         </Box>
       )}
+
+      <MuiMenu
+        open={Boolean(actionMenuState)}
+        onClose={closeActionMenu}
+        anchorEl={actionMenuState?.anchorEl ?? undefined}
+        anchorReference={actionMenuState?.anchorEl ? "anchorEl" : "anchorPosition"}
+        anchorPosition={contextMenuPosition}
+      >
+        {canMarkAsRead ? (
+          <MenuItem
+            onClick={() => {
+              const item = actionMenuState?.item;
+              closeActionMenu();
+              if (!item) return;
+              void updateMessagesByPatch(item, { is_read: true }, (message) => !message.is_read);
+            }}
+          >
+            <MarkEmailRead fontSize="small" sx={{ mr: 1 }} />
+            Пометить как прочитанное
+          </MenuItem>
+        ) : (
+          <MenuItem
+            onClick={() => {
+              const item = actionMenuState?.item;
+              closeActionMenu();
+              if (!item) return;
+              void updateMessagesByPatch(item, { is_read: false }, (message) => message.is_read);
+            }}
+          >
+            <MarkEmailUnread fontSize="small" sx={{ mr: 1 }} />
+            Пометить как непрочитанное
+          </MenuItem>
+        )}
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            if (actionMenuFlags?.hasStarred) {
+              void updateMessagesByPatch(item, { is_starred: false }, (message) => message.is_starred);
+              return;
+            }
+            void updateMessagesByPatch(item, { is_starred: true }, (message) => !message.is_starred);
+          }}
+        >
+          {actionMenuFlags?.hasStarred ? <Star fontSize="small" sx={{ mr: 1 }} /> : <StarBorder fontSize="small" sx={{ mr: 1 }} />}
+          {actionMenuFlags?.hasStarred ? "Убрать из избранного" : "В избранное"}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            if (actionMenuFlags?.hasImportant) {
+              void updateMessagesByPatch(item, { is_important: false }, (message) => message.is_important);
+              return;
+            }
+            void updateMessagesByPatch(item, { is_important: true }, (message) => !message.is_important);
+          }}
+        >
+          {actionMenuFlags?.hasImportant ? (
+            <LabelImportant fontSize="small" sx={{ mr: 1 }} />
+          ) : (
+            <LabelImportantOutline fontSize="small" sx={{ mr: 1 }} />
+          )}
+          {actionMenuFlags?.hasImportant ? "Снять важность" : "Пометить как важное"}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            if (actionMenuFlags?.hasSpam) {
+              void updateMessagesByPatch(
+                item,
+                { folder: "inbox", is_spam: false },
+                (message) => message.is_spam || message.folder === "spam",
+              );
+              return;
+            }
+            void updateMessagesByPatch(
+              item,
+              { folder: "spam", is_spam: true },
+              (message) => !message.is_spam || message.folder !== "spam",
+            );
+          }}
+        >
+          {actionMenuFlags?.hasSpam ? <OutlinedFlag fontSize="small" sx={{ mr: 1 }} /> : <Report fontSize="small" sx={{ mr: 1 }} />}
+          {actionMenuFlags?.hasSpam ? "Не спам" : "В спам"}
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            void updateMessagesByPatch(
+              item,
+              { folder: "trash" },
+              (message) => message.folder !== "trash",
+            );
+          }}
+        >
+          <DeleteOutline fontSize="small" sx={{ mr: 1 }} />
+          В корзину
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            const item = actionMenuState?.item;
+            closeActionMenu();
+            if (!item) return;
+            
+            // Get the first message ID from the thread
+            if (item.message_id) {
+              handleOpenLinkDialog(item.message_id);
+            }
+          }}
+        >
+          <Link fontSize="small" sx={{ mr: 1 }} />
+          Привязать к делу
+        </MenuItem>
+      </MuiMenu>
+
+      {/* Link to Case Dialog */}
+      <Dialog open={linkDialogOpen} onClose={handleCloseLinkDialog} maxWidth="sm" fullWidth>
+        <DialogTitle>Привязать письмо к делу</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1 }}>
+            <Autocomplete
+              value={selectedCase}
+              onChange={(_, newValue) => setSelectedCase(newValue)}
+              onInputChange={(_, newValue) => {
+                setCaseSearchQuery(newValue);
+                void searchCases(newValue);
+              }}
+              options={caseSuggestions}
+              getOptionLabel={(option) => `${option.number} - ${option.case_number}`}
+              loading={isLoadingCases}
+              renderInput={(params) => (
+                <TextField
+                  {...params}
+                  label="Поиск дела"
+                  placeholder="Введите номер или название дела"
+                  fullWidth
+                  InputProps={{
+                    ...params.InputProps,
+                    endAdornment: (
+                      <>
+                        {isLoadingCases ? <CircularProgress color="inherit" size={20} /> : null}
+                        {params.InputProps.endAdornment}
+                      </>
+                    ),
+                  }}
+                />
+              )}
+              renderOption={(props, option) => {
+                const { key, ...restProps } = props;
+                return (
+                  <Box component="li" key={key} {...restProps}>
+                    <Box sx={{ width: "100%" }}>
+                      <Typography variant="body2" fontWeight="bold">
+                        {option.number}
+                      </Typography>
+                      <Typography variant="body2" color="text.secondary">
+                        {option.case_number}
+                      </Typography>
+                    </Box>
+                  </Box>
+                );
+              }}
+              noOptionsText={
+                caseSearchQuery.length > 0
+                  ? "Дела не найдены"
+                  : "Начните вводить для поиска дела"
+              }
+              isOptionEqualToValue={(option, value) => option.id === value.id}
+            />
+            {selectedCase && (
+              <Alert severity="info" sx={{ mt: 2 }}>
+                Письмо будет привязано к делу: <strong>{selectedCase.number} - {selectedCase.case_number}</strong>
+              </Alert>
+            )}
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseLinkDialog} disabled={linkMailToCase.isPending}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => void handleLinkToCase()}
+            variant="contained"
+            disabled={!selectedCase || linkMailToCase.isPending}
+            startIcon={linkMailToCase.isPending ? <CircularProgress size={20} /> : <Link />}
+          >
+            {linkMailToCase.isPending ? "Привязка..." : "Привязать"}
+          </Button>
+        </DialogActions>
+      </Dialog>
 
       <MailComposer
         open={composerOpen}

@@ -21,6 +21,7 @@ import { useState } from "react";
 import { ClientCreateDialog } from "./ClientCreateDialog";
 import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
+import type { ClientCreateRequest } from "../../entities/client/types";
 
 const TYPE_ICONS = {
   legal: <AccountBalance sx={{ fontSize: 18 }} />,
@@ -45,7 +46,7 @@ export function ClientListPage() {
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const createClient = useCreateClient();
 
-  const handleCreateClient = async (formData: any) => {
+  const handleCreateClient = async (formData: ClientCreateRequest) => {
     try {
       await createClient.mutateAsync(formData);
       setCreateDialogOpen(false);

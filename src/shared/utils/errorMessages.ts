@@ -21,7 +21,7 @@ export function getApiErrorMessage(
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const responseData = error.response?.data as
-      | { message?: string; detail?: string }
+      | { message?: string; detail?: string | Array<{ type?: string; loc?: string[]; msg?: string; input?: unknown }> }
       | undefined;
 
     if (responseData?.message) {
@@ -29,7 +29,20 @@ export function getApiErrorMessage(
     }
 
     if (responseData?.detail) {
-      return responseData.detail;
+      // Handle FastAPI validation errors (array of error objects)
+      if (Array.isArray(responseData.detail)) {
+        return responseData.detail
+          .map((err) => {
+            const field = err.loc?.slice(1).join(".") ?? "field";
+            const msg = err.msg ?? "Validation error";
+            return `${field}: ${msg}`;
+          })
+          .join("; ");
+      }
+      // Handle string detail
+      if (typeof responseData.detail === "string") {
+        return responseData.detail;
+      }
     }
 
     if (!error.response) {

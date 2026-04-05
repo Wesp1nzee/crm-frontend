@@ -15,11 +15,19 @@ import type {
   MailSyncResult,
   MailThreadsApiResponse,
   MailThreadRead,
+  MailThreadListItem,
   OversizedMailBatch,
   OversizedMailPreviewUrl,
   PaginatedMailThread,
   PaginatedMailThreads,
   PaginatedMailMessages,
+  MailAttachmentsListParams,
+  MailAttachmentsResponse,
+  LinkMailToCaseRequest,
+  LinkMailToCaseResponse,
+  UnlinkMailFromCaseResponse,
+  PaginatedMailMessagesForCase,
+  MailContactAutocompleteResponse,
 } from "./types";
 
 const getFrontendDomain = () => {
@@ -55,22 +63,31 @@ const normalizeThreadItem = (item: Record<string, unknown>) => {
     ...item,
     type:
       item.type === "thread" || item.type === "message"
-        ? item.type
-        : (typeof item.message_count === "number" && item.message_count > 1 ? "thread" : "message"),
+        ? (item.type as "thread" | "message")
+        : (typeof item.message_count === "number" && item.message_count > 1 ? "thread" as const : "message" as const),
     thread_id:
       (typeof item.thread_id === "string" ? item.thread_id : null) ??
       (typeof item.id === "string" ? item.id : ""),
     message_id: typeof item.message_id === "string" ? item.message_id : undefined,
     message_count:
       typeof item.message_count === "number" ? item.message_count : 1,
+    unread_count: typeof item.unread_count === "number" ? item.unread_count : 0,
+    is_read:
+      typeof item.is_read === "boolean"
+        ? item.is_read
+        : !(typeof item.unread_count === "number" && item.unread_count > 0),
+    is_starred: typeof item.is_starred === "boolean" ? item.is_starred : false,
+    is_important: typeof item.is_important === "boolean" ? item.is_important : false,
     participants,
     sender_name: senderName,
     sender_email: senderEmail,
+    subject: typeof item.subject === "string" ? item.subject : null,
+    last_message_at: typeof item.last_message_at === "string" ? item.last_message_at : new Date().toISOString(),
   };
 };
 
 const normalizeThreadsResponse = (raw: MailThreadsApiResponse): PaginatedMailThreads => {
-  const items = (raw.items ?? []).map((item) => normalizeThreadItem(item as Record<string, unknown>));
+  const items = (raw.items ?? []).map((item) => normalizeThreadItem(item as unknown as Record<string, unknown>)) as unknown as MailThreadListItem[];
 
   if (raw.meta) {
     return {
@@ -172,23 +189,44 @@ export const mailApi = {
       data: normalizeThreadRead(response.data),
     })),
 
-  getThreads: (params?: { folder?: MailFolder; page?: number; page_size?: number }) =>
+  getThreads: (params?: {
+    folder?: MailFolder;
+    page?: number;
+    page_size?: number;
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }) =>
     api.get<MailThreadsApiResponse>("/mail/threads", { params }).then((response) => ({
       ...response,
       data: normalizeThreadsResponse(response.data),
     })),
 
-  searchThreads: (params: { q: string; page?: number; page_size?: number }) =>
-    api.get<MailThreadsApiResponse>("/mail/threads/search", { params }).then((response) => ({
+  searchThreads: (params: {
+    q: string;
+    page?: number;
+    page_size?: number;
+    is_read?: boolean;
+    is_starred?: boolean;
+    is_important?: boolean;
+  }) => {
+    const { q, ...rest } = params;
+    return api.get<MailThreadsApiResponse>("/mail/threads", {
+      params: { search: q, ...rest },
+    }).then((response) => ({
       ...response,
       data: normalizeThreadsResponse(response.data),
-    })),
+    }));
+  },
 
   getThreadMessages: (threadId: string, params?: { page?: number; page_size?: number }) =>
     api.get<PaginatedMailThread>(`/mail/threads/${threadId}/messages`, { params }),
 
   getAttachments: (messageId: string) =>
     api.get<MailAttachment[]>(`/mail/messages/${messageId}/attachments`),
+
+  getAttachmentsList: (params?: MailAttachmentsListParams) =>
+    api.get<MailAttachmentsResponse>("/mail/attachments", { params }),
 
   getDownloadAttachmentUrl: (messageId: string, attachmentId: string) =>
     `/api/mail/messages/${messageId}/attachments/${attachmentId}/download`,
@@ -224,4 +262,71 @@ export const mailApi = {
     `/api/mail/oversized/${token}/${fileId}/download`,
 
   getOversizedZipUrl: (token: string) => `/api/mail/oversized/${token}/zip`,
+
+  // NOTE: Download a single file with progress tracking.
+  // Returns the blob and response headers. `onProgress` receives 0-100.
+  downloadOversizedFile: (
+    token: string,
+    fileId: string,
+    onProgress?: (pct: number) => void,
+    signal?: AbortSignal,
+    password?: string,
+  ) =>
+    api.get(`/mail/oversized/${token}/${fileId}/download`, {
+      withCredentials: false,
+      responseType: "blob",
+      signal,
+      headers: password ? { Authorization: `Bearer ${password}` } : undefined,
+      onDownloadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
+      },
+    }),
+
+  // NOTE: GET /mail/oversized/{token}/download-all returns JSON array of
+  // { file_id, filename, url } where `url` is a presigned download URL.
+  // The frontend then fetches each URL in parallel.
+  getOversizedDownloadAll: (token: string, password?: string) =>
+    api.get<
+      Array<{ file_id: string; filename: string; url: string; content_type: string; file_size: number }>
+    >(`/mail/oversized/${token}/download-all`, {
+      withCredentials: false,
+      headers: password ? { Authorization: `Bearer ${password}` } : undefined,
+    }),
+
+  // NOTE: Download ZIP archive with progress tracking.
+  downloadOversizedZip: (
+    token: string,
+    onProgress?: (pct: number) => void,
+    signal?: AbortSignal,
+    password?: string,
+  ) =>
+    api.get(`/mail/oversized/${token}/zip`, {
+      withCredentials: false,
+      responseType: "blob",
+      signal,
+      headers: password ? { Authorization: `Bearer ${password}` } : undefined,
+      onDownloadProgress: (e) => {
+        if (onProgress && e.total) {
+          onProgress(Math.round((e.loaded * 100) / e.total));
+        }
+      },
+    }),
+
+  linkMailToCase: (messageId: string, payload: LinkMailToCaseRequest) =>
+    api.post<LinkMailToCaseResponse>(`/mail/messages/${messageId}/link-to-case`, null, {
+      params: { case_id: payload.case_id },
+    }),
+
+  unlinkMailFromCase: (messageId: string) =>
+    api.post<UnlinkMailFromCaseResponse>(`/mail/messages/${messageId}/unlink-from-case`, {}),
+
+  getCaseMessages: (caseId: string, params?: { page?: number; page_size?: number }) =>
+    api.get<PaginatedMailMessagesForCase>(`/mail/cases/${caseId}/messages`, { params }),
+
+  getContactsAutocomplete: (query: string, limit = 5) =>
+    api.get<MailContactAutocompleteResponse>("/mail/contacts/autocomplete", {
+      params: { q: query, limit },
+    }),
 };

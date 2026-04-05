@@ -11,9 +11,10 @@
     "test": "vitest",
     "format": "prettier --write .",
     "build": "vite build",
-    "type-check": "tsc --noEmit",
-    "build:prod": "vite build && npm run type-check"
-  },
+    "build:prod": "vite build && npm run type-check",
+    "type-check": "tsc --noEmit -p tsconfig.app.json",
+    "type-check:all": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.node.json"
+},
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.1",
@@ -26,6 +27,7 @@
     "date-fns": "^4.1.0",
     "dayjs": "^1.11.19",
     "dompurify": "^3.3.1",
+    "framer-motion": "^12.38.0",
     "msw": "^2.12.7",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",

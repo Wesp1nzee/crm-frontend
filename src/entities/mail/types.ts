@@ -86,6 +86,7 @@ export interface MailThreadListItem {
   subject: string | null;
   message_count?: number;
   unread_count: number;
+  is_read?: boolean;
   last_message_at: string;
   participants?: string[];
   sender_name?: string | null;
@@ -270,6 +271,82 @@ export interface OversizedMailPreviewUrl {
   expires_in: number;
 }
 
+export interface OversizedDownloadUrlItem {
+  file_id: string;
+  filename: string;
+  url: string;
+  content_type: string;
+  file_size: number;
+}
+
+export interface MailAttachmentType {
+  id: string;
+  filename: string;
+  content_type: string;
+  file_size: number;
+  created_at: string;
+  thread_id: string;
+  message_subject: string | null;
+  message_sender_email: string;
+  message_sender_name: string | null;
+  message_type: "incoming" | "outgoing";
+  folder: MailFolder;
+}
+
+export interface MailAttachmentsListParams {
+  mail_attachment_type?: "all" | "incoming" | "outgoing";
+  search?: string;
+  sort_by?: "filename" | "created_at" | "file_size";
+  order?: "asc" | "desc";
+  page?: number;
+  page_size?: number;
+}
+
+export interface MailAttachmentsResponse {
+  items: MailAttachmentType[];
+  meta: {
+    total_items: number;
+    total_pages: number;
+    current_page: number;
+    per_page: number;
+    has_next: boolean;
+    has_prev: boolean;
+  };
+}
+
+export interface LinkMailToCaseRequest {
+  case_id: string;
+}
+
+export interface LinkMailToCaseResponse {
+  message_id: string;
+  case_id: string;
+  success: boolean;
+}
+
+export interface UnlinkMailFromCaseResponse {
+  success: boolean;
+  message: string;
+}
+
+export interface PaginatedMailMessagesForCase {
+  items: MailMessageListItem[];
+  total: number;
+  page: number;
+  page_size: number;
+  has_next: boolean;
+}
+
+export interface MailContactAutocompleteItem {
+  email: string;
+  name: string | null;
+  usage_count: number;
+}
+
+export interface MailContactAutocompleteResponse {
+  items: MailContactAutocompleteItem[];
+  total: number;
+}
 
 // Legacy UI types used by mock mail screens (to be removed after full UI migration).
 export interface Mail {

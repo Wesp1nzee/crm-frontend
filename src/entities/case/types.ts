@@ -95,13 +95,39 @@ export interface CaseDetailResponse {
     name: string;
     parent_id?: string;
   }[];
-  events: {
+  messages: {
     id: string;
-    subject: string;
-    body: string;
-    sent_at: string;
-    direction: string;
-    created_at: string;
+    external_message_id: string | null;
+    thread_id: string | null;
+    parent_id: string | null;
+    user_id: string;
+    case_id: string | null;
+    sender_email: string;
+    sender_name: string | null;
+    reply_to: string | null;
+    subject: string | null;
+    folder: 'inbox' | 'sent' | 'drafts' | 'spam' | 'trash';
+    message_type: 'incoming' | 'outgoing' | 'system_notification';
+    status: 'draft' | 'queued' | 'sending' | 'sent' | 'delivered' | 'error' | 'failed';
+    is_read: boolean;
+    is_important: boolean;
+    is_starred: boolean;
+    is_spam: boolean;
+    is_archived: boolean;
+    is_deleted: boolean;
+    size_bytes: number | null;
+    sent_at: string | null;
+    processed_at: string;
+    updated_at: string;
+    body_text: string | null;
+    body_html: string | null;
+    attachment_count: number;
+    recipients: Array<{
+      email_address: string;
+      recipient_type: 'to' | 'cc' | 'bcc';
+      name: string | null;
+    }>;
+    snippet: string | null;
   }[];
 }
 
