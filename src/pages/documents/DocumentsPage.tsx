@@ -49,6 +49,7 @@ import {
   MoreVert,
   Home,
   Search,
+  Person,
   Visibility,
   Edit,
   OpenInNew,
@@ -268,30 +269,12 @@ export function DocumentsPage() {
   } = useDocuments({
     folder_id: currentFolderId,
     search: searchQuery || undefined,
-    scope: scope === "my" ? undefined : scope,
     page: page + 1,
     limit: rowsPerPage,
     sort_by: sortField,
     order: sortOrder,
   });
 
-  // Mail attachments query
-  const mailAttachmentsParams: MailAttachmentsListParams = {
-    mail_attachment_type: emailAttachmentType,
-    search: searchQuery || undefined,
-    sort_by: emailSortField,
-    order: emailSortOrder,
-    page: emailPage + 1,
-    page_size: emailRowsPerPage,
-  };
-
-  const {
-    data: mailAttachmentsResponse,
-    isLoading: isMailLoading,
-  } = useMailAttachments(mailAttachmentsParams);
-
-<<<<<<< Updated upstream
-=======
   const { user, isExpert } = usePermissions();
 
   // Mail attachments query - disabled for expert role
@@ -311,7 +294,6 @@ export function DocumentsPage() {
     isLoading: isMailLoading,
   } = useMailAttachments(mailAttachmentsParams);
 
->>>>>>> Stashed changes
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
 
   useEffect(() => {
