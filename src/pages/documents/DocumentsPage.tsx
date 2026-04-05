@@ -47,7 +47,6 @@ import {
   MoreVert,
   Home,
   Search,
-  Person,
   Visibility,
   Edit,
   OpenInNew,
@@ -258,6 +257,28 @@ export function DocumentsPage() {
     order: sortOrder,
   });
 
+<<<<<<< Updated upstream
+=======
+  const { user, isExpert } = usePermissions();
+
+  // Mail attachments query - disabled for expert role
+  const mailAttachmentsParams: MailAttachmentsListParams | undefined = isExpert
+    ? undefined
+    : {
+        mail_attachment_type: emailAttachmentType,
+        search: searchQuery || undefined,
+        sort_by: emailSortField,
+        order: emailSortOrder,
+        page: emailPage + 1,
+        page_size: emailRowsPerPage,
+      };
+
+  const {
+    data: mailAttachmentsResponse,
+    isLoading: isMailLoading,
+  } = useMailAttachments(mailAttachmentsParams);
+
+>>>>>>> Stashed changes
   const { data: caseSuggestions } = useCaseSuggestions(caseSearchQuery);
 
   useEffect(() => {
@@ -306,7 +327,6 @@ export function DocumentsPage() {
   const downloadBulkAssets = useDownloadBulkAssets();
   const deleteBulkAssets = useDeleteBulkAssets();
 
-  const { user } = usePermissions();
   const canShare = user?.role !== "expert";
   const createUserShare = useCreateUserShare();
   const createLinkShare = useCreateLinkShare();
