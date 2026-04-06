@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   Paper,
@@ -22,12 +22,15 @@ export function LoginPage() {
   const login = useLogin();
   const { data: user } = useAuth();
   const navigate = useNavigate();
+  const hasNavigated = useRef(false);
 
   useEffect(() => {
-    if (user?.id) {
+    if (user?.id && !hasNavigated.current) {
+      hasNavigated.current = true;
       navigate("/crm", { replace: true });
     }
-  }, [user?.id, navigate]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user?.id]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
