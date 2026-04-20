@@ -47,7 +47,6 @@ import { ClientCreateDialog } from "../clients/ClientCreateDialog";
 import { notificationService } from "../../shared/services/notifications";
 import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
 
-// ===== КОНСТАНТЫ (вынесены за пределы компонента) =====
 const INPUT_HEIGHT = 54;
 
 const CASE_STATUS_LABELS: Record<CaseStatus, string> = {
@@ -89,7 +88,6 @@ const singleLineInputSx = {
   },
 } as const;
 
-// ===== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ =====
 export function createInitialFormData(): CaseCreateRequest {
   return {
     client_id: "",
@@ -107,6 +105,7 @@ export function createInitialFormData(): CaseCreateRequest {
     bank_transfer_amount: 0,
     cash_amount: 0,
     remaining_debt: 0,
+    debit: 0, // 💰 Деньги в пути
     plaintiff: "",
     defendant: "",
     remarks: "",
@@ -131,6 +130,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     bank_transfer_amount: formData.bank_transfer_amount?.toFixed(2),
     cash_amount: formData.cash_amount?.toFixed(2),
     remaining_debt: formData.remaining_debt?.toFixed(2),
+    debit: formData.debit?.toFixed(2), // 💰 Деньги в пути
     plaintiff: formData.plaintiff?.trim() || null,
     defendant: formData.defendant?.trim() || null,
     remarks: formData.remarks?.trim() || null,
@@ -379,6 +379,7 @@ export const CreateCaseDialog = memo(
       bank_transfer_amount: "0",
       cash_amount: "0",
       remaining_debt: "0",
+      debit: "0", // 💰 Деньги в пути
     });
 
     // ===== HOOKS =====
@@ -428,6 +429,7 @@ export const CreateCaseDialog = memo(
         bank_transfer_amount: (initial.bank_transfer_amount ?? 0).toString(),
         cash_amount: (initial.cash_amount ?? 0).toString(),
         remaining_debt: (initial.remaining_debt ?? 0).toString(),
+        debit: (initial.debit ?? 0).toString(), // 💰 Деньги в пути
       });
       setErrors({});
       setClientInputValue("");
@@ -473,7 +475,8 @@ export const CreateCaseDialog = memo(
           | "cost"
           | "bank_transfer_amount"
           | "cash_amount"
-          | "remaining_debt",
+          | "remaining_debt"
+          | "debit", // 💰 Деньги в пути
         value: string,
       ) => {
         if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -521,10 +524,8 @@ export const CreateCaseDialog = memo(
         setClientInputValue(newInputValue);
         if (reason === "clear") {
           clearSuggestions();
-          // Fetch all suggestions when cleared and focused
           fetchSuggestions("");
         } else if (reason === "input") {
-          // Fetch suggestions for any input, including empty
           fetchSuggestions(newInputValue);
         }
       },
@@ -532,7 +533,6 @@ export const CreateCaseDialog = memo(
     );
 
     const handleClientFocus = useCallback(() => {
-      // Fetch suggestions when the field receives focus
       if (!selectedClient) {
         fetchSuggestions("");
       }
@@ -819,7 +819,6 @@ export const CreateCaseDialog = memo(
                     value={selectedExperts}
                     inputValue={expertInputValue}
                     loading={isExpertSuggestLoading}
-                    // Убрали ручное управление open — MUI сам знает когда показывать список
                     filterOptions={(options) => options}
                     noOptionsText={
                       expertInputValue.trim().length < 2
@@ -913,7 +912,6 @@ export const CreateCaseDialog = memo(
                               {params.InputProps.endAdornment}
                             </>
                           ),
-                          // Иконка идёт ДО chips (startAdornment от params)
                           startAdornment: (
                             <>
                               <InputAdornment position="start" sx={{ mr: 0.5, flexShrink: 0 }}>
@@ -924,7 +922,6 @@ export const CreateCaseDialog = memo(
                           ),
                         }}
                         sx={{
-                          // Минимальная высота как у других полей, но auto — чтобы chips влезали
                           "& .MuiInputBase-root": {
                             minHeight: INPUT_HEIGHT,
                             boxSizing: "border-box",
@@ -1198,6 +1195,12 @@ export const CreateCaseDialog = memo(
                   value={financialValues.remaining_debt}
                   onChange={(v) => handleFinancialChange("remaining_debt", v)}
                 />
+                {/* 💰 НОВОЕ ПОЛЕ: Дебит (деньги в пути) */}
+                <FinancialField
+                  label="Дебит (в пути)"
+                  value={financialValues.debit}
+                  onChange={(v) => handleFinancialChange("debit", v)}
+                />
               </Grid>
             </FormSection>
 
@@ -1306,7 +1309,6 @@ export const CreateCaseDialog = memo(
           </DialogActions>
         </Dialog>
 
-        {/* Модальное окно создания клиента */}
         <ClientCreateDialog
           open={createClientDialogOpen}
           onClose={() => setCreateClientDialogOpen(false)}

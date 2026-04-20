@@ -1,5 +1,5 @@
 // src/pages/cases/CaseListPage.tsx
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Typography,
@@ -51,6 +51,81 @@ import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
 import { usePermissions } from "../../shared/hooks/usePermissions";
 
+// ─── localStorage helpers ──────────────────────────────────────
+const CASE_LIST_STORAGE_KEY = "crm:cases:list:filters:v1";
+
+type PersistedFilters = Omit<GetCasesQuery, "page" | "limit"> & {
+  page?: number;
+  limit?: number;
+};
+
+function loadFiltersFromStorage(): Partial<PersistedFilters> | null {
+  try {
+    const raw = localStorage.getItem(CASE_LIST_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as PersistedFilters;
+    
+    return {
+      ...parsed,
+      page: parsed.page ? Number(parsed.page) : undefined,
+      limit: parsed.limit ? Number(parsed.limit) : undefined,
+      min_cost: parsed.min_cost ? Number(parsed.min_cost) : undefined,
+      max_cost: parsed.max_cost ? Number(parsed.max_cost) : undefined,
+      min_remaining_debt: parsed.min_remaining_debt 
+        ? Number(parsed.min_remaining_debt) : undefined,
+      max_remaining_debt: parsed.max_remaining_debt 
+        ? Number(parsed.max_remaining_debt) : undefined,
+    };
+  } catch (error) {
+    console.warn("[CaseList] Failed to load filters:", error);
+    return null;
+  }
+}
+
+function saveFiltersToStorage(filters: GetCasesQuery): void {
+  try {
+    const toPersist: PersistedFilters = {
+      sort_field: filters.sort_field,
+      sort_order: filters.sort_order,
+      status: filters.status,
+      expert_id: filters.expert_id,
+      client_id: filters.client_id,
+      start_date: filters.start_date,
+      end_date: filters.end_date,
+      case_type: filters.case_type,
+      object_type: filters.object_type,
+      authority: filters.authority,
+      object_address: filters.object_address,
+      number: filters.number,
+      case_number: filters.case_number,
+      has_assigned_expert: filters.has_assigned_expert,
+      min_cost: filters.min_cost,
+      max_cost: filters.max_cost,
+      min_remaining_debt: filters.min_remaining_debt,
+      max_remaining_debt: filters.max_remaining_debt,
+      completion_start_date: filters.completion_start_date,
+      completion_end_date: filters.completion_end_date,
+      deadline_start_date: filters.deadline_start_date,
+      deadline_end_date: filters.deadline_end_date,
+      search: filters.search,
+      page: filters.page,
+      limit: filters.limit,
+    };
+    localStorage.setItem(CASE_LIST_STORAGE_KEY, JSON.stringify(toPersist));
+  } catch (error) {
+    console.warn("[CaseList] Failed to save filters:", error);
+  }
+}
+
+function clearFiltersFromStorage(): void {
+  try {
+    localStorage.removeItem(CASE_LIST_STORAGE_KEY);
+  } catch (error) {
+    console.warn("[CaseList] Failed to clear filters:", error);
+  }
+}
+// ──────────────────────────────────────────────────────────────
+
 const STATUSES_WITHOUT_OVERDUE_WARNING: CaseStatus[] = [
   "debt",
   "executed",
@@ -73,20 +148,37 @@ export function CaseListPage() {
   const navigate = useNavigate();
   const { isExpert } = usePermissions();
   const [searchParams] = useSearchParams();
+  
   const [filters, setFilters] = useState<GetCasesQuery>(() => {
-    // Initialize filters, checking for client_id from URL params
-    const clientId = searchParams.get("client");
-    const baseFilters: GetCasesQuery = {
+    const defaults: GetCasesQuery = {
       page: 1,
       limit: 20,
-      sort_field: "created_at",
-      sort_order: "desc",
+      sort_field: "number",  // 👈 сортировка по № по умолчанию
+      sort_order: "desc",    // 👈 убывание → стрелка ↓
     };
+
+    const clientId = searchParams.get("client");
     if (clientId) {
-      baseFilters.client_id = clientId;
+      defaults.client_id = clientId;
     }
-    return baseFilters;
+
+    const saved = loadFiltersFromStorage();
+    if (saved) {
+      return {
+        ...defaults,
+        ...saved,
+        page: saved.page ?? defaults.page,
+        limit: saved.limit ?? defaults.limit,
+      };
+    }
+
+    return defaults;
   });
+
+  // Автосохранение фильтров при изменении
+  useEffect(() => {
+    saveFiltersToStorage(filters);
+  }, [filters]);
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -124,8 +216,6 @@ export function CaseListPage() {
     }
   };
 
-  // ── Delete ───────────────────────────────────────────────────────────────
-
   const handleDelete = async () => {
     if (!deletingCaseId) return;
     try {
@@ -140,8 +230,6 @@ export function CaseListPage() {
       );
     }
   };
-
-  // ── Navigation / Dialog openers ──────────────────────────────────────────
 
   const handleOpenDetail = (caseId: string) => navigate(`/crm/cases/${caseId}`);
 
@@ -158,7 +246,6 @@ export function CaseListPage() {
   const handleExportExcel = async () => {
     try {
       setIsExporting(true);
-      // Экспортируем все данные, без пагинации
       const exportParams = { ...filters };
       delete exportParams.page;
       delete exportParams.limit;
@@ -174,7 +261,6 @@ export function CaseListPage() {
     }
   };
 
-  // ── Pagination handlers ──────────────────────────────────────────────────
   const handlePrevPage = () => {
     setFilters((prev) => ({
       ...prev,
@@ -190,21 +276,18 @@ export function CaseListPage() {
     setFilters((prev) => ({ ...prev, limit: newLimit, page: 1 }));
   };
 
-  // ── Sort handlers ────────────────────────────────────────────────────────
   const handleSortClick = (field: string) => {
     setFilters((prev) => {
-      const currentField = prev.sort_field || "created_at";
+      const currentField = prev.sort_field || "number";
       const currentOrder = prev.sort_order || "desc";
       
       if (currentField === field) {
-        // Toggle order if same field
         return {
           ...prev,
           sort_order: currentOrder === "asc" ? "desc" : "asc",
         };
       }
       
-      // Change field and reset to asc
       return {
         ...prev,
         sort_field: field,
@@ -213,7 +296,16 @@ export function CaseListPage() {
     });
   };
 
-  // ── Loading / Error states ───────────────────────────────────────────────
+  const handleClearFilters = () => {
+    clearFiltersFromStorage();
+    setFilters({
+      page: 1,
+      limit: 20,
+      sort_field: "number",
+      sort_order: "desc",
+      client_id: searchParams.get("client") || undefined,
+    });
+  };
 
   if (isLoading) {
     return (
@@ -236,11 +328,8 @@ export function CaseListPage() {
     );
   }
 
-  // ── Render ───────────────────────────────────────────────────────────────
-
   return (
     <Box sx={{ p: 3 }}>
-      {/* Header */}
       <Box
         display="flex"
         justifyContent="space-between"
@@ -281,7 +370,11 @@ export function CaseListPage() {
       </Box>
 
       {/* Filters */}
-      <CaseFilters filters={filters} onFiltersChange={setFilters} />
+      <CaseFilters 
+        filters={filters} 
+        onFiltersChange={setFilters}
+        onClear={handleClearFilters}
+      />
 
       {/* Table */}
       <Card

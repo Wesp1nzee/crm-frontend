@@ -31,6 +31,7 @@ export interface Case {
   expert_painting?: string;
   archive_status?: string;
   remarks?: string;
+  debit: string;
   created_at: string;
   updated_at: string;
   experts: {
@@ -154,6 +155,7 @@ export interface CaseCreateRequest {
   expert_painting?: string;
   archive_status?: string;
   remarks?: string;
+  debit?: number;
 }
 
 export interface CasePatchRequest {
@@ -177,6 +179,7 @@ export interface CasePatchRequest {
   completion_date?: string;
   archive_status?: string;
   remarks?: string;
+  debit?: string;
 }
 
 export interface CaseExpertsUpdateRequest {

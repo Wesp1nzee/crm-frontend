@@ -1288,6 +1288,9 @@ export function CaseDetailPage() {
                   <EditableField canEdit={canEditCase} field="cash_amount" value={case_.cash_amount ?? ""}
                     label="Наличная оплата" editingField={editingField} editValues={editValues}
                     onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="number" />
+                  <EditableField canEdit={canEditCase} field="debit" value={case_.debit ?? ""}
+                    label="Дебит" editingField={editingField} editValues={editValues}
+                    onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="number" />
 
                   {/* Remaining debt highlight */}
                   <Box sx={{ p: 1.75, borderRadius: "12px",

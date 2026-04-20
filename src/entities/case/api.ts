@@ -14,7 +14,6 @@ export const casesApi = {
   getCases: (params?: GetCasesQuery) => {
     console.log('getCases called with params:', params);
     
-    // Очищаем пустые параметры, но корректно обрабатываем массивы
     const cleanParams = Object.fromEntries(
       Object.entries(params || {}).filter(
         ([_key, value]) => 
@@ -27,7 +26,6 @@ export const casesApi = {
     
     console.log('After cleanup:', cleanParams);
     
-    // Сериализуем массивы как comma-separated values для бэкенда
     const serializedParams: Record<string, string | number | boolean> = {};
     Object.entries(cleanParams).forEach(([key, value]) => {
       if (Array.isArray(value)) {
@@ -62,7 +60,6 @@ export const casesApi = {
       .get<CaseSuggestion[]>("/cases/suggest", { params: { q: query } })
       .then((res) => res.data),
 
-  // Скачать все документы дела как ZIP
   downloadCaseDocuments: async (
     caseId: string,
     onDownloadProgress?: (progress: number) => void,
@@ -88,9 +85,7 @@ export const casesApi = {
     window.URL.revokeObjectURL(url);
   },
 
-  // Экспорт дел в Excel
   exportCasesToExcel: async (params?: GetCasesQuery): Promise<void> => {
-    // Очищаем пустые параметры
     const cleanParams = Object.fromEntries(
       Object.entries(params || {}).filter(
         ([_key, value]) =>
@@ -101,7 +96,6 @@ export const casesApi = {
       ),
     );
 
-    // Сериализуем массивы
     const serializedParams: Record<string, string | number | boolean> = {};
     Object.entries(cleanParams).forEach(([key, value]) => {
       if (Array.isArray(value)) {

@@ -1,3 +1,4 @@
+// src/pages/cases/CaseFilters.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState } from "react";
 import {
@@ -43,25 +44,35 @@ const premiumFieldSx = {
 interface CaseFiltersProps {
   filters: GetCasesQuery;
   onFiltersChange: (filters: GetCasesQuery) => void;
+  onClear?: () => void;
 }
 
-export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
+export function CaseFilters({ filters, onFiltersChange, onClear }: CaseFiltersProps) {
   const [expanded, setExpanded] = useState(false);
   const { data: expertsData } = useExperts();
   const experts = expertsData?.items ?? [];
   const { data: clients } = useClients();
 
   const updateFilter = (key: keyof GetCasesQuery, value: any) => {
-    onFiltersChange({ ...filters, [key]: value });
+    onFiltersChange({ ...filters, [key]: value, page: 1 }); // 👈 сброс на 1 страницу при изменении фильтра
   };
 
   const clearFilters = () => {
-    onFiltersChange({ page: 1, limit: filters.limit });
+    if (onClear) {
+      onClear();
+    } else {
+      onFiltersChange({ page: 1, limit: filters.limit });
+    }
   };
 
   const hasActiveFilters = Object.keys(filters).some(
     (key) =>
-      key !== "page" && key !== "limit" && filters[key as keyof GetCasesQuery],
+      key !== "page" && 
+      key !== "limit" && 
+      filters[key as keyof GetCasesQuery] &&
+      // Исключаем дефолтную сортировку из "активных фильтров"
+      !(key === "sort_field" && filters[key] === "number") &&
+      !(key === "sort_order" && filters[key] === "desc"),
   );
 
   return (
@@ -185,7 +196,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               </FormControl>
             </Grid>
 
-            {/* Case Type */}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
@@ -197,7 +207,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Object Type */}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
@@ -209,7 +218,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Authority */}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
@@ -221,7 +229,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Object Address */}
             <Grid size={{ xs: 12, md: 6 }}>
               <TextField
                 fullWidth
@@ -233,7 +240,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Case Numbers */}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
@@ -256,7 +262,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Cost Range */}
             <Grid size={{ xs: 12, md: 3 }}>
               <TextField
                 fullWidth
@@ -291,7 +296,6 @@ export function CaseFilters({ filters, onFiltersChange }: CaseFiltersProps) {
               />
             </Grid>
 
-            {/* Date Ranges */}
             <Grid size={{ xs: 12, md: 3 }}>
               <DatePicker
                 label="Дата начала от"
