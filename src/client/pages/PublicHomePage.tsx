@@ -1,9 +1,7 @@
-// src/client/pages/PublicHomePage.tsx
 import { useEffect, useState, useRef, useCallback } from "react";
 import { Helmet } from "react-helmet-async";
-import "./public-home.css";
+import "../../styles/public-home.css";
 
-// ─── Типы ───────────────────────────────────────────────────────────────────
 interface FormErrors {
   name?: string;
   email?: string;
@@ -12,7 +10,6 @@ interface FormErrors {
   privacyAgreement?: string;
 }
 
-// ─── Утилиты валидации ──────────────────────────────────────────────────────
 function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
@@ -33,9 +30,6 @@ function formatPhone(raw: string): string {
   return `(${digits.slice(0, 3)}) ${digits.slice(3, 6)}-${digits.slice(6, 8)}-${digits.slice(8)}`;
 }
 
-// ─── Inline SVG иконки ──────────────────────────────────────────────────────
-// Все иконки — простые inline SVG, без внешних зависимостей.
-// currentColor позволяет управлять цветом через CSS color.
 
 const IconBars = () => (
   <svg
@@ -231,14 +225,11 @@ const IconClock = () => (
   </svg>
 );
 
-// ─── Компонент ───────────────────────────────────────────────────────────────
 export function PublicHomePage() {
-  // ── навигация / мобильное меню ───────────────────────────────────────────
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeSection, setActiveSection] = useState("hero");
   const headerRef = useRef<HTMLHeadElement>(null);
 
-  // ── форма ────────────────────────────────────────────────────────────────
   const [formData, setFormData] = useState({
     name: "",
     email: "",
@@ -253,13 +244,10 @@ export function PublicHomePage() {
     type: "success" | "error";
   } | null>(null);
 
-  // ── cookie consent ──────────────────────────────────────────────────────
   const [showCookie, setShowCookie] = useState(false);
 
-  // ── инерция скрolla для header (sticky shrink) ──────────────────────────
   const [scrolled, setScrolled] = useState(false);
 
-  // ─── эффекты ─────────────────────────────────────────────────────────────
   useEffect(() => {
     const accepted = document.cookie
       .split(";")
@@ -283,7 +271,6 @@ export function PublicHomePage() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  // ─── обработчики навигации ───────────────────────────────────────────────
   const scrollToSection = useCallback((id: string, e?: React.MouseEvent) => {
     e?.preventDefault();
     const el = document.getElementById(id);
@@ -295,7 +282,6 @@ export function PublicHomePage() {
     setMenuOpen(false);
   }, []);
 
-  // ─── валидация формы ─────────────────────────────────────────────────────
   const validate = useCallback((): FormErrors => {
     const errs: FormErrors = {};
     if (!formData.name.trim() || formData.name.trim().length < 2) {
@@ -323,7 +309,6 @@ export function PublicHomePage() {
 
   const isFormValid = Object.keys(validate()).length === 0;
 
-  // ─── обработчики формы ───────────────────────────────────────────────────
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
@@ -377,7 +362,7 @@ export function PublicHomePage() {
 
       if (res.ok) {
         setResponseMessage({
-          text: "Сообщение успешно отправлено! Мы связаемся с вами в ближайшее время.",
+          text: "Сообщение успешно отправлено! Мы свяжемся с вами в ближайшее время.",
           type: "success",
         });
         setFormData({
@@ -404,195 +389,226 @@ export function PublicHomePage() {
     }
   };
 
-  // ─── cookie accept ───────────────────────────────────────────────────────
   const handleCookieAccept = () => {
     document.cookie = "cookieConsent=1; max-age=31536000; path=/; SameSite=Lax";
     setShowCookie(false);
   };
 
-  // ─── рендер ──────────────────────────────────────────────────────────────
   return (
     <>
       <Helmet>
-        <title>
+        <title key="title">
           Судебные экспертизы в Барнауле: строительные, землеустроительные,
           оценочные — ООО «ЭКСПЕРТИЗА»
         </title>
         <meta
+          key="desc"
           name="description"
           content="Судебные экспертизы в Барнауле ✓ Строительно-технические ✓ Землеустроительные ✓ Оценочные экспертизы. 188 экспертиз в 2024 году. Срок 20 дней. ☎️ +7 (3852) 60-88-77"
         />
-        <meta name="robots" content="index, follow" />
-        <meta name="author" content="ООО «ЭКСПЕРТИЗА»" />
-        <meta name="geo.region" content="RU-22" />
-        <meta name="geo.placename" content="Барнаул" />
-        <meta name="geo.position" content="53.340264;83.770838" />
-        <meta name="ICBM" content="53.340264, 83.770838" />
-        <link rel="canonical" href="https://ooo-ekspertiza.ru/" />
+        <meta
+          key="robots"
+          name="robots"
+          content="index, follow, max-snippet:-1, max-image-preview:large"
+        />
+        <meta key="author" name="author" content="ООО «ЭКСПЕРТИЗА»" />
+        <meta key="geo-region" name="geo.region" content="RU-22" />
+        <meta key="geo-placename" name="geo.placename" content="Барнаул" />
+        <meta
+          key="geo-position"
+          name="geo.position"
+          content="53.340264;83.770838"
+        />
+        <link key="canonical" rel="canonical" href="https://ooo-ekspertiza.ru/" />
         <link
+          key="hreflang"
           rel="alternate"
           hrefLang="ru-RU"
           href="https://ooo-ekspertiza.ru/"
         />
-        <link rel="icon" type="image/x-icon" href="/static/image/favicon.ico" />
-        <link rel="apple-touch-icon" href="/static/image/logo.png" />
-        <meta property="og:type" content="website" />
-        <meta property="og:locale" content="ru_RU" />
+        <link
+          key="icon"
+          rel="icon"
+          type="image/x-icon"
+          href="/static/image/favicon.ico"
+        />
+        <link
+          key="apple-touch"
+          rel="apple-touch-icon"
+          href="/static/image/logo.png"
+        />
+        <link
+          key="preconnect-g"
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+        />
+        <link
+          key="preconnect-gs"
+          rel="preconnect"
+          href="https://fonts.gstatic.com"
+          crossOrigin="anonymous"
+        />
+        <link
+          key="preload-fonts"
+          rel="preload"
+          href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap"
+          as="style"
+          onLoad={(e) => {
+            (e.target as HTMLLinkElement).onload = null;
+            (e.target as HTMLLinkElement).rel = "stylesheet";
+          }}
+        />
+        <noscript>
+          {'<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&family=Playfair+Display:wght@700&display=swap" />'}
+        </noscript>
+        <meta key="og-type" property="og:type" content="website" />
+        <meta key="og-locale" property="og:locale" content="ru_RU" />
         <meta
+          key="og-title"
           property="og:title"
           content="Судебные экспертизы в Барнауле — ООО «ЭКСПЕРТИЗА»"
         />
         <meta
+          key="og-desc"
           property="og:description"
           content="Землеустроительные, строительно-технические, оценочные, пожарно-технические экспертизы в Барнауле. 188 выполненных экспертиз в 2024 году."
         />
-        <meta property="og:url" content="https://ooo-ekspertiza.ru/" />
         <meta
+          key="og-url"
+          property="og:url"
+          content="https://ooo-ekspertiza.ru/"
+        />
+        <meta
+          key="og-image"
           property="og:image"
           content="https://ooo-ekspertiza.ru/static/image/og-image.webp"
         />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
-        <meta property="og:site_name" content="ООО «ЭКСПЕРТИЗА»" />
-        <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:site" content="@ooo_ekspertiza" />
+        <meta key="og-image-w" property="og:image:width" content="1200" />
+        <meta key="og-image-h" property="og:image:height" content="630" />
         <meta
+          key="og-site"
+          property="og:site_name"
+          content="ООО «ЭКСПЕРТИЗА»"
+        />
+        <meta key="tw-card" name="twitter:card" content="summary_large_image" />
+        <meta key="tw-site" name="twitter:site" content="@ooo_ekspertiza" />
+        <meta
+          key="tw-title"
           name="twitter:title"
           content="Судебные экспертизы в Барнауле — ООО «ЭКСПЕРТИЗА»"
         />
         <meta
+          key="tw-desc"
           name="twitter:description"
           content="Экспертизы в Барнауле: землеустроительные, строительно-технические, оценочные. 20 дней срок выполнения."
         />
         <meta
+          key="tw-image"
           name="twitter:image"
           content="https://ooo-ekspertiza.ru/static/image/og-image.webp"
         />
-        <meta name="theme-color" content="#1a365d" />
-        <meta name="format-detection" content="telephone=yes" />
-        <meta name="yandex-verification" content="7785b8517199b786" />
+        <meta key="theme" name="theme-color" content="#1a365d" />
+        <meta key="detect" name="format-detection" content="telephone=yes" />
+        <meta
+          key="yandex"
+          name="yandex-verification"
+          content="7785b8517199b786"
+        />
+        <meta
+          key="google"
+          name="google-site-verification"
+          content="ВАШ_GOOGLE_VERIFICATION_CODE"
+        />
         <script type="application/ld+json">
           {JSON.stringify({
             "@context": "https://schema.org",
-            "@type": "LegalService",
-            "@id": "https://ooo-ekspertiza.ru/#organization",
-            name: "ООО «ЭКСПЕРТИЗА»",
-            url: "https://ooo-ekspertiza.ru/",
-            logo: "https://ooo-ekspertiza.ru/static/image/logo.png",
-            image: {
-              "@type": "ImageObject",
-              url: "https://ooo-ekspertiza.ru/static/image/og-image.webp",
-              width: 1200,
-              height: 630,
-            },
-            description:
-              "Судебные экспертизы в Барнауле: землеустроительные, строительно-технические, оценочные, пожарно-технические и финансово-бухгалтерские. Сертифицированное оборудование.",
-            telephone: ["+7 (3852) 60-88-77", "+7 (913) 210-88-77"],
-            email: "info@ooo-ekspertiza.ru",
-            address: {
-              "@type": "PostalAddress",
-              postalCode: "656049",
-              addressLocality: "Барнаул",
-              addressRegion: "Алтайский край",
-              addressCountry: "RU",
-              streetAddress: "пр-кт Красноармейский, 77 корпус Б оф.301",
-            },
-            geo: {
-              "@type": "GeoCoordinates",
-              latitude: 53.340264,
-              longitude: 83.770838,
-            },
-            openingHoursSpecification: [
+            "@graph": [
               {
-                "@type": "OpeningHoursSpecification",
-                dayOfWeek: "https://schema.org/Monday",
-                opens: "09:00",
-                closes: "18:00",
+                "@type": "LocalBusiness",
+                "@id": "https://ooo-ekspertiza.ru/#business",
+                name: "ООО «ЭКСПЕРТИЗА»",
+                url: "https://ooo-ekspertiza.ru/",
+                logo: "https://ooo-ekspertiza.ru/static/image/logo.png",
+                image: "https://ooo-ekspertiza.ru/static/image/og-image.webp",
+                description:
+                  "Судебные экспертизы в Барнауле: землеустроительные, строительно-технические, оценочные, пожарно-технические и финансово-бухгалтерские. Сертифицированное оборудование.",
+                telephone: ["+73852608877", "+79132108877"],
+                email: "info@ooo-ekspertiza.ru",
+                address: {
+                  "@type": "PostalAddress",
+                  postalCode: "656049",
+                  addressLocality: "Барнаул",
+                  addressRegion: "Алтайский край",
+                  addressCountry: "RU",
+                  streetAddress: "пр-кт Красноармейский, 77 корпус Б оф.301",
+                },
+                geo: {
+                  "@type": "GeoCoordinates",
+                  latitude: 53.340264,
+                  longitude: 83.770838,
+                },
+                openingHoursSpecification: {
+                  "@type": "OpeningHoursSpecification",
+                  dayOfWeek: [
+                    "Monday",
+                    "Tuesday",
+                    "Wednesday",
+                    "Thursday",
+                    "Friday",
+                  ],
+                  opens: "09:00",
+                  closes: "18:00",
+                },
+                priceRange: "$$",
               },
               {
-                "@type": "OpeningHoursSpecification",
-                dayOfWeek: "https://schema.org/Tuesday",
-                opens: "09:00",
-                closes: "18:00",
-              },
-              {
-                "@type": "OpeningHoursSpecification",
-                dayOfWeek: "https://schema.org/Wednesday",
-                opens: "09:00",
-                closes: "18:00",
-              },
-              {
-                "@type": "OpeningHoursSpecification",
-                dayOfWeek: "https://schema.org/Thursday",
-                opens: "09:00",
-                closes: "18:00",
-              },
-              {
-                "@type": "OpeningHoursSpecification",
-                dayOfWeek: "https://schema.org/Friday",
-                opens: "09:00",
-                closes: "18:00",
+                "@type": "Service",
+                serviceType: "Судебные экспертизы",
+                provider: { "@id": "https://ooo-ekspertiza.ru/#business" },
+                areaServed: {
+                  "@type": "AdministrativeArea",
+                  name: "Алтайский край",
+                },
+                hasOfferCatalog: {
+                  "@type": "OfferCatalog",
+                  name: "Виды судебных экспертиз",
+                  itemListElement: [
+                    {
+                      "@type": "Offer",
+                      itemOffered: {
+                        "@type": "Service",
+                        name: "Землеустроительная экспертиза",
+                      },
+                    },
+                    {
+                      "@type": "Offer",
+                      itemOffered: {
+                        "@type": "Service",
+                        name: "Строительно-техническая экспертиза",
+                      },
+                    },
+                    {
+                      "@type": "Offer",
+                      itemOffered: {
+                        "@type": "Service",
+                        name: "Оценочная экспертиза",
+                      },
+                    },
+                    {
+                      "@type": "Offer",
+                      itemOffered: {
+                        "@type": "Service",
+                        name: "Пожарно-техническая экспертиза",
+                      },
+                    },
+                  ],
+                },
               },
             ],
-            areaServed: [
-              { "@type": "City", name: "Барнаул" },
-              { "@type": "State", name: "Алтайский край" },
-            ],
-            priceRange: "$$",
-            contactPoint: [
-              {
-                "@type": "ContactPoint",
-                telephone: "+73852608877",
-                contactType: "customer service",
-                availableLanguage: "Russian",
-              },
-            ],
-            hasOfferCatalog: {
-              "@type": "OfferCatalog",
-              name: "Виды судебных экспертиз",
-              itemListElement: [
-                {
-                  "@type": "Offer",
-                  itemOffered: {
-                    "@type": "Service",
-                    name: "Землеустроительная экспертиза",
-                    description:
-                      "Исследование объектов землеустройства в Барнауле и Алтайском крае",
-                    serviceType: "Землеустроительная экспертиза",
-                  },
-                },
-                {
-                  "@type": "Offer",
-                  itemOffered: {
-                    "@type": "Service",
-                    name: "Строительно-техническая экспертиза",
-                    description:
-                      "Техническая экспертиза строений и сооружений в Барнауле",
-                    serviceType: "Строительно-техническая экспертиза",
-                  },
-                },
-                {
-                  "@type": "Offer",
-                  itemOffered: {
-                    "@type": "Service",
-                    name: "Оценочная экспертиза",
-                    description:
-                      "Оценка недвижимого и движимого имущества в Барнауле",
-                    serviceType: "Оценочная экспертиза",
-                  },
-                },
-              ],
-            },
           })}
         </script>
-        <meta charSet="UTF-8" />
-        <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
-        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
       </Helmet>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          HEADER
-      ════════════════════════════════════════════════════════════════════════ */}
       <header
         id="header"
         ref={headerRef}
@@ -609,17 +625,21 @@ export function PublicHomePage() {
             className="mobile-toggle"
             id="mobile-toggle"
             onClick={() => setMenuOpen((prev) => !prev)}
-            aria-label="Открыть меню"
+            aria-label={menuOpen ? "Закрыть меню" : "Открыть меню"}
+            aria-expanded={menuOpen}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === "Enter") setMenuOpen((p) => !p);
+              if (e.key === "Enter" || e.key === " ") setMenuOpen((p) => !p);
             }}
           >
             {menuOpen ? <IconTimes /> : <IconBars />}
           </div>
 
-          <nav className={menuOpen ? "menu-open" : ""}>
+          <nav
+            className={menuOpen ? "menu-open" : ""}
+            aria-label="Главная навигация"
+          >
             <ul id="menu">
               {(["hero", "about", "services", "contact"] as const).map((id) => {
                 const labels: Record<string, string> = {
@@ -634,6 +654,7 @@ export function PublicHomePage() {
                       href={`#${id}`}
                       className={activeSection === id ? "active" : ""}
                       onClick={(e) => scrollToSection(id, e)}
+                      aria-current={activeSection === id ? "page" : undefined}
                     >
                       {labels[id]}
                     </a>
@@ -645,10 +666,7 @@ export function PublicHomePage() {
         </div>
       </header>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          HERO
-      ════════════════════════════════════════════════════════════════════════ */}
-      <section className="hero" id="hero">
+      <section className="hero" id="hero" aria-label="Главный баннер">
         <div className="container">
           <div className="hero-content">
             <h1>Судебные экспертизы в Барнауле и Алтайском крае</h1>
@@ -676,7 +694,6 @@ export function PublicHomePage() {
           </div>
         </div>
 
-        {/* Декоративная геометрия справа */}
         <div className="hero-visual" aria-hidden="true">
           <svg
             viewBox="0 0 600 700"
@@ -698,14 +715,12 @@ export function PublicHomePage() {
               </linearGradient>
             </defs>
 
-            {/* Крупный полигон фон */}
             <polygon
               points="420,80 580,200 560,420 380,480 240,360 280,180"
               fill="url(#g3)"
               className="hero-poly-bg"
             />
 
-            {/* Центральный шестиугольник */}
             <polygon
               points="400,160 500,220 500,340 400,400 300,340 300,220"
               fill="none"
@@ -714,7 +729,6 @@ export function PublicHomePage() {
               className="hero-hex"
             />
 
-            {/* Внутренний шестиугольник меньше */}
             <polygon
               points="400,210 460,245 460,315 400,350 340,315 340,245"
               fill="url(#g1)"
@@ -724,7 +738,6 @@ export function PublicHomePage() {
               className="hero-hex-inner"
             />
 
-            {/* Знак весов внутри — отсылка на экспертизу */}
             <g className="hero-scale">
               <line
                 x1="400"
@@ -746,7 +759,7 @@ export function PublicHomePage() {
               />
               <circle cx="370" cy="255" r="3" fill="#e8a838" />
               <circle cx="430" cy="255" r="3" fill="#e8a838" />
-              {/* левая чаша */}
+          
               <line
                 x1="370"
                 y1="255"
@@ -777,7 +790,6 @@ export function PublicHomePage() {
                 strokeWidth="1.5"
                 opacity="0.7"
               />
-              {/* правая чаша */}
               <line
                 x1="430"
                 y1="255"
@@ -808,7 +820,6 @@ export function PublicHomePage() {
                 strokeWidth="1.5"
                 opacity="0.7"
               />
-              {/* основание */}
               <line
                 x1="385"
                 y1="320"
@@ -820,7 +831,6 @@ export function PublicHomePage() {
               />
             </g>
 
-            {/* Плавающие точки — сетка */}
             <circle
               cx="280"
               cy="140"
@@ -886,7 +896,6 @@ export function PublicHomePage() {
               className="hero-dot hero-dot-8"
             />
 
-            {/* Линии связи между точками */}
             <line
               x1="280"
               y1="140"
@@ -942,7 +951,6 @@ export function PublicHomePage() {
               opacity="0.1"
             />
 
-            {/* Маленькие акцентные полигоны */}
             <polygon
               points="510,480 540,500 510,520 480,500"
               fill="none"
@@ -969,7 +977,6 @@ export function PublicHomePage() {
               className="hero-diamond-3"
             />
 
-            {/* Дуги / окружности - дополнительный акцент */}
             <circle
               cx="400"
               cy="280"
@@ -998,16 +1005,12 @@ export function PublicHomePage() {
           href="#about"
           className="scroll-down"
           onClick={(e) => scrollToSection("about", e)}
-          aria-label="Прокрутить вниз"
+          aria-label="Прокрутить вниз к разделу О компании"
         >
           <IconChevronDown />
         </a>
       </section>
-
-      {/* ══════════════════════════════════════════════════════════════════════
-          ABOUT
-      ════════════════════════════════════════════════════════════════════════ */}
-      <section className="about" id="about">
+      <section className="about" id="about" aria-label="Информация о компании">
         <div className="container">
           <div className="text-center">
             <h2>О нашей компании</h2>
@@ -1026,7 +1029,6 @@ export function PublicHomePage() {
                 Рубцовск, Новоалтайск, а также во все районы края.
               </p>
 
-              {/* Статистика */}
               <div className="stats-container">
                 <h3>Статистика выполнения экспертиз</h3>
                 <div className="stats-grid">
@@ -1071,7 +1073,6 @@ export function PublicHomePage() {
                 </div>
               </div>
 
-              {/* Гарантии */}
               <div className="guarantees-container">
                 <h3>Наши гарантии</h3>
                 <ul>
@@ -1092,10 +1093,11 @@ export function PublicHomePage() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          SERVICES
-      ════════════════════════════════════════════════════════════════════════ */}
-      <section className="services" id="services">
+      <section
+        className="services"
+        id="services"
+        aria-label="Виды судебных экспертиз"
+      >
         <div className="container">
           <div className="text-center">
             <h2>Виды экспертиз</h2>
@@ -1104,34 +1106,34 @@ export function PublicHomePage() {
           <div className="services-grid">
             {[
               {
-                Icon: IconMapMarkedAlt,
+                icon: <IconMapMarkedAlt />,
                 title: "Землеустроительные экспертизы",
                 desc: "Исследование объектов землеустройства с определением границ на местности, соответствия назначения зданий целевому использованию земельного участка и другие землеустроительные вопросы.",
               },
               {
-                Icon: IconHardHat,
+                icon: <IconHardHat />,
                 title: "Строительно-технические экспертизы",
                 desc: "Технические экспертизы строений и сооружений, систем инженерного оборудования при узаконении самовольных строений, определении причиненного ущерба заливом/пожаром, разделе общего имущества, определении теплопотерь.",
               },
               {
-                Icon: IconBalanceScale,
+                icon: <IconBalanceScale />,
                 title: "Оценочные экспертизы",
                 desc: "Оценка недвижимого и движимого имущества для судебных и внесудебных целей с подготовкой профессиональных заключений.",
               },
               {
-                Icon: IconFileInvoiceDollar,
+                icon: <IconFileInvoiceDollar />,
                 title: "Финансово-бухгалтерские экспертизы",
                 desc: "Аудит и финансово-бухгалтерские исследования для решения спорных вопросов в судебном порядке.",
               },
               {
-                Icon: IconFireExtinguisher,
+                icon: <IconFireExtinguisher />,
                 title: "Пожарно-технические экспертизы",
                 desc: "Определение очага возгорания, характера распространения пожара, причин и обстоятельств возникновения пожаров.",
               },
             ].map((service) => (
               <div className="service-card" key={service.title}>
-                <div className="service-icon">
-                  <service.Icon />
+                <div className="service-icon" aria-hidden="true">
+                  {service.icon}
                 </div>
                 <div className="service-content">
                   <h3>{service.title}</h3>
@@ -1165,18 +1167,18 @@ export function PublicHomePage() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          CONTACT
-      ════════════════════════════════════════════════════════════════════════ */}
-      <section className="contact" id="contact">
+      <section
+        className="contact"
+        id="contact"
+        aria-label="Форма обратной связи"
+      >
         <div className="container">
           <div className="contact-container">
-            {/* Левая колонка — информация */}
             <div className="contact-info">
               <h2>Контакты</h2>
               <div className="contact-details">
                 <div className="contact-item">
-                  <div className="contact-icon">
+                  <div className="contact-icon" aria-hidden="true">
                     <IconMapMarker />
                   </div>
                   <div>
@@ -1189,7 +1191,7 @@ export function PublicHomePage() {
                   </div>
                 </div>
                 <div className="contact-item">
-                  <div className="contact-icon">
+                  <div className="contact-icon" aria-hidden="true">
                     <IconPhone />
                   </div>
                   <div>
@@ -1207,7 +1209,7 @@ export function PublicHomePage() {
                   </div>
                 </div>
                 <div className="contact-item">
-                  <div className="contact-icon">
+                  <div className="contact-icon" aria-hidden="true">
                     <IconEnvelope />
                   </div>
                   <div>
@@ -1223,7 +1225,7 @@ export function PublicHomePage() {
                   </div>
                 </div>
                 <div className="contact-item">
-                  <div className="contact-icon">
+                  <div className="contact-icon" aria-hidden="true">
                     <IconClock />
                   </div>
                   <div>
@@ -1238,11 +1240,9 @@ export function PublicHomePage() {
               </div>
             </div>
 
-            {/* Правая колонка — форма */}
             <div className="contact-form">
               <h2>Напишите нам</h2>
 
-              {/* honeypot */}
               <input
                 type="text"
                 name="honeypot"
@@ -1254,7 +1254,7 @@ export function PublicHomePage() {
               />
 
               <form id="contactForm" onSubmit={handleSubmit} noValidate>
-                {/* Имя */}
+           
                 <div className="form-group">
                   <label htmlFor="name">Ваше имя *</label>
                   <input
@@ -1267,15 +1267,16 @@ export function PublicHomePage() {
                     minLength={2}
                     maxLength={50}
                     required
+                    aria-invalid={!!formErrors.name}
+                    aria-describedby={formErrors.name ? "name-error" : undefined}
                   />
                   {formErrors.name && (
-                    <div className="error" id="name-error">
+                    <div className="error" id="name-error" role="alert">
                       {formErrors.name}
                     </div>
                   )}
                 </div>
 
-                {/* Email */}
                 <div className="form-group">
                   <label htmlFor="email">Email *</label>
                   <input
@@ -1286,15 +1287,18 @@ export function PublicHomePage() {
                     onChange={handleChange}
                     onBlur={handleBlur}
                     required
+                    aria-invalid={!!formErrors.email}
+                    aria-describedby={
+                      formErrors.email ? "email-error" : undefined
+                    }
                   />
                   {formErrors.email && (
-                    <div className="error" id="email-error">
+                    <div className="error" id="email-error" role="alert">
                       {formErrors.email}
                     </div>
                   )}
                 </div>
 
-                {/* Телефон */}
                 <div className="form-group phone-input-group">
                   <label htmlFor="phone">Телефон</label>
                   <div className="input-with-prefix">
@@ -1308,16 +1312,19 @@ export function PublicHomePage() {
                       onChange={handleChange}
                       onBlur={handleBlur}
                       maxLength={18}
+                      aria-invalid={!!formErrors.phone}
+                      aria-describedby={
+                        formErrors.phone ? "phone-error" : undefined
+                      }
                     />
                   </div>
                   {formErrors.phone && (
-                    <div className="error" id="phone-error">
+                    <div className="error" id="phone-error" role="alert">
                       {formErrors.phone}
                     </div>
                   )}
                 </div>
 
-                {/* Сообщение */}
                 <div className="form-group">
                   <label htmlFor="message">Сообщение *</label>
                   <textarea
@@ -1330,15 +1337,18 @@ export function PublicHomePage() {
                     minLength={10}
                     maxLength={1000}
                     required
+                    aria-invalid={!!formErrors.message}
+                    aria-describedby={
+                      formErrors.message ? "message-error" : undefined
+                    }
                   />
                   {formErrors.message && (
-                    <div className="error" id="message-error">
+                    <div className="error" id="message-error" role="alert">
                       {formErrors.message}
                     </div>
                   )}
                 </div>
 
-                {/* Согласие на обработку */}
                 <div className="form-group checkbox-group">
                   <div className="checkbox-container">
                     <input
@@ -1348,6 +1358,12 @@ export function PublicHomePage() {
                       checked={formData.privacyAgreement}
                       onChange={handleChange}
                       required
+                      aria-invalid={!!formErrors.privacyAgreement}
+                      aria-describedby={
+                        formErrors.privacyAgreement
+                          ? "privacyAgreement-error"
+                          : undefined
+                      }
                     />
                     <label
                       htmlFor="privacyAgreement"
@@ -1367,13 +1383,16 @@ export function PublicHomePage() {
                     </label>
                   </div>
                   {formErrors.privacyAgreement && (
-                    <div className="error" id="privacyAgreement-error">
+                    <div
+                      className="error"
+                      id="privacyAgreement-error"
+                      role="alert"
+                    >
                       {formErrors.privacyAgreement}
                     </div>
                   )}
                 </div>
 
-                {/* Кнопка */}
                 <button
                   type="submit"
                   className="btn-contact"
@@ -1384,10 +1403,10 @@ export function PublicHomePage() {
                 </button>
               </form>
 
-              {/* Ответ сервера */}
               {responseMessage && (
                 <div
                   id="responseMessage"
+                  role="status"
                   style={{
                     marginTop: "20px",
                     padding: "15px",
@@ -1400,7 +1419,11 @@ export function PublicHomePage() {
                       responseMessage.type === "success"
                         ? "#155724"
                         : "#721c24",
-                    border: `1px solid ${responseMessage.type === "success" ? "#c3e6cb" : "#f5c6cb"}`,
+                    border: `1px solid ${
+                      responseMessage.type === "success"
+                        ? "#c3e6cb"
+                        : "#f5c6cb"
+                    }`,
                   }}
                 >
                   {responseMessage.text}
@@ -1411,9 +1434,6 @@ export function PublicHomePage() {
         </div>
       </section>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          FOOTER
-      ════════════════════════════════════════════════════════════════════════ */}
       <footer>
         <div className="container">
           <div className="footer-content">
@@ -1500,16 +1520,21 @@ export function PublicHomePage() {
             </div>
           </div>
           <div className="footer-bottom">
-            <p>&copy; 2026 ООО «ЭКСПЕРТИЗА»</p>
+            <p>
+              &copy; {new Date().getFullYear()} ООО «ЭКСПЕРТИЗА». Все права
+              защищены. ИНН 2222896938
+            </p>
           </div>
         </div>
       </footer>
 
-      {/* ══════════════════════════════════════════════════════════════════════
-          COOKIE CONSENT
-      ════════════════════════════════════════════════════════════════════════ */}
       {showCookie && (
-        <div className="cookie-consent-container" id="cookieConsent">
+        <div
+          className="cookie-consent-container"
+          id="cookieConsent"
+          role="dialog"
+          aria-label="Соглашение об использовании файлов cookie"
+        >
           <div className="cookie-consent-content">
             <div className="cookie-consent-text">
               <p>
