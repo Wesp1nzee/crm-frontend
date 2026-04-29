@@ -1289,7 +1289,7 @@ export function CaseDetailPage() {
                     label="Наличная оплата" editingField={editingField} editValues={editValues}
                     onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="number" />
                   <EditableField canEdit={canEditCase} field="debit" value={case_.debit ?? ""}
-                    label="Дебит" editingField={editingField} editValues={editValues}
+                    label="Депозит" editingField={editingField} editValues={editValues}
                     onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="number" />
 
                   {/* Remaining debt highlight */}

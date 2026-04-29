@@ -1195,16 +1195,14 @@ export const CreateCaseDialog = memo(
                   value={financialValues.remaining_debt}
                   onChange={(v) => handleFinancialChange("remaining_debt", v)}
                 />
-                {/* 💰 НОВОЕ ПОЛЕ: Дебит (деньги в пути) */}
                 <FinancialField
-                  label="Дебит (в пути)"
+                  label="Депозит"
                   value={financialValues.debit}
                   onChange={(v) => handleFinancialChange("debit", v)}
                 />
               </Grid>
             </FormSection>
 
-            {/* Стороны дела */}
             <FormSection>
               <SectionHeader
                 icon={<PersonIcon sx={{ fontSize: 18 }} />}
