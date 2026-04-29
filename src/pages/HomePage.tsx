@@ -593,6 +593,7 @@ function AdminHomePage() {
             </CardContent>
           </Card>
 
+          {/* ✅ ОБНОВЛЁННАЯ КАРТОЧКА: Финансовая сводка */}
           <Card
             sx={{
               ...glassCardSx,
@@ -614,7 +615,7 @@ function AdminHomePage() {
                 Средняя стоимость дела
               </Typography>
               <Typography variant="h4" fontWeight={700} mt={0.5}>
-                {averageCaseCost.toLocaleString()} ₽
+                {Math.round(averageCaseCost).toLocaleString('ru-RU')} ₽
               </Typography>
               <Divider sx={{ my: 1.8, borderColor: alpha("#FFFFFF", 0.15) }} />
               <Box display="flex" justifyContent="space-between" gap={2}>
@@ -654,7 +655,7 @@ function AdminHomePage() {
                 mt={0.5}
                 sx={{ letterSpacing: "0.02em" }}
               >
-                {(financialSummary?.pending_amount || 0).toLocaleString()} ₽
+                {Math.round(financialSummary?.pending_amount ?? 0).toLocaleString('ru-RU')} ₽
               </Typography>
             </CardContent>
           </Card>
