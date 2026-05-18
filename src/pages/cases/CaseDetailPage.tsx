@@ -821,16 +821,12 @@ export function CaseDetailPage() {
                       onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel}
                       isAddress />
                   </Box>
-                  {case_.plaintiff && (
-                    <EditableField canEdit={canEditCase} field="plaintiff" value={case_.plaintiff}
-                      label="Истец" editingField={editingField} editValues={editValues}
-                      onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
-                  )}
-                  {case_.defendant && (
-                    <EditableField canEdit={canEditCase} field="defendant" value={case_.defendant}
-                      label="Ответчик" editingField={editingField} editValues={editValues}
-                      onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
-                  )}
+                  <EditableField canEdit={canEditCase} field="plaintiff" value={case_.plaintiff || ""}
+                    label="Истец" editingField={editingField} editValues={editValues}
+                    onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
+                  <EditableField canEdit={canEditCase} field="defendant" value={case_.defendant || ""}
+                    label="Ответчик" editingField={editingField} editValues={editValues}
+                    onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} />
                   <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
                     <EditableField canEdit={canEditCase} field="remarks" value={case_.remarks || ""}
                       label="Примечание" editingField={editingField} editValues={editValues}

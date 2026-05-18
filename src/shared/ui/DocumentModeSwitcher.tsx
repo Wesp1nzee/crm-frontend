@@ -1,8 +1,9 @@
 import { motion } from "framer-motion";
 import { Box, Typography } from "@mui/material";
 import FolderOutlined from "@mui/icons-material/FolderOutlined";
+import Mail from "@mui/icons-material/Mail";
 
-export type DocumentMode = "storage";
+export type DocumentMode = "storage" | "email";
 
 interface DocumentModeSwitcherProps {
   activeMode: DocumentMode;
@@ -14,6 +15,11 @@ const modes: { id: DocumentMode; label: string; icon: React.ReactNode }[] = [
     id: "storage",
     label: "Диск",
     icon: <FolderOutlined fontSize="small" />,
+  },
+  {
+    id: "email",
+    label: "Почта",
+    icon: <Mail fontSize="small" />,
   },
 ];
 

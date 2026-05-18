@@ -43,6 +43,11 @@ const DocumentsPage = lazy(() =>
     default: m.DocumentsPage,
   })),
 );
+const TrashPage = lazy(() =>
+  import("../pages/documents/TrashPage").then((m) => ({
+    default: m.TrashPage,
+  })),
+);
 const FinancePage = lazy(() =>
   import("../pages/finance/FinancePage").then((m) => ({
     default: m.FinancePage,
@@ -204,6 +209,14 @@ export const router = createBrowserRouter([
         element: (
           <Suspense fallback={<PageLoader />}>
             <DocumentsPage />
+          </Suspense>
+        ),
+      },
+      {
+        path: "documents/trash",
+        element: (
+          <Suspense fallback={<PageLoader />}>
+            <TrashPage />
           </Suspense>
         ),
       },

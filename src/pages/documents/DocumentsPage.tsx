@@ -40,7 +40,7 @@ import {
   ToggleButtonGroup,
 } from "@mui/material";
 import {
-  Delete,
+  DeleteSweep,
   Download,
   FolderOutlined,
   DescriptionOutlined,
@@ -67,15 +67,13 @@ import {
   useCreateFolder,
   useUploadDocument,
   useDownloadDocument,
-  useDeleteDocument,
-  useDeleteFolder,
   useDocuments,
   useCaseSuggestions,
   usePreviewDocument,
   useUpdateAsset,
   useDownloadFolder,
   useDownloadBulkAssets,
-  useDeleteBulkAssets,
+  useTrashAssets,
 } from "../../shared/hooks/useDocuments";
 import type { FileSystemEntry } from "../../entities/document/types";
 import type { CaseSuggestion } from "../../entities/case/types";
@@ -181,18 +179,14 @@ export function DocumentsPage() {
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
-  // Контекстное меню
   const [menuAnchor, setMenuAnchor] = useState<null | HTMLElement>(null);
-  // Элемент для меню — сбрасывается ТОЛЬКО при явном закрытии меню без действия
   const [menuEntry, setMenuEntry] = useState<FileSystemEntry | null>(null);
 
-  // Удаление — ОТДЕЛЬНЫЕ состояния, не зависят от меню
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [entryToDelete, setEntryToDelete] = useState<FileSystemEntry | null>(
     null,
   );
 
-  // Редактирование — тоже отдельно
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState<FileSystemEntry | null>(null);
 
@@ -277,7 +271,6 @@ export function DocumentsPage() {
 
   const { user, isExpert } = usePermissions();
 
-  // Mail attachments query - disabled for expert role
   const mailAttachmentsParams: MailAttachmentsListParams | undefined = isExpert
     ? undefined
     : {
@@ -335,12 +328,10 @@ export function DocumentsPage() {
   const uploadDocument = useUploadDocument();
   const downloadDocument = useDownloadDocument();
   const previewDocument = usePreviewDocument();
-  const deleteDocument = useDeleteDocument();
-  const deleteFolder = useDeleteFolder();
   const downloadFolder = useDownloadFolder();
   const updateAsset = useUpdateAsset();
   const downloadBulkAssets = useDownloadBulkAssets();
-  const deleteBulkAssets = useDeleteBulkAssets();
+  const trashAssets = useTrashAssets();
 
   const canShare = user?.role !== "expert";
   const createUserShare = useCreateUserShare();
@@ -551,14 +542,8 @@ export function DocumentsPage() {
   const handleBulkDelete = async () => {
     if (!selectedEntries.length) return;
 
-    const hasCaseBoundFolders = selectedEntries.some(isCaseBoundFolder);
-    if (hasCaseBoundFolders) {
-      notificationService.warning("Папки, привязанные к делу, нельзя удалять");
-      return;
-    }
-
     try {
-      await deleteBulkAssets.mutateAsync({
+      await trashAssets.mutateAsync({
         folder_ids: selectedEntries
           .filter((entry) => entry.type === "folder")
           .map((entry) => entry.id),
@@ -567,13 +552,13 @@ export function DocumentsPage() {
           .map((entry) => entry.id),
       });
       notificationService.success(
-        `Удалено элементов: ${selectedEntries.length}`,
+        `Элементы перемещены в корзину: ${selectedEntries.length}`,
       );
       clearSelection();
       refetch();
     } catch (error) {
-      console.error("Ошибка массового удаления:", error);
-      notificationService.error("Не удалось удалить выбранные элементы");
+      console.error("Ошибка массового перемещения в корзину:", error);
+      notificationService.error("Не удалось переместить выбранные элементы в корзину");
     }
   };
 
@@ -1080,9 +1065,8 @@ export function DocumentsPage() {
     setMenuEntry(entry);
   };
 
-  // Выполнение удаления
   const handleDelete = async () => {
-    if (selectedEntryIds.length > 1 && !entryToDelete) {
+    if (selectedEntryIds.length > 0 && !entryToDelete) {
       await handleBulkDelete();
       setDeleteConfirmOpen(false);
       return;
@@ -1090,65 +1074,44 @@ export function DocumentsPage() {
 
     if (!entryToDelete?.id || !entryToDelete.type) {
       console.error("handleDelete: некорректный элемент", entryToDelete);
-      notificationService.error("Не удалось определить элемент для удаления");
+      notificationService.error("Не удалось определить элемент для перемещения в корзину");
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
       return;
     }
 
     try {
-      console.log("Удаление элемента:", {
+      console.log("Перемещение элемента в корзину:", {
         id: entryToDelete.id,
         type: entryToDelete.type,
         name: entryToDelete.name,
       });
 
-      if (entryToDelete.type === "folder") {
-        if (isCaseBoundFolder(entryToDelete)) {
-          notificationService.warning(
-            "Папка привязана к делу и не может быть удалена",
-          );
-          setDeleteConfirmOpen(false);
-          setEntryToDelete(null);
-          return;
-        }
-        await deleteFolder.mutateAsync(entryToDelete.id);
-      } else if (entryToDelete.type === "file") {
-        await deleteDocument.mutateAsync(entryToDelete.id);
-      } else {
-        throw new Error(`Неизвестный тип элемента: ${entryToDelete.type}`);
-      }
+      await trashAssets.mutateAsync({
+        folder_ids:
+          entryToDelete.type === "folder" ? [entryToDelete.id] : [],
+        document_ids:
+          entryToDelete.type === "file" ? [entryToDelete.id] : [],
+      });
 
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
-      notificationService.success("Элемент успешно удалён");
+      notificationService.success("Элемент успешно перемещён в корзину");
 
       setTimeout(() => {
         refetch();
       }, 500);
     } catch (error) {
-      console.error("Ошибка удаления:", error);
-      notificationService.error("Ошибка при удалении. Подробности в консоли.");
+      console.error("Ошибка перемещения в корзину:", error);
+      notificationService.error("Не удалось переместить элемент в корзину. Подробности в консоли.");
       setDeleteConfirmOpen(false);
       setEntryToDelete(null);
     }
   };
 
-  // Выполнение редактирования
   const handleSaveEdit = async (data: any) => {
     if (!entryToEdit) return;
     try {
-      if (
-        isCaseBoundFolder(entryToEdit) &&
-        entryToEdit.type === "folder" &&
-        data.parent_id !== undefined &&
-        data.parent_id !== entryToEdit.parent_id
-      ) {
-        notificationService.warning(
-          "Папка привязана к делу и не может быть перемещена",
-        );
-        return;
-      }
 
       const updateData = {
         asset_id: entryToEdit.id,
@@ -1182,16 +1145,6 @@ export function DocumentsPage() {
   ) => {
     try {
       const draggedEntry = entriesArray.find((entry) => entry.id === assetId);
-      if (
-        assetType === "folder" &&
-        draggedEntry &&
-        isCaseBoundFolder(draggedEntry)
-      ) {
-        notificationService.warning(
-          "Папка привязана к делу и не может быть перемещена",
-        );
-        return;
-      }
 
       const fallbackName = assetName || draggedEntry?.name;
       const updateData = {
@@ -1465,6 +1418,14 @@ export function DocumentsPage() {
           >
             Загрузить файлы
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DeleteSweep />}
+            onClick={() => navigate("/crm/documents/trash")}
+            sx={actionButtonSx}
+          >
+            Открыть корзину
+          </Button>
         </Box>
       </Box>
 
@@ -1502,14 +1463,14 @@ export function DocumentsPage() {
                 size="small"
                 variant="contained"
                 color="error"
-                startIcon={<Delete />}
+                startIcon={<DeleteSweep />}
                 onClick={() => {
                   setEntryToDelete(null);
                   setDeleteConfirmOpen(true);
                 }}
-                disabled={deleteBulkAssets.isPending}
+                disabled={trashAssets.isPending}
               >
-                Удалить выбранное
+                В корзину выбранное
               </Button>
               <Button size="small" onClick={clearSelection}>
                 Снять выделение
@@ -2299,10 +2260,10 @@ export function DocumentsPage() {
               typeof menuEntry.id === "string" &&
               !menuEntry.id.startsWith("__"))) && (
             <MenuItem onClick={handleMenuDelete} sx={{ color: "error.main" }}>
-              <Delete sx={{ mr: 1 }} />
+              <DeleteSweep sx={{ mr: 1 }} />
               {selectedEntryIds.length > 1
-                ? `Удалить выбранное (${selectedEntryIds.length})`
-                : "Удалить"}
+                ? `В корзину выбранное (${selectedEntryIds.length})`
+                : "В корзину"}
             </MenuItem>
           )}
         </Menu>
@@ -2550,29 +2511,29 @@ export function DocumentsPage() {
       >
         <DialogTitle>
           {selectedEntryIds.length > 1 && !entryToDelete
-            ? "Массовое удаление"
+            ? "Массовое перемещение в корзину"
             : entryToDelete?.type === "folder"
-              ? "Удаление папки"
+              ? "Перемещение папки в корзину"
               : entryToDelete?.type === "file"
-                ? "Удаление файла"
-                : "Удаление элемента"}
+                ? "Перемещение файла в корзину"
+                : "Перемещение элемента в корзину"}
         </DialogTitle>
         <DialogContent>
           {selectedEntryIds.length > 1 && !entryToDelete ? (
             <>
               <Typography variant="body1" sx={{ mt: 2 }}>
-                Вы уверены, что хотите удалить{" "}
-                <strong>{selectedEntryIds.length}</strong> выбранных элементов?
+                Вы уверены, что хотите переместить в корзину
+                <strong> {selectedEntryIds.length}</strong> выбранных элементов?
               </Typography>
               <Alert severity="warning" sx={{ mt: 2 }}>
-                Это действие удалит все выбранные документы и папки вместе с
-                вложенными файлами.
+                Это действие переместит все выбранные документы и папки в корзину.
+                Их можно будет восстановить позже.
               </Alert>
             </>
           ) : entryToDelete && entryToDelete.name ? (
             <>
               <Typography variant="body1" sx={{ mt: 2 }}>
-                Вы уверены, что хотите удалить{" "}
+                Вы уверены, что хотите переместить в корзину{" "}
                 <strong>
                   {entryToDelete.type === "folder" ? "папку" : "файл"}
                   {` "${entryToDelete.name}"`}
@@ -2581,7 +2542,7 @@ export function DocumentsPage() {
               </Typography>
               {entryToDelete.type === "folder" && (
                 <Alert severity="warning" sx={{ mt: 2 }}>
-                  Внимание: все содержимое папки будет удалено безвозвратно.
+                  Внимание: папка и всё её содержимое будут перемещены в корзину.
                 </Alert>
               )}
             </>
@@ -2608,20 +2569,16 @@ export function DocumentsPage() {
             variant="contained"
             color="error"
             disabled={
-              deleteDocument.isPending ||
-              deleteFolder.isPending ||
-              deleteBulkAssets.isPending ||
+              trashAssets.isPending ||
               (selectedEntryIds.length <= 1 &&
                 (!entryToDelete || !entryToDelete.id))
             }
             sx={actionButtonSx}
           >
-            {deleteDocument.isPending ||
-            deleteFolder.isPending ||
-            deleteBulkAssets.isPending ? (
+            {trashAssets.isPending ? (
               <CircularProgress size={20} sx={{ mr: 1 }} />
             ) : null}
-            Удалить
+            В корзину
           </Button>
         </DialogActions>
       </Dialog>

@@ -129,3 +129,48 @@ export const useDeleteBulkAssets = () => {
     },
   });
 };
+
+export const useTrashAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) =>
+      documentsApi.trashAssets(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["documents", "trash"] });
+    },
+  });
+};
+
+export const useTrashDocuments = (params?: DocumentsListParams) => {
+  return useQuery<PaginatedResponse<FileSystemEntry>>({
+    queryKey: ["documents", "trash", params],
+    queryFn: () => documentsApi.getTrashDocuments(params),
+  });
+};
+
+export const useRestoreAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) =>
+      documentsApi.restoreAssets(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", "trash"] });
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+    },
+  });
+};
+
+export const useDeleteTrashAssets = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: { folder_ids: string[]; document_ids: string[] }) =>
+      documentsApi.deleteTrashAssets(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents", "trash"] });
+    },
+  });
+};

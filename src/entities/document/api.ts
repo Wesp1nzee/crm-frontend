@@ -160,6 +160,22 @@ export const documentsApi = {
     return data;
   },
 
+  // Получить содержимое корзины
+  getTrashDocuments: async (
+    params?: DocumentsListParams,
+  ): Promise<PaginatedResponse<FileSystemEntry>> => {
+    const { data } = await api.get("/documents/trash", { params });
+    return data;
+  },
+
+  restoreAssets: async (payload: BulkAssetsRequest): Promise<void> => {
+    await api.post("/documents/restore", payload);
+  },
+
+  deleteTrashAssets: async (payload: BulkAssetsRequest): Promise<void> => {
+    await api.delete("/documents/trash", { data: payload });
+  },
+
   downloadBulk: async ({
     folder_ids,
     document_ids,
@@ -192,5 +208,9 @@ export const documentsApi = {
 
   deleteBulk: async (payload: BulkAssetsRequest): Promise<void> => {
     await api.delete("/documents/bulk", { data: payload });
+  },
+
+  trashAssets: async (payload: BulkAssetsRequest): Promise<void> => {
+    await api.post("/documents/trash", payload);
   },
 };
