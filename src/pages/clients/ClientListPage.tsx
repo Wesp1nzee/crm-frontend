@@ -14,13 +14,15 @@ import {
   Alert,
   alpha,
 } from "@mui/material";
-import { Add, AccountBalance, Gavel, PersonOutline } from "@mui/icons-material";
+import { Add, AccountBalance, Gavel, PersonOutline, ArrowUpward, ArrowDownward } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
 import { useClients, useCreateClient } from "../../shared/hooks/useClients";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ClientCreateDialog } from "./ClientCreateDialog";
 import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
+import { Select, MenuItem, FormControl, InputLabel, Stack } from "@mui/material";
+import type { ClientFilters } from "../../entities/client/types";
 import type { ClientCreateRequest } from "../../entities/client/types";
 
 const TYPE_ICONS = {
@@ -31,17 +33,54 @@ const TYPE_ICONS = {
 
 export function ClientListPage() {
   const navigate = useNavigate();
-  const [page, setPage] = useState(1);
-  const [limit, setLimit] = useState(20);
+  const CLIENT_LIST_STORAGE_KEY = "crm:clients:list:filters:v1";
+
+  function loadFromStorage(): Partial<ClientFilters> | null {
+    try {
+      const raw = localStorage.getItem(CLIENT_LIST_STORAGE_KEY);
+      if (!raw) return null;
+      return JSON.parse(raw) as Partial<ClientFilters>;
+    } catch (e) {
+      console.warn("[ClientList] failed to load storage", e);
+      return null;
+    }
+  }
+
+  function saveToStorage(filters: ClientFilters) {
+    try {
+      const toPersist = { ...filters };
+      localStorage.setItem(CLIENT_LIST_STORAGE_KEY, JSON.stringify(toPersist));
+    } catch (e) {
+      console.warn("[ClientList] failed to save storage", e);
+    }
+  }
+
+  const [filters, setFilters] = useState<ClientFilters>(() => {
+    const defaults: ClientFilters = { page: 1, limit: 20, sort_by: "name", sort_dir: "asc" };
+    const saved = loadFromStorage();
+    if (saved) return { ...defaults, ...saved, page: saved.page ?? defaults.page, limit: saved.limit ?? defaults.limit };
+    return defaults;
+  });
+
+  useEffect(() => { saveToStorage(filters); }, [filters]);
+
   const {
     data: clients,
     isLoading: clientsLoading,
     error: clientsError,
     refetch,
-  } = useClients({
-    page,
-    limit,
-  });
+  } = useClients(filters);
+
+  const handleSortClick = (field: NonNullable<ClientFilters["sort_by"]>) => {
+    setFilters((prev) => {
+      const current = prev.sort_by;
+      const currentDir = prev.sort_dir ?? "asc";
+      if (current === field) {
+        return { ...prev, sort_dir: currentDir === "asc" ? "desc" : "asc", page: 1 };
+      }
+      return { ...prev, sort_by: field, sort_dir: "asc", page: 1 };
+    });
+  };
 
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const createClient = useCreateClient();
@@ -118,10 +157,26 @@ export function ClientListPage() {
         >
           <TableHead>
             <TableRow>
-              <TableCell>Название</TableCell>
+              <TableCell sx={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSortClick("name")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Название
+                  {filters.sort_by === "name" && (filters.sort_dir === "asc" ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />)}
+                </Box>
+              </TableCell>
               <TableCell>Контакты</TableCell>
-              <TableCell>Тип</TableCell>
+              <TableCell sx={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSortClick("type")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Тип
+                  {filters.sort_by === "type" && (filters.sort_dir === "asc" ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />)}
+                </Box>
+              </TableCell>
               <TableCell>ИНН</TableCell>
+              <TableCell sx={{ cursor: "pointer", userSelect: "none" }} onClick={() => handleSortClick("created_at")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Создан
+                  {filters.sort_by === "created_at" && (filters.sort_dir === "asc" ? <ArrowUpward fontSize="small" /> : <ArrowDownward fontSize="small" />)}
+                </Box>
+              </TableCell>
               <TableCell>Дела</TableCell>
               <TableCell>Действия</TableCell>
             </TableRow>
@@ -142,18 +197,8 @@ export function ClientListPage() {
                   }}
                 >
                   <TableCell>
-                    <Typography
-                      variant="body1"
-                      fontWeight="medium"
-                      textAlign="left"
-                    >
-                      {client.name}
-                    </Typography>
-                    {client.short_name && (
-                      <Typography variant="caption" color="text.secondary">
-                        {client.short_name}
-                      </Typography>
-                    )}
+                    <Typography variant="body1" fontWeight="medium" textAlign="left">{client.name}</Typography>
+                    {client.short_name && <Typography variant="caption" color="text.secondary">{client.short_name}</Typography>}
                   </TableCell>
                   <TableCell>
                     <Typography variant="body2">
@@ -181,6 +226,7 @@ export function ClientListPage() {
                     </Box>
                   </TableCell>
                   <TableCell>{client.inn || "—"}</TableCell>
+                  <TableCell>{new Date(client.created_at).toLocaleDateString("ru-RU")}</TableCell>
                   <TableCell>
                     <Box display="flex" gap={1}>
                       <Chip
@@ -210,7 +256,7 @@ export function ClientListPage() {
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} align="center">
+                <TableCell colSpan={7} align="center">
                   Нет данных
                 </TableCell>
               </TableRow>
@@ -225,13 +271,10 @@ export function ClientListPage() {
         totalItems={totalItems}
         hasPrev={hasPrev}
         hasNext={hasNext}
-        limit={limit}
-        onLimitChange={(nextLimit) => {
-          setLimit(nextLimit);
-          setPage(1);
-        }}
-        onPrev={() => setPage((prev) => Math.max(prev - 1, 1))}
-        onNext={() => setPage((prev) => prev + 1)}
+        limit={filters.limit}
+        onLimitChange={(nextLimit) => setFilters((p) => ({ ...p, limit: nextLimit, page: 1 }))}
+        onPrev={() => setFilters((p) => ({ ...p, page: Math.max((p.page ?? 1) - 1, 1) }))}
+        onNext={() => setFilters((p) => ({ ...p, page: (p.page ?? 1) + 1 }))}
       />
 
       <ClientCreateDialog

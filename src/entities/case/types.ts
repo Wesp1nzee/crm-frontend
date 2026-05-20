@@ -21,6 +21,9 @@ export interface Case {
   expert_ids?: string[];
   start_date: string;
   deadline: string;
+  legal_entity_type: 'ООО' | 'ИП';
+  additional_materials_date?: string | null;
+  execution_date?: string | null;
   completion_date?: string;
   cost: string;
   bank_transfer_amount: string;
@@ -156,6 +159,9 @@ export interface CaseCreateRequest {
   archive_status?: string;
   remarks?: string;
   debit?: number;
+  legal_entity_type: 'ООО' | 'ИП';
+  additional_materials_date?: string | null;
+  execution_date?: string | null;
 }
 
 export interface CasePatchRequest {
@@ -180,6 +186,9 @@ export interface CasePatchRequest {
   archive_status?: string;
   remarks?: string;
   debit?: string;
+  legal_entity_type?: 'ООО' | 'ИП';
+  additional_materials_date?: string | null;
+  execution_date?: string | null;
 }
 
 export interface CaseExpertsUpdateRequest {

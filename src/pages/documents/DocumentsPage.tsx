@@ -159,13 +159,84 @@ const actionButtonSx = {
   fontWeight: 600,
 };
 
+const DOCUMENTS_STORAGE_KEY = "crm:documents:filters:v1";
+
+interface StorageDocumentsFilters {
+  sortField?: SortField;
+  sortOrder?: SortOrder;
+  rowsPerPage?: number;
+}
+
+function loadDocsFiltersFromStorage(): Partial<StorageDocumentsFilters> | null {
+  try {
+    const raw = localStorage.getItem(DOCUMENTS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StorageDocumentsFilters;
+    return {
+      sortField: parsed.sortField ?? undefined,
+      sortOrder: parsed.sortOrder ?? undefined,
+      rowsPerPage: parsed.rowsPerPage ? Number(parsed.rowsPerPage) : undefined,
+    };
+  } catch (e) {
+    console.warn("[Documents] failed to load storage", e);
+    return null;
+  }
+}
+
+function saveDocsFiltersToStorage(filters: StorageDocumentsFilters) {
+  try {
+    localStorage.setItem(DOCUMENTS_STORAGE_KEY, JSON.stringify(filters));
+  } catch (e) {
+    console.warn("[Documents] failed to save storage", e);
+  }
+}
+
+const EMAIL_ATTACHMENTS_STORAGE_KEY = "crm:documents:email-filters:v1";
+
+interface StorageEmailFilters {
+  emailRowsPerPage?: number;
+  emailSortField?: "filename" | "created_at" | "file_size";
+  emailSortOrder?: "asc" | "desc";
+}
+
+function loadEmailFiltersFromStorage(): Partial<StorageEmailFilters> | null {
+  try {
+    const raw = localStorage.getItem(EMAIL_ATTACHMENTS_STORAGE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as StorageEmailFilters;
+    return {
+      emailRowsPerPage: parsed.emailRowsPerPage ? Number(parsed.emailRowsPerPage) : undefined,
+      emailSortField: parsed.emailSortField ?? undefined,
+      emailSortOrder: parsed.emailSortOrder ?? undefined,
+    };
+  } catch (e) {
+    console.warn("[Documents] failed to load email storage", e);
+    return null;
+  }
+}
+
+function saveEmailFiltersToStorage(filters: StorageEmailFilters) {
+  try {
+    localStorage.setItem(EMAIL_ATTACHMENTS_STORAGE_KEY, JSON.stringify(filters));
+  } catch (e) {
+    console.warn("[Documents] failed to save email storage", e);
+  }
+}
 export function DocumentsPage() {
-  // Mode switching
   const [activeMode, setActiveMode] = useState<DocumentMode>("storage");
   const [emailPage, setEmailPage] = useState(0);
-  const [emailRowsPerPage, setEmailRowsPerPage] = useState(25);
-  const [emailSortField, setEmailSortField] = useState<"filename" | "created_at" | "file_size">("created_at");
-  const [emailSortOrder, setEmailSortOrder] = useState<"asc" | "desc">("desc");
+  const [emailRowsPerPage, setEmailRowsPerPage] = useState(() => {
+    const saved = loadEmailFiltersFromStorage();
+    return saved?.emailRowsPerPage ?? 25;
+  });
+  const [emailSortField, setEmailSortField] = useState<"filename" | "created_at" | "file_size">(() => {
+    const saved = loadEmailFiltersFromStorage();
+    return saved?.emailSortField ?? "created_at";
+  });
+  const [emailSortOrder, setEmailSortOrder] = useState<"asc" | "desc">(() => {
+    const saved = loadEmailFiltersFromStorage();
+    return saved?.emailSortOrder ?? "desc";
+  });
   const [emailAttachmentType, setEmailAttachmentType] = useState<"all" | "incoming" | "outgoing">("all");
 
   const [currentFolderId, setCurrentFolderId] = useState<string | null>(null);
@@ -173,9 +244,18 @@ export function DocumentsPage() {
     Array<{ id: string | null; name: string }>
   >([{ id: null, name: "Корень" }]);
   const [page, setPage] = useState(0);
-  const [rowsPerPage, setRowsPerPage] = useState(25);
-  const [sortField, setSortField] = useState<SortField>("created_at");
-  const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
+  const [rowsPerPage, setRowsPerPage] = useState(() => {
+    const saved = loadDocsFiltersFromStorage();
+    return saved?.rowsPerPage ?? 25;
+  });
+  const [sortField, setSortField] = useState<SortField>(() => {
+    const saved = loadDocsFiltersFromStorage();
+    return saved?.sortField ?? "created_at";
+  });
+  const [sortOrder, setSortOrder] = useState<SortOrder>(() => {
+    const saved = loadDocsFiltersFromStorage();
+    return saved?.sortOrder ?? "desc";
+  });
   const [createFolderOpen, setCreateFolderOpen] = useState(false);
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
 
@@ -318,6 +398,14 @@ export function DocumentsPage() {
     setFolderPath(resolvedPath);
     setPage(0);
   }, [searchParams]);
+
+  useEffect(() => {
+    saveDocsFiltersToStorage({ sortField, sortOrder, rowsPerPage });
+  }, [sortField, sortOrder, rowsPerPage]);
+
+  useEffect(() => {
+    saveEmailFiltersToStorage({ emailSortField, emailSortOrder, emailRowsPerPage });
+  }, [emailSortField, emailSortOrder, emailRowsPerPage]);
 
   const entriesArray = documentsResponse?.items ?? [];
   const paginationMeta = documentsResponse?.meta;
@@ -562,7 +650,6 @@ export function DocumentsPage() {
     }
   };
 
-  // Отладка: проверка валидности записей
   useEffect(() => {
     if (entriesArray.length > 0) {
       const invalid = entriesArray.filter((e) => !e.id || !e.name || !e.type);
@@ -670,7 +757,6 @@ export function DocumentsPage() {
     };
   }, [isRubberBandSelecting]);
 
-  // Форматирование размера файла
   const formatFileSize = (bytes: number | null) => {
     if (!bytes) return "-";
     const k = 1024;
@@ -679,7 +765,6 @@ export function DocumentsPage() {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
   };
 
-  // Получение иконки для файла
   const getFileIcon = (entry: FileSystemEntry) => {
     if (entry.type === "folder") {
       return <FolderOutlined color="primary" />;
@@ -688,7 +773,6 @@ export function DocumentsPage() {
     return fileIcons[ext] || <DescriptionOutlined color="action" />;
   };
 
-  // Обработчики навигации
   const handleFolderClick = (folder: FileSystemEntry) => {
     setCurrentFolderId(folder.id);
     setFolderPath([...folderPath, { id: folder.id, name: folder.name }]);

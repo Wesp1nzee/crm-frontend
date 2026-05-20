@@ -385,6 +385,12 @@ export function CaseDetailPage() {
   const [status, setStatus] = useState<CaseStatus>();
   const [editingField, setEditingField] = useState<string | null>(null);
   const [editValues, setEditValues] = useState<Record<string, string>>({});
+  const [editingLegalEntityType, setEditingLegalEntityType] = useState(false);
+  const [editLegalEntityType, setEditLegalEntityType] = useState<"ООО" | "ИП">();
+  const [editingExecutionDate, setEditingExecutionDate] = useState(false);
+  const [editExecutionDate, setEditExecutionDate] = useState<string>("");
+  const [editingAdditionalMaterialsDate, setEditingAdditionalMaterialsDate] = useState(false);
+  const [editAdditionalMaterialsDate, setEditAdditionalMaterialsDate] = useState<string>("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -409,6 +415,9 @@ export function CaseDetailPage() {
     setSelectedExperts(experts);
     setDraftExperts(experts);
     setDraftExpertInput("");
+    setEditLegalEntityType(caseData.case.legal_entity_type);
+    setEditExecutionDate(caseData.case.execution_date ? dayjs(caseData.case.execution_date).format("YYYY-MM-DD") : "");
+    setEditAdditionalMaterialsDate(caseData.case.additional_materials_date ? dayjs(caseData.case.additional_materials_date).format("YYYY-MM-DD") : "");
   }, [caseData]);
 
   useEffect(() => { if (patchCase.isSuccess) notificationService.success("Изменения сохранены"); }, [patchCase.isSuccess]);
@@ -623,6 +632,32 @@ export function CaseDetailPage() {
   };
   const handleFieldCancel = () => { setEditingField(null); setEditValues({}); };
 
+  const handleLegalEntityTypeSave = () => {
+    if (!canEditCase || !editLegalEntityType) return;
+    patchCase.mutate({ id: case_.id, data: { legal_entity_type: editLegalEntityType } });
+    setEditingLegalEntityType(false);
+  };
+
+  const handleExecutionDateSave = () => {
+    if (!canEditCase) return;
+    if (editExecutionDate) {
+      const execDate = dayjs(editExecutionDate);
+      const startDate = dayjs(case_.start_date);
+      if (execDate.isBefore(startDate, "day")) {
+        notificationService.error("Дата выполнения не может быть раньше даты начала");
+        return;
+      }
+    }
+    patchCase.mutate({ id: case_.id, data: { execution_date: editExecutionDate || null } });
+    setEditingExecutionDate(false);
+  };
+
+  const handleAdditionalMaterialsDateSave = () => {
+    if (!canEditCase) return;
+    patchCase.mutate({ id: case_.id, data: { additional_materials_date: editAdditionalMaterialsDate || null } });
+    setEditingAdditionalMaterialsDate(false);
+  };
+
   const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files?.length) {
       setSelectedFiles((p) => [...p, ...Array.from(e.target.files!).filter((f) => !isSystemOrTempFile(f))]);
@@ -831,6 +866,67 @@ export function CaseDetailPage() {
                     <EditableField canEdit={canEditCase} field="remarks" value={case_.remarks || ""}
                       label="Примечание" editingField={editingField} editValues={editValues}
                       onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} multiline />
+                  </Box>
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <InfoLabel label="Тип юрлица" />
+                    {editingLegalEntityType ? (
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        p: 1.5, borderRadius: "10px",
+                        background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
+                      }}>
+                        <FormControl size="small" fullWidth>
+                          <Select value={editLegalEntityType || "ООО"}
+                            onChange={(e) => setEditLegalEntityType(e.target.value as "ООО" | "ИП")}
+                            sx={{ borderRadius: "8px", fontSize: "14px" }}>
+                            <MenuItem value="ООО">ООО</MenuItem>
+                            <MenuItem value="ИП">ИП</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <Tooltip title="Сохранить">
+                          <IconButton size="small" onClick={handleLegalEntityTypeSave} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: SUCCESS_SOFT, border: `1px solid ${SUCCESS_MID}`,
+                            color: SUCCESS,
+                            "&:hover": { background: SUCCESS_MID },
+                          }}>
+                            <Save sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Отменить">
+                          <IconButton size="small" onClick={() => { setEditingLegalEntityType(false); setEditLegalEntityType(case_.legal_entity_type); }} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: DANGER_SOFT, border: `1px solid ${DANGER_MID}`,
+                            color: DANGER,
+                            "&:hover": { background: DANGER_MID },
+                          }}>
+                            <Cancel sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ) : (
+                      <Box
+                        onClick={canEditCase ? () => { setEditingLegalEntityType(true); setEditLegalEntityType(case_.legal_entity_type); } : undefined}
+                        sx={{
+                          display: "flex", alignItems: "center", gap: 1,
+                          px: 1.75, py: 1.25, borderRadius: "10px",
+                          background: SURFACE_2, border: `1px solid ${BORDER}`,
+                          minHeight: 44, cursor: canEditCase ? "pointer" : "default",
+                          transition: "all 0.15s",
+                          "&:hover": {
+                            background: canEditCase ? ACCENT_SOFT : undefined,
+                            borderColor: canEditCase ? ACCENT_MID : undefined,
+                          },
+                        }}
+                      >
+                        <Business sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                        <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500,
+                          color: TEXT_PRIMARY }}>
+                          {case_.legal_entity_type}
+                        </Typography>
+                        {canEditCase && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+                      </Box>
+                    )}
                   </Box>
                 </Box>
               </CardContent>
@@ -1211,6 +1307,134 @@ export function CaseDetailPage() {
                     label={hasOverdueWarning ? "⚠️ Срок (просрочен)" : "Срок исполнения"}
                     editingField={editingField} editValues={editValues}
                     onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="date" />
+                  <Box>
+                    <InfoLabel label="Дата выполнения" />
+                    {editingExecutionDate ? (
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        p: 1.5, borderRadius: "10px",
+                        background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
+                      }}>
+                        <TextField
+                          size="small" type="date" value={editExecutionDate} autoFocus fullWidth
+                          onChange={(e) => setEditExecutionDate(e.target.value)}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "8px", fontSize: "14px", background: SURFACE,
+                              "& fieldset": { borderColor: BORDER },
+                              "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
+                            },
+                          }}
+                        />
+                        <Tooltip title="Сохранить">
+                          <IconButton size="small" onClick={handleExecutionDateSave} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: SUCCESS_SOFT, border: `1px solid ${SUCCESS_MID}`,
+                            color: SUCCESS,
+                            "&:hover": { background: SUCCESS_MID },
+                          }}>
+                            <Save sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Отменить">
+                          <IconButton size="small" onClick={() => { setEditingExecutionDate(false); setEditExecutionDate(case_.execution_date ? dayjs(case_.execution_date).format("YYYY-MM-DD") : ""); }} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: DANGER_SOFT, border: `1px solid ${DANGER_MID}`,
+                            color: DANGER,
+                            "&:hover": { background: DANGER_MID },
+                          }}>
+                            <Cancel sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ) : (
+                      <Box
+                        onClick={canEditCase ? () => { setEditingExecutionDate(true); setEditExecutionDate(case_.execution_date ? dayjs(case_.execution_date).format("YYYY-MM-DD") : ""); } : undefined}
+                        sx={{
+                          display: "flex", alignItems: "center", gap: 1,
+                          px: 1.75, py: 1.25, borderRadius: "10px",
+                          background: SURFACE_2, border: `1px solid ${BORDER}`,
+                          minHeight: 44, cursor: canEditCase ? "pointer" : "default",
+                          transition: "all 0.15s",
+                          "&:hover": {
+                            background: canEditCase ? ACCENT_SOFT : undefined,
+                            borderColor: canEditCase ? ACCENT_MID : undefined,
+                          },
+                        }}
+                      >
+                        <AccessTime sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                        <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500,
+                          color: case_.execution_date ? TEXT_PRIMARY : TEXT_MUTED }}>
+                          {case_.execution_date ? dayjs(case_.execution_date).format("DD.MM.YYYY") : "—"}
+                        </Typography>
+                        {canEditCase && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+                      </Box>
+                    )}
+                  </Box>
+                  <Box>
+                    <InfoLabel label="Доп. материалы" />
+                    {editingAdditionalMaterialsDate ? (
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        p: 1.5, borderRadius: "10px",
+                        background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
+                      }}>
+                        <TextField
+                          size="small" type="date" value={editAdditionalMaterialsDate} autoFocus fullWidth
+                          onChange={(e) => setEditAdditionalMaterialsDate(e.target.value)}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "8px", fontSize: "14px", background: SURFACE,
+                              "& fieldset": { borderColor: BORDER },
+                              "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
+                            },
+                          }}
+                        />
+                        <Tooltip title="Сохранить">
+                          <IconButton size="small" onClick={handleAdditionalMaterialsDateSave} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: SUCCESS_SOFT, border: `1px solid ${SUCCESS_MID}`,
+                            color: SUCCESS,
+                            "&:hover": { background: SUCCESS_MID },
+                          }}>
+                            <Save sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Отменить">
+                          <IconButton size="small" onClick={() => { setEditingAdditionalMaterialsDate(false); setEditAdditionalMaterialsDate(case_.additional_materials_date ? dayjs(case_.additional_materials_date).format("YYYY-MM-DD") : ""); }} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: DANGER_SOFT, border: `1px solid ${DANGER_MID}`,
+                            color: DANGER,
+                            "&:hover": { background: DANGER_MID },
+                          }}>
+                            <Cancel sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ) : (
+                      <Box
+                        onClick={canEditCase ? () => { setEditingAdditionalMaterialsDate(true); setEditAdditionalMaterialsDate(case_.additional_materials_date ? dayjs(case_.additional_materials_date).format("YYYY-MM-DD") : ""); } : undefined}
+                        sx={{
+                          display: "flex", alignItems: "center", gap: 1,
+                          px: 1.75, py: 1.25, borderRadius: "10px",
+                          background: SURFACE_2, border: `1px solid ${BORDER}`,
+                          minHeight: 44, cursor: canEditCase ? "pointer" : "default",
+                          transition: "all 0.15s",
+                          "&:hover": {
+                            background: canEditCase ? ACCENT_SOFT : undefined,
+                            borderColor: canEditCase ? ACCENT_MID : undefined,
+                          },
+                        }}
+                      >
+                        <AccessTime sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                        <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500,
+                          color: case_.additional_materials_date ? TEXT_PRIMARY : TEXT_MUTED }}>
+                          {case_.additional_materials_date ? dayjs(case_.additional_materials_date).format("DD.MM.YYYY") : "—"}
+                        </Typography>
+                        {canEditCase && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+                      </Box>
+                    )}
+                  </Box>
                 </Stack>
 
                 {/* Meta dates */}

@@ -82,6 +82,8 @@ export interface ClientFilters {
   search?: string;
   page?: number;
   limit?: number;
+  sort_by?: "name" | "type" | "created_at";
+  sort_dir?: "asc" | "desc";
 }
 
 export interface ClientListResponse {

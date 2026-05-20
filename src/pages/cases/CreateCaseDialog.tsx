@@ -31,6 +31,7 @@ import {
   Description as DescriptionIcon,
   Person as PersonIcon,
   Add as AddIcon,
+  Business as BusinessIcon,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import type {
@@ -105,11 +106,14 @@ export function createInitialFormData(): CaseCreateRequest {
     bank_transfer_amount: 0,
     cash_amount: 0,
     remaining_debt: 0,
-    debit: 0, // 💰 Деньги в пути
+    debit: 0,
     plaintiff: "",
     defendant: "",
     remarks: "",
     expert_ids: [],
+    legal_entity_type: "ООО",
+    additional_materials_date: null,
+    execution_date: null,
   };
 }
 
@@ -130,11 +134,14 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     bank_transfer_amount: formData.bank_transfer_amount?.toFixed(2),
     cash_amount: formData.cash_amount?.toFixed(2),
     remaining_debt: formData.remaining_debt?.toFixed(2),
-    debit: formData.debit?.toFixed(2), // 💰 Деньги в пути
+    debit: formData.debit?.toFixed(2),
     plaintiff: formData.plaintiff?.trim() || null,
     defendant: formData.defendant?.trim() || null,
     remarks: formData.remarks?.trim() || null,
     expert_ids: formData.expert_ids?.length ? formData.expert_ids : [],
+    legal_entity_type: formData.legal_entity_type,
+    additional_materials_date: formData.additional_materials_date || null,
+    execution_date: formData.execution_date || null,
   };
 }
 
@@ -379,7 +386,14 @@ export const CreateCaseDialog = memo(
       bank_transfer_amount: "0",
       cash_amount: "0",
       remaining_debt: "0",
-      debit: "0", // 💰 Деньги в пути
+      debit: "0",
+    });
+
+    const [dateValues, setDateValues] = useState({
+      start_date: dayjs().format("YYYY-MM-DD"),
+      deadline: dayjs().add(30, "day").format("YYYY-MM-DD"),
+      execution_date: "",
+      additional_materials_date: "",
     });
 
     // ===== HOOKS =====
@@ -429,7 +443,13 @@ export const CreateCaseDialog = memo(
         bank_transfer_amount: (initial.bank_transfer_amount ?? 0).toString(),
         cash_amount: (initial.cash_amount ?? 0).toString(),
         remaining_debt: (initial.remaining_debt ?? 0).toString(),
-        debit: (initial.debit ?? 0).toString(), // 💰 Деньги в пути
+        debit: (initial.debit ?? 0).toString(),
+      });
+      setDateValues({
+        start_date: dayjs(initial.start_date).format("YYYY-MM-DD"),
+        deadline: dayjs(initial.deadline).format("YYYY-MM-DD"),
+        execution_date: "",
+        additional_materials_date: "",
       });
       setErrors({});
       setClientInputValue("");
@@ -476,7 +496,7 @@ export const CreateCaseDialog = memo(
           | "bank_transfer_amount"
           | "cash_amount"
           | "remaining_debt"
-          | "debit", // 💰 Деньги в пути
+          | "debit",
         value: string,
       ) => {
         if (value === "" || /^\d*\.?\d*$/.test(value)) {
@@ -486,6 +506,17 @@ export const CreateCaseDialog = memo(
             [field]: value === "" ? 0 : Number(value),
           }));
         }
+      },
+      [],
+    );
+
+    const handleDateChange = useCallback(
+      (field: "start_date" | "deadline" | "execution_date" | "additional_materials_date", value: string) => {
+        setDateValues((prev) => ({ ...prev, [field]: value }));
+        setFormData((prev) => ({
+          ...prev,
+          [field]: value ? dayjs(value).toISOString() : null,
+        }));
       },
       [],
     );
@@ -509,6 +540,16 @@ export const CreateCaseDialog = memo(
         newErrors.object_type = "Обязательное поле";
       if (!formData.object_address.trim())
         newErrors.object_address = "Обязательное поле";
+      
+      // Валидация execution_date >= start_date
+      if (formData.execution_date && formData.start_date) {
+        const execDate = dayjs(formData.execution_date);
+        const startDate = dayjs(formData.start_date);
+        if (execDate.isBefore(startDate, "day")) {
+          newErrors.execution_date = "Дата выполнения не может быть раньше даты начала";
+        }
+      }
+      
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     }, [formData]);
@@ -1158,6 +1199,57 @@ export const CreateCaseDialog = memo(
                         dayjs(e.target.value).toISOString(),
                       )
                     }
+                    InputLabelProps={{ shrink: true }}
+                    sx={singleLineInputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Тип юрлица"
+                    select
+                    value={formData.legal_entity_type}
+                    onChange={(e) =>
+                      handleFieldChange(
+                        "legal_entity_type",
+                        e.target.value as "ООО" | "ИП",
+                      )
+                    }
+                    sx={{
+                      height: INPUT_HEIGHT,
+                      "& .MuiSelect-select": {
+                        display: "flex",
+                        alignItems: "center",
+                        py: 0,
+                        width: "100%",
+                      },
+                      "& .MuiOutlinedInput-input": { py: 0, width: "100%" },
+                    }}
+                  >
+                    <MenuItem value="ООО">ООО</MenuItem>
+                    <MenuItem value="ИП">ИП</MenuItem>
+                  </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Дата выполнения"
+                    type="date"
+                    value={dateValues.execution_date}
+                    onChange={(e) => handleDateChange("execution_date", e.target.value)}
+                    error={!!errors.execution_date}
+                    helperText={errors.execution_date}
+                    InputLabelProps={{ shrink: true }}
+                    sx={singleLineInputSx}
+                  />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Доп. материалы"
+                    type="date"
+                    value={dateValues.additional_materials_date}
+                    onChange={(e) => handleDateChange("additional_materials_date", e.target.value)}
                     InputLabelProps={{ shrink: true }}
                     sx={singleLineInputSx}
                   />

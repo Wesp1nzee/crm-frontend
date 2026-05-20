@@ -7,6 +7,8 @@ import {
   Email,
   Person,
   Phone,
+  Save,
+  Cancel,
   WorkOutline,
   Note,
   Inbox,
@@ -120,51 +122,58 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
-// ─── InfoField ────────────────────────────────────────────────────────────────
 
-function InfoField({ label, value, href }: { label: string; value?: string | null; href?: string }) {
+interface EditableFieldProps {
+  field: string; value: string; displayValue?: string; label: string;
+  editingField: string | null; editValues: Record<string, string>;
+  onEdit: (f: string, v: string) => void; onSave: (f: string) => void; onCancel: () => void;
+  multiline?: boolean; type?: string; required?: boolean; canEdit?: boolean;
+  isAddress?: boolean;
+}
+
+function EditableField({
+  field, value, displayValue, label, editingField, editValues,
+  onEdit, onSave, onCancel, multiline, type = "text", required = false, canEdit = true,
+  isAddress = false,
+}: EditableFieldProps) {
+  const isEditing = canEdit && editingField === field;
+  const currentValue = isEditing ? (editValues[field] ?? value) : value;
+  const rendered = displayValue ?? value;
+
   return (
     <Box>
-      <Typography
-        sx={{
-          fontSize: "11px",
-          fontWeight: 600,
-          letterSpacing: "0.06em",
-          textTransform: "uppercase",
-          color: TEXT_MUTED,
-          mb: "4px",
-        }}
-      >
-        {label}
+      <Typography sx={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em", textTransform: "uppercase", color: TEXT_MUTED, mb: "4px" }}>
+        {label}{required ? " *" : ""}
       </Typography>
-      {value ? (
-        href ? (
-          <Typography
-            component="a"
-            href={href}
-            sx={{
-              fontSize: "14px",
-              fontWeight: 500,
-              color: ACCENT,
-              textDecoration: "none",
-              "&:hover": { textDecoration: "underline" },
-            }}
-          >
-            {value}
-          </Typography>
-        ) : (
-          <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_PRIMARY }}>
-            {value}
-          </Typography>
-        )
+      {isEditing ? (
+        <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1, p: 1.5, borderRadius: "10px", background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}` }}>
+          {isAddress ? (
+            <Box sx={{ flex: 1, "& .MuiOutlinedInput-root": { borderRadius: "8px", fontSize: "14px", background: SURFACE, "& fieldset": { borderColor: BORDER }, "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" } } }}>
+              <AddressSuggestInput value={currentValue} onChange={(newValue) => onEdit(field, newValue)} label={label} size="small" />
+            </Box>
+          ) : (
+            <TextField size="small" value={currentValue} autoFocus fullWidth onChange={(e) => onEdit(field, e.target.value)} multiline={multiline} rows={multiline ? 3 : 1} type={type} sx={{ "& .MuiOutlinedInput-root": { borderRadius: "8px", fontSize: "14px", background: SURFACE, "& fieldset": { borderColor: BORDER }, "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" } } }} />
+          )}
+          <Tooltip title="Сохранить">
+            <IconButton size="small" onClick={() => onSave(field)} sx={{ width: 30, height: 30, borderRadius: "8px", background: "#ECFDF3", border: `1px solid #BBF7D0`, color: "#16A34A", mt: multiline ? 0.5 : 0, "&:hover": { background: "#BBF7D0" } }}>
+              <Save sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title="Отменить">
+            <IconButton size="small" onClick={onCancel} sx={{ width: 30, height: 30, borderRadius: "8px", background: "#FEF2F2", border: `1px solid #FECACA`, color: "#DC2626", mt: multiline ? 0.5 : 0, "&:hover": { background: "#FECACA" } }}>
+              <Cancel sx={{ fontSize: 14 }} />
+            </IconButton>
+          </Tooltip>
+        </Box>
       ) : (
-        <Typography sx={{ fontSize: "14px", color: TEXT_MUTED }}>—</Typography>
+        <Box onClick={canEdit ? () => onEdit(field, value) : undefined} sx={{ display: "flex", alignItems: "center", gap: 1, px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}`, minHeight: 44, cursor: canEdit ? "pointer" : "default", transition: "all 0.15s", ...(canEdit ? { "&:hover": { background: ACCENT_SOFT, borderColor: ACCENT_MID, boxShadow: `0 0 0 3px ${alpha(ACCENT, 0.06)}` } } : {}) }}>
+          <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500, color: rendered ? TEXT_PRIMARY : TEXT_MUTED }}>{rendered || "—"}</Typography>
+          {canEdit && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+        </Box>
       )}
     </Box>
   );
 }
-
-// ─── StatBadge ────────────────────────────────────────────────────────────────
 
 function StatBadge({
   icon,
@@ -587,6 +596,9 @@ export function ClientDetailPage() {
   const { data: contacts = [] } = useClientContacts(id!);
   const updateClient = useUpdateClient();
 
+  const [editingField, setEditingField] = useState<string | null>(null);
+  const [editValues, setEditValues] = useState<Record<string, string>>({});
+
   const [contactDialogMode, setContactDialogMode] = useState<"create" | "edit">("create");
   const [contactDialogOpen, setContactDialogOpen] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | null>(null);
@@ -658,6 +670,39 @@ export function ClientDetailPage() {
       contact_type: contact.contact_type,
     });
     setContactDialogOpen(true);
+  };
+
+  const handleEditField = (field: string, value: string) => {
+    setEditValues((p) => ({ ...p, [field]: value ?? "" }));
+    setEditingField(field);
+  };
+
+  const handleFieldChange = (field: string, value: string) => {
+    setEditValues((p) => ({ ...p, [field]: value }));
+  };
+
+  const handleSaveField = async (field: string) => {
+    if (!id) return;
+    try {
+      const payload: Record<string, unknown> = {};
+      // use edited value or fallback to current client value
+      const val = editValues[field] ?? (client as any)[field] ?? null;
+      payload[field] = val === "" ? null : val;
+
+      await updateClient.mutateAsync({ id, data: payload as ClientUpdateRequest });
+      setEditingField(null);
+      setEditValues((p) => { const copy = { ...p }; delete copy[field]; return copy; });
+      notificationService.success("Изменения сохранены");
+    } catch (err) {
+      notificationService.error(err instanceof Error ? err.message : "Ошибка сохранения");
+    }
+  };
+
+  const handleCancelField = (field?: string) => {
+    if (field) {
+      setEditValues((p) => { const copy = { ...p }; delete copy[field]; return copy; });
+    }
+    setEditingField(null);
   };
 
   const handleContactSubmit = async (data: ContactFormData) => {
@@ -774,10 +819,51 @@ export function ClientDetailPage() {
                       border: `1px solid ${ACCENT_MID}`,
                     }}
                   >
-                    <Business sx={{ fontSize: 13, color: ACCENT }} />
-                    <Typography sx={{ fontSize: "12px", fontWeight: 700, color: ACCENT }}>
-                      {clientTypeLabel[client.type] ?? client.type}
-                    </Typography>
+                    {editingField === "type" ? (
+                      <Stack direction="row" alignItems="center" gap={1}>
+                        <FormControl size="small" sx={{ minWidth: 160 }}>
+                          <Select value={editValues["type"] ?? client.type} onChange={(e) => handleFieldChange("type", e.target.value as string)}>
+                            <MenuItem value="legal">{clientTypeLabel["legal"]}</MenuItem>
+                            <MenuItem value="individual">{clientTypeLabel["individual"]}</MenuItem>
+                            <MenuItem value="court">{clientTypeLabel["court"]}</MenuItem>
+                          </Select>
+                        </FormControl>
+                        <Tooltip title="Сохранить">
+                          <IconButton size="small" onClick={() => handleSaveField("type")} sx={{ width: 30, height: 30 }}>
+                            <Save sx={{ fontSize: 14, color: "#16A34A" }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Отменить">
+                          <IconButton size="small" onClick={() => handleCancelField("type")} sx={{ width: 30, height: 30 }}>
+                            <Cancel sx={{ fontSize: 14, color: "#DC2626" }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Stack>
+                    ) : (
+                      <>
+                        <Business sx={{ fontSize: 13, color: ACCENT }} />
+                        <Typography sx={{ fontSize: "12px", fontWeight: 700, color: ACCENT, mr: 0.5 }}>
+                          {clientTypeLabel[client.type] ?? client.type}
+                        </Typography>
+                        <Tooltip title="Редактировать тип клиента">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleEditField("type", client.type)}
+                            sx={{
+                              width: 28,
+                              height: 28,
+                              borderRadius: "8px",
+                              color: TEXT_SECONDARY,
+                              border: `1px solid ${BORDER}`,
+                              background: SURFACE_2,
+                              "&:hover": { background: ACCENT_SOFT, borderColor: ACCENT_MID },
+                            }}
+                          >
+                            <Edit sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </>
+                    )}
                   </Box>
                 </Stack>
                 {client.inn && (
@@ -847,12 +933,71 @@ export function ClientDetailPage() {
                 ) : (
                   <>
                     <Stack spacing={2.25}>
-                      <InfoField label="Краткое название" value={client.short_name} />
-                      <InfoField label="ИНН" value={client.inn} />
-                      <InfoField label="Email" value={email} href={email ? `mailto:${email}` : undefined} />
-                      <InfoField label="Телефон" value={client.phone} href={client.phone ? `tel:${client.phone}` : undefined} />
-                      <InfoField label="Юридический адрес" value={client.legal_address} />
-                      <InfoField label="Фактический адрес" value={client.actual_address} />
+                      <EditableField
+                        field="short_name"
+                        value={client.short_name ?? ""}
+                        label="Краткое название"
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("short_name")}
+                      />
+                      <EditableField
+                        field="inn"
+                        value={client.inn ?? ""}
+                        label="ИНН"
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("inn")}
+                      />
+                      <EditableField
+                        field="email"
+                        value={client.email ?? ""}
+                        displayValue={email ?? ""}
+                        label="Email"
+                        type="email"
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("email")}
+                      />
+                      <EditableField
+                        field="phone"
+                        value={client.phone ?? ""}
+                        label="Телефон"
+                        type="tel"
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("phone")}
+                      />
+                      <EditableField
+                        field="legal_address"
+                        value={client.legal_address ?? ""}
+                        label="Юридический адрес"
+                        isAddress
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("legal_address")}
+                      />
+                      <EditableField
+                        field="actual_address"
+                        value={client.actual_address ?? ""}
+                        label="Фактический адрес"
+                        isAddress
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("actual_address")}
+                      />
                     </Stack>
 
                     <Box sx={{ mt: 2.5, pt: 2, borderTop: `1px solid ${BORDER}` }}>
