@@ -1,4 +1,5 @@
 export type ClientType = "legal" | "individual" | "court";
+export type LegalEntityType = "ООО" | "ИП";
 export type ContactType =
   | "legal_representative"
   | "court_officer"
@@ -61,6 +62,7 @@ export interface ClientBase {
   legal_address?: string;
   actual_address?: string;
   notes?: string;
+  legal_entity_type?: LegalEntityType;
 }
 
 export interface ClientShort extends ClientBase {
@@ -115,4 +117,5 @@ export interface ClientUpdateRequest {
   legal_address?: string | null;
   actual_address?: string | null;
   notes?: string | null;
+  legal_entity_type?: LegalEntityType | null;
 }

@@ -112,6 +112,7 @@ export function createInitialFormData(): CaseCreateRequest {
     remarks: "",
     expert_ids: [],
     legal_entity_type: "ООО",
+    registration_date: null,
     additional_materials_date: null,
     execution_date: null,
   };
@@ -140,6 +141,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     remarks: formData.remarks?.trim() || null,
     expert_ids: formData.expert_ids?.length ? formData.expert_ids : [],
     legal_entity_type: formData.legal_entity_type,
+    registration_date: formData.registration_date || null,
     additional_materials_date: formData.additional_materials_date || null,
     execution_date: formData.execution_date || null,
   };
@@ -394,6 +396,7 @@ export const CreateCaseDialog = memo(
       deadline: dayjs().add(30, "day").format("YYYY-MM-DD"),
       execution_date: "",
       additional_materials_date: "",
+      registration_date: "",
     });
 
     // ===== HOOKS =====
@@ -450,6 +453,7 @@ export const CreateCaseDialog = memo(
         deadline: dayjs(initial.deadline).format("YYYY-MM-DD"),
         execution_date: "",
         additional_materials_date: "",
+        registration_date: "",
       });
       setErrors({});
       setClientInputValue("");
@@ -511,7 +515,7 @@ export const CreateCaseDialog = memo(
     );
 
     const handleDateChange = useCallback(
-      (field: "start_date" | "deadline" | "execution_date" | "additional_materials_date", value: string) => {
+      (field: "start_date" | "deadline" | "execution_date" | "additional_materials_date" | "registration_date", value: string) => {
         setDateValues((prev) => ({ ...prev, [field]: value }));
         setFormData((prev) => ({
           ...prev,
@@ -1229,6 +1233,17 @@ export const CreateCaseDialog = memo(
                     <MenuItem value="ООО">ООО</MenuItem>
                     <MenuItem value="ИП">ИП</MenuItem>
                   </TextField>
+                </Grid>
+                <Grid size={{ xs: 12, sm: 4 }}>
+                  <TextField
+                    fullWidth
+                    label="Дата регистрации"
+                    type="date"
+                    value={dateValues.registration_date}
+                    onChange={(e) => handleDateChange("registration_date", e.target.value)}
+                    InputLabelProps={{ shrink: true }}
+                    sx={singleLineInputSx}
+                  />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 4 }}>
                   <TextField

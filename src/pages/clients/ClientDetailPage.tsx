@@ -2,13 +2,13 @@ import {
   AccessTime,
   Add,
   Business,
+  Cancel,
   Delete,
   Edit,
   Email,
   Person,
   Phone,
   Save,
-  Cancel,
   WorkOutline,
   Note,
   Inbox,
@@ -55,6 +55,7 @@ import type {
   ClientFull,
   ClientUpdateRequest,
   ContactType,
+  LegalEntityType,
 } from "../../entities/client/types";
 import { notificationService } from "../../shared/services/notifications";
 import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
@@ -92,6 +93,13 @@ const TEXT_PRIMARY = "#0F172A";
 const TEXT_SECONDARY = "#64748B";
 const TEXT_MUTED = "#94A3B8";
 
+const SUCCESS = "#16A34A";
+const SUCCESS_SOFT = "#F0FDF4";
+const SUCCESS_MID = "#BBF7D0";
+const DANGER = "#DC2626";
+const DANGER_SOFT = "#FEF2F2";
+const DANGER_MID = "#FECACA";
+
 const card = {
   borderRadius: "14px",
   border: `1px solid ${BORDER}`,
@@ -102,6 +110,17 @@ const card = {
     boxShadow: "0 4px 16px rgba(15,23,42,0.09)",
   },
 };
+
+// ─── InfoLabel ────────────────────────────────────────────────────────────────
+
+function InfoLabel({ label }: { label: string }) {
+  return (
+    <Typography sx={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.06em",
+      textTransform: "uppercase", color: TEXT_MUTED, mb: "4px" }}>
+      {label}
+    </Typography>
+  );
+}
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -459,6 +478,7 @@ interface MainInfoFormData {
   phone: string;
   legal_address: string;
   actual_address: string;
+  legal_entity_type?: LegalEntityType;
 }
 
 // ─── MainInfoEdit ─────────────────────────────────────────────────────────────
@@ -481,6 +501,7 @@ function MainInfoEdit({
     phone: client.phone ?? "",
     legal_address: client.legal_address ?? "",
     actual_address: client.actual_address ?? "",
+    legal_entity_type: client.legal_entity_type,
   });
 
   const fieldSx = {
@@ -547,6 +568,19 @@ function MainInfoEdit({
         size="small"
         sx={fieldSx}
       />
+      {client.type === "legal" && (
+        <FormControl fullWidth size="small" sx={fieldSx}>
+          <InputLabel>Тип юрлица</InputLabel>
+          <Select
+            value={formData.legal_entity_type || "ООО"}
+            label="Тип юрлица"
+            onChange={(e) => setFormData((p) => ({ ...p, legal_entity_type: e.target.value as LegalEntityType }))}
+          >
+            <MenuItem value="ООО">ООО</MenuItem>
+            <MenuItem value="ИП">ИП</MenuItem>
+          </Select>
+        </FormControl>
+      )}
 
       <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ mt: 1 }}>
         <Button
@@ -638,6 +672,7 @@ export function ClientDetailPage() {
       phone: data.phone || null,
       legal_address: data.legal_address || null,
       actual_address: data.actual_address || null,
+      legal_entity_type: client.type === "legal" ? data.legal_entity_type || null : null,
     };
     await updateClient.mutateAsync({ id, data: updateData });
     setMainInfoEditing(false);
@@ -673,12 +708,12 @@ export function ClientDetailPage() {
   };
 
   const handleEditField = (field: string, value: string) => {
-    setEditValues((p) => ({ ...p, [field]: value ?? "" }));
+    setEditValues((p) => ({ ...p, [field]: value }));
     setEditingField(field);
   };
 
   const handleFieldChange = (field: string, value: string) => {
-    setEditValues((p) => ({ ...p, [field]: value }));
+    setEditValues((p) => ({ ...p, [field]: value ?? "" }));
   };
 
   const handleSaveField = async (field: string) => {
@@ -686,7 +721,7 @@ export function ClientDetailPage() {
     try {
       const payload: Record<string, unknown> = {};
       // use edited value or fallback to current client value
-      const val = editValues[field] ?? (client as any)[field] ?? null;
+      const val = editValues[field] ?? (client as ClientFull)[field] ?? null;
       payload[field] = val === "" ? null : val;
 
       await updateClient.mutateAsync({ id, data: payload as ClientUpdateRequest });
@@ -747,6 +782,7 @@ export function ClientDetailPage() {
   }
 
   const email = formatClientEmail(client.email);
+  const canEdit = true; // TODO: добавить проверку прав
 
   return (
     <Box sx={{ width: "100%", minWidth: 0, pb: 5 }}>
@@ -953,6 +989,70 @@ export function ClientDetailPage() {
                         onSave={handleSaveField}
                         onCancel={() => handleCancelField("inn")}
                       />
+                      {client.type === "legal" && (
+                        <Box>
+                          <InfoLabel label="Тип юрлица" />
+                          {editingField === "legal_entity_type" ? (
+                            <Box sx={{
+                              display: "flex", alignItems: "center", gap: 1,
+                              p: 1.5, borderRadius: "10px",
+                              background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
+                            }}>
+                              <FormControl size="small" fullWidth sx={{ flex: 1 }}>
+                                <Select value={(editValues["legal_entity_type"] ?? client.legal_entity_type) || "ООО"}
+                                  onChange={(e) => handleFieldChange("legal_entity_type", e.target.value as string)}>
+                                  <MenuItem value="ООО">ООО</MenuItem>
+                                  <MenuItem value="ИП">ИП</MenuItem>
+                                </Select>
+                              </FormControl>
+                              <Tooltip title="Сохранить">
+                                <IconButton size="small" onClick={() => handleSaveField("legal_entity_type")} sx={{
+                                  width: 30, height: 30, borderRadius: "8px",
+                                  background: SUCCESS_SOFT, border: `1px solid ${SUCCESS_MID}`,
+                                  color: SUCCESS,
+                                  "&:hover": { background: SUCCESS_MID },
+                                }}>
+                                  <Save sx={{ fontSize: 14 }} />
+                                </IconButton>
+                              </Tooltip>
+                              <Tooltip title="Отменить">
+                                <IconButton size="small" onClick={() => handleCancelField("legal_entity_type")} sx={{
+                                  width: 30, height: 30, borderRadius: "8px",
+                                  background: DANGER_SOFT, border: `1px solid ${DANGER_MID}`,
+                                  color: DANGER,
+                                  "&:hover": { background: DANGER_MID },
+                                }}>
+                                  <Cancel sx={{ fontSize: 14 }} />
+                                </IconButton>
+                              </Tooltip>
+                            </Box>
+                          ) : (
+                            <Box
+                              onClick={canEdit ? () => handleEditField("legal_entity_type", client.legal_entity_type || "ООО") : undefined}
+                              sx={{
+                                display: "flex", alignItems: "center", gap: 1,
+                                px: 1.75, py: 1.25, borderRadius: "10px",
+                                background: SURFACE_2, border: `1px solid ${BORDER}`,
+                                minHeight: 44, cursor: canEdit ? "pointer" : "default",
+                                transition: "all 0.15s",
+                                ...(canEdit ? {
+                                  "&:hover": {
+                                    background: ACCENT_SOFT, borderColor: ACCENT_MID,
+                                    boxShadow: `0 0 0 3px ${alpha(ACCENT, 0.06)}`,
+                                  },
+                                } : {}),
+                              }}
+                            >
+                              <Business sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                              <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500,
+                                color: client.legal_entity_type ? TEXT_PRIMARY : TEXT_MUTED }}>
+                                {client.legal_entity_type || "—"}
+                              </Typography>
+                              {canEdit && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+                            </Box>
+                          )}
+                        </Box>
+                      )}
                       <EditableField
                         field="email"
                         value={client.email ?? ""}

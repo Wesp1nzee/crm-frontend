@@ -35,6 +35,7 @@ interface FinancialSummary {
   total_revenue: number;
   pending_payments: number;
   pending_amount: number;
+  actual_debt_amount: number;
   average_case_cost: number;
   total_cases: number;
   completed_cases: number;
@@ -656,6 +657,22 @@ function AdminHomePage() {
                 sx={{ letterSpacing: "0.02em" }}
               >
                 {Math.round(financialSummary?.pending_amount ?? 0).toLocaleString('ru-RU')} ₽
+              </Typography>
+              <Divider sx={{ my: 1.8, borderColor: alpha("#FFFFFF", 0.15) }} />
+              <Typography
+                variant="body2"
+                sx={{ color: alpha(palette.softChalk, 0.68) }}
+              >
+                Фактический долг
+              </Typography>
+              <Typography
+                variant="h5"
+                fontWeight={700}
+                color="#FF6B6B"
+                mt={0.5}
+                sx={{ letterSpacing: "0.02em" }}
+              >
+                {Math.round(financialSummary?.actual_debt_amount ?? 0).toLocaleString('ru-RU')} ₽
               </Typography>
             </CardContent>
           </Card>

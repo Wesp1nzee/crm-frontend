@@ -33,6 +33,7 @@ import {
 import { useState } from "react";
 import type {
   ClientType,
+  LegalEntityType,
   ClientCreateRequest,
 } from "../../entities/client/types";
 import { useManualDadataLookup } from "../../shared/hooks/useDadataLookup";
@@ -56,6 +57,7 @@ interface ClientFormData {
   legal_address: string;
   actual_address: string;
   notes: string;
+  legal_entity_type?: LegalEntityType;
   // Initial contact fields
   contact_name: string;
   contact_position: string;
@@ -95,6 +97,7 @@ export function ClientCreateDialog({
     legal_address: "",
     actual_address: "",
     notes: "",
+    legal_entity_type: "ООО",
     contact_name: "",
     contact_position: "",
     contact_email: "",
@@ -147,6 +150,7 @@ export function ClientCreateDialog({
       inn: companyData.inn || prev.inn,
       legal_address: companyData.address || prev.legal_address,
       actual_address: companyData.address || prev.actual_address,
+      legal_entity_type: companyData.is_individual ? "ИП" : "ООО",
     }));
   };
 
@@ -155,6 +159,7 @@ export function ClientCreateDialog({
       ...prev,
       type,
       inn: type !== "legal" ? "" : prev.inn,
+      legal_entity_type: type !== "legal" ? undefined : prev.legal_entity_type,
     }));
     if (type !== "legal") {
       setErrors((prev) => {
@@ -237,6 +242,7 @@ export function ClientCreateDialog({
       inn: party.inn,
       legal_address: party.address_unrestricted_value || party.address_value,
       actual_address: party.address_unrestricted_value || party.address_value,
+      legal_entity_type: party.is_individual ? "ИП" : "ООО",
     }));
   };
 
@@ -291,6 +297,7 @@ export function ClientCreateDialog({
         legal_address: formData.legal_address || undefined,
         actual_address: formData.actual_address || undefined,
         notes: formData.notes || undefined,
+        legal_entity_type: formData.type === "legal" ? formData.legal_entity_type : undefined,
         initial_contact: hasContact
           ? {
               name: formData.contact_name,
@@ -436,6 +443,21 @@ export function ClientCreateDialog({
                       error={!!errors.name}
                       helperText={errors.name}
                     />
+                  </Box>
+                  <Box sx={{ mt: 2 }}>
+                    <TextField
+                      fullWidth
+                      label="Тип юрлица"
+                      select
+                      value={formData.legal_entity_type || "ООО"}
+                      onChange={(e) => setFormData((prev) => ({ ...prev, legal_entity_type: e.target.value as LegalEntityType }))}
+                      size="small"
+                      sx={{ mt: 2 }}
+                      inputProps={{ style: { fontSize: "14px" } }}
+                    >
+                      <MenuItem value="ООО">ООО</MenuItem>
+                      <MenuItem value="ИП">ИП</MenuItem>
+                    </TextField>
                   </Box>
                   <TextField
                     fullWidth

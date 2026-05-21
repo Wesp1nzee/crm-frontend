@@ -22,6 +22,7 @@ export interface Case {
   start_date: string;
   deadline: string;
   legal_entity_type: 'ООО' | 'ИП';
+  registration_date?: string | null;
   additional_materials_date?: string | null;
   execution_date?: string | null;
   completion_date?: string;
@@ -160,6 +161,7 @@ export interface CaseCreateRequest {
   remarks?: string;
   debit?: number;
   legal_entity_type: 'ООО' | 'ИП';
+  registration_date?: string | null;
   additional_materials_date?: string | null;
   execution_date?: string | null;
 }
@@ -187,6 +189,7 @@ export interface CasePatchRequest {
   remarks?: string;
   debit?: string;
   legal_entity_type?: 'ООО' | 'ИП';
+  registration_date?: string | null;
   additional_materials_date?: string | null;
   execution_date?: string | null;
 }

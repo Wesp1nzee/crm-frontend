@@ -391,6 +391,8 @@ export function CaseDetailPage() {
   const [editExecutionDate, setEditExecutionDate] = useState<string>("");
   const [editingAdditionalMaterialsDate, setEditingAdditionalMaterialsDate] = useState(false);
   const [editAdditionalMaterialsDate, setEditAdditionalMaterialsDate] = useState<string>("");
+  const [editingRegistrationDate, setEditingRegistrationDate] = useState(false);
+  const [editRegistrationDate, setEditRegistrationDate] = useState<string>("");
   const [uploadDialogOpen, setUploadDialogOpen] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [uploadTitle, setUploadTitle] = useState("");
@@ -418,6 +420,7 @@ export function CaseDetailPage() {
     setEditLegalEntityType(caseData.case.legal_entity_type);
     setEditExecutionDate(caseData.case.execution_date ? dayjs(caseData.case.execution_date).format("YYYY-MM-DD") : "");
     setEditAdditionalMaterialsDate(caseData.case.additional_materials_date ? dayjs(caseData.case.additional_materials_date).format("YYYY-MM-DD") : "");
+    setEditRegistrationDate(caseData.case.registration_date ? dayjs(caseData.case.registration_date).format("YYYY-MM-DD") : "");
   }, [caseData]);
 
   useEffect(() => { if (patchCase.isSuccess) notificationService.success("Изменения сохранены"); }, [patchCase.isSuccess]);
@@ -650,6 +653,12 @@ export function CaseDetailPage() {
     }
     patchCase.mutate({ id: case_.id, data: { execution_date: editExecutionDate || null } });
     setEditingExecutionDate(false);
+  };
+
+  const handleRegistrationDateSave = () => {
+    if (!canEditCase) return;
+    patchCase.mutate({ id: case_.id, data: { registration_date: editRegistrationDate || null } });
+    setEditingRegistrationDate(false);
   };
 
   const handleAdditionalMaterialsDateSave = () => {
@@ -1307,6 +1316,70 @@ export function CaseDetailPage() {
                     label={hasOverdueWarning ? "⚠️ Срок (просрочен)" : "Срок исполнения"}
                     editingField={editingField} editValues={editValues}
                     onEdit={handleFieldEdit} onSave={handleFieldSave} onCancel={handleFieldCancel} type="date" />
+                  <Box>
+                    <InfoLabel label="Дата регистрации" />
+                    {editingRegistrationDate ? (
+                      <Box sx={{
+                        display: "flex", alignItems: "center", gap: 1,
+                        p: 1.5, borderRadius: "10px",
+                        background: ACCENT_SOFT, border: `1.5px solid ${ACCENT_MID}`,
+                      }}>
+                        <TextField
+                          size="small" type="date" value={editRegistrationDate} autoFocus fullWidth
+                          onChange={(e) => setEditRegistrationDate(e.target.value)}
+                          sx={{
+                            "& .MuiOutlinedInput-root": {
+                              borderRadius: "8px", fontSize: "14px", background: SURFACE,
+                              "& fieldset": { borderColor: BORDER },
+                              "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" },
+                            },
+                          }}
+                        />
+                        <Tooltip title="Сохранить">
+                          <IconButton size="small" onClick={handleRegistrationDateSave} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: SUCCESS_SOFT, border: `1px solid ${SUCCESS_MID}`,
+                            color: SUCCESS,
+                            "&:hover": { background: SUCCESS_MID },
+                          }}>
+                            <Save sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Отменить">
+                          <IconButton size="small" onClick={() => { setEditingRegistrationDate(false); setEditRegistrationDate(case_.registration_date ? dayjs(case_.registration_date).format("YYYY-MM-DD") : ""); }} sx={{
+                            width: 30, height: 30, borderRadius: "8px",
+                            background: DANGER_SOFT, border: `1px solid ${DANGER_MID}`,
+                            color: DANGER,
+                            "&:hover": { background: DANGER_MID },
+                          }}>
+                            <Cancel sx={{ fontSize: 14 }} />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    ) : (
+                      <Box
+                        onClick={canEditCase ? () => { setEditingRegistrationDate(true); setEditRegistrationDate(case_.registration_date ? dayjs(case_.registration_date).format("YYYY-MM-DD") : ""); } : undefined}
+                        sx={{
+                          display: "flex", alignItems: "center", gap: 1,
+                          px: 1.75, py: 1.25, borderRadius: "10px",
+                          background: SURFACE_2, border: `1px solid ${BORDER}`,
+                          minHeight: 44, cursor: canEditCase ? "pointer" : "default",
+                          transition: "all 0.15s",
+                          "&:hover": {
+                            background: canEditCase ? ACCENT_SOFT : undefined,
+                            borderColor: canEditCase ? ACCENT_MID : undefined,
+                          },
+                        }}
+                      >
+                        <AccessTime sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                        <Typography sx={{ flex: 1, fontSize: "14px", fontWeight: 500,
+                          color: case_.registration_date ? TEXT_PRIMARY : TEXT_MUTED }}>
+                          {case_.registration_date ? dayjs(case_.registration_date).format("DD.MM.YYYY") : "—"}
+                        </Typography>
+                        {canEditCase && <Edit sx={{ fontSize: 13, color: TEXT_MUTED }} />}
+                      </Box>
+                    )}
+                  </Box>
                   <Box>
                     <InfoLabel label="Дата выполнения" />
                     {editingExecutionDate ? (
