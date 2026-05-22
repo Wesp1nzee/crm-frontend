@@ -53,7 +53,7 @@ import {
 } from "@mui/icons-material";
 import { useParams, useNavigate } from "react-router-dom";
 import dayjs from "dayjs";
-import { useCase, usePatchCase, useUpdateCaseExperts } from "../../shared/hooks/useCases";
+import { useCase, usePatchCase, useUpdateCaseExperts, useUpdateCaseClient } from "../../shared/hooks/useCases";
 import {
   useUploadDocument,
   useDownloadDocument,
@@ -67,6 +67,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { notificationService } from "../../shared/services/notifications";
 import { usePermissions } from "../../shared/hooks/usePermissions";
 import { useExpertsSuggest } from "../../shared/hooks/useExpertsSuggest";
+import { useClientsSuggest } from "../../shared/hooks/useClientsSuggest";
 import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
 
 // ─── design tokens (shared with ClientDetailPage) ─────────────────────────────
@@ -409,6 +410,12 @@ export function CaseDetailPage() {
   const [draftExpertInput, setDraftExpertInput] = useState("");
   const { suggestions: expertSuggestions, isLoading: isExpertSuggestLoading,
     fetchSuggestions: fetchExpertSuggestions, clearSuggestions: clearExpertSuggestions } = useExpertsSuggest();
+  const { suggestions: clientSuggestions, isLoading: isClientSuggestLoading,
+    fetchSuggestions: fetchClientSuggestions, clearSuggestions: clearClientSuggestions } = useClientsSuggest();
+  const updateCaseClient = useUpdateCaseClient();
+  const [isEditingClient, setIsEditingClient] = useState(false);
+  const [draftClient, setDraftClient] = useState<{ id: string; name: string } | null>(null);
+  const [draftClientInput, setDraftClientInput] = useState("");
 
   useEffect(() => {
     if (!caseData) return;
@@ -421,10 +428,13 @@ export function CaseDetailPage() {
     setEditExecutionDate(caseData.case.execution_date ? dayjs(caseData.case.execution_date).format("YYYY-MM-DD") : "");
     setEditAdditionalMaterialsDate(caseData.case.additional_materials_date ? dayjs(caseData.case.additional_materials_date).format("YYYY-MM-DD") : "");
     setEditRegistrationDate(caseData.case.registration_date ? dayjs(caseData.case.registration_date).format("YYYY-MM-DD") : "");
+    setDraftClient(caseData.client ? { id: caseData.client.id, name: caseData.client.name } : null);
   }, [caseData]);
 
   useEffect(() => { if (patchCase.isSuccess) notificationService.success("Изменения сохранены"); }, [patchCase.isSuccess]);
   useEffect(() => { if (patchCase.isError) notificationService.error("Ошибка при сохранении"); }, [patchCase.isError]);
+  useEffect(() => { if (updateCaseClient.isSuccess) notificationService.success("Клиент обновлен"); }, [updateCaseClient.isSuccess]);
+  useEffect(() => { if (updateCaseClient.isError) notificationService.error("Не удалось обновить клиента"); }, [updateCaseClient.isError]);
 
   const case_ = caseData?.case;
   const client = caseData?.client;
@@ -467,6 +477,25 @@ export function CaseDetailPage() {
   const remainingDebtNum = Number(case_?.remaining_debt) || 0;
   const totalPaid = bankNum + cashNum;
   const progressPercent = costNum > 0 ? Math.min(100, (totalPaid / costNum) * 100) : 0;
+
+  const handleClientInputChange = useCallback(
+    (_e: React.SyntheticEvent, newInputValue: string, reason: string) => {
+      setDraftClientInput(newInputValue);
+      if (reason === "clear") {
+        clearClientSuggestions();
+      } else if (reason === "input" && newInputValue.trim().length >= 2) {
+        fetchClientSuggestions(newInputValue);
+      }
+    },
+    [fetchClientSuggestions, clearClientSuggestions],
+  );
+
+  const handleClientChange = useCallback(
+    (_e: React.SyntheticEvent, value: { id: string; name: string } | null) => {
+      setDraftClient(value);
+    },
+    [],
+  );
 
   const uploadFilesAndFolders = useCallback(async (files: File[]) => {
     const validFiles = files.filter((f) => !isSystemOrTempFile(f));
@@ -616,13 +645,25 @@ export function CaseDetailPage() {
     });
   };
 
+  const handleClientEditStart = () => { if (!canEditCase) return; setIsEditingClient(true); setDraftClient(client ? { id: client.id, name: client.name } : null); setDraftClientInput(""); };
+  const handleClientEditCancel = () => { setIsEditingClient(false); setDraftClient(client ? { id: client.id, name: client.name } : null); setDraftClientInput(""); clearClientSuggestions(); };
+  const handleClientSave = () => {
+    if (!canEditCase || !draftClient) return;
+    if (draftClient.id === client?.id) { handleClientEditCancel(); return; }
+    updateCaseClient.mutate({ id: case_.id, data: { client_id: draftClient.id } }, {
+      onSuccess: () => { setIsEditingClient(false); clearClientSuggestions(); notificationService.success("Клиент обновлен"); },
+      onError: () => notificationService.error("Не удалось обновить клиента"),
+    });
+  };
+
+
+
   const handleFieldEdit = (field: string, value: string) => { if (!canEditCase) return; setEditingField(field); setEditValues({ ...editValues, [field]: value }); };
   const handleFieldSave = (field: string) => {
     if (!canEditCase) return;
     const value = editValues[field];
     if (value !== undefined) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const updateData: any = { [field]: value };
+      const updateData: Record<string, string | number> = { [field]: value };
       if (["cost", "bank_transfer_amount", "cash_amount"].includes(field)) {
         const cost = field === "cost" ? Number(value) : costNum;
         const bank = field === "bank_transfer_amount" ? Number(value) : bankNum;
@@ -944,78 +985,170 @@ export function CaseDetailPage() {
             {/* Client Card */}
             <Card sx={card} elevation={0}>
               <CardContent sx={{ p: 2.5 }}>
-                <SectionHeader title="Клиент" icon={<Business sx={{ fontSize: 18 }} />} />
+                <SectionHeader 
+                  title="Клиент" 
+                  icon={<Business sx={{ fontSize: 18 }} />}
+                  action={
+                    <Button 
+                      size="small" 
+                      onClick={() => navigate(`/crm/clients/${client.id}`)}
+                      sx={{
+                        borderRadius: "9px", 
+                        textTransform: "none", 
+                        fontWeight: 600, 
+                        fontSize: "12px",
+                        color: ACCENT, 
+                        border: `1px solid ${ACCENT_MID}`, 
+                        background: ACCENT_SOFT,
+                        "&:hover": { background: "#DBEAFE" }
+                      }}
+                    >
+                      Перейти к клиенту
+                    </Button>
+                  }
+                />
 
-                {/* Client hero row */}
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5,
-                  p: 1.75, borderRadius: "12px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
-                  <Box sx={{ width: 44, height: 44, borderRadius: "12px", flexShrink: 0,
-                    background: `linear-gradient(135deg, ${ACCENT} 0%, #3B82F6 100%)`,
-                    display: "flex", alignItems: "center", justifyContent: "center",
-                    boxShadow: `0 4px 12px ${alpha(ACCENT, 0.25)}` }}>
-                    {client.type === "legal"
-                      ? <Business sx={{ fontSize: 20, color: "#fff" }} />
-                      : <Person sx={{ fontSize: 20, color: "#fff" }} />}
-                  </Box>
-                  <Box flex={1}>
-                    <Typography sx={{ fontSize: "15px", fontWeight: 700, color: TEXT_PRIMARY }}>{client.name}</Typography>
-                    {client.short_name && (
-                      <Typography sx={{ fontSize: "12px", color: TEXT_SECONDARY }}>{client.short_name}</Typography>
+                {/* Client editing */}
+                {isEditingClient && canEditCase ? (
+                  <Stack spacing={1.5}>
+                    <Autocomplete
+                      fullWidth options={clientSuggestions}
+                      getOptionLabel={(o) => o.name || ""}
+                      value={draftClient ?? undefined}
+                      inputValue={draftClientInput}
+                      loading={isClientSuggestLoading}
+                      filterOptions={(o) => o}
+                      isOptionEqualToValue={(o, v) => o.id === v?.id}
+                      noOptionsText={draftClientInput.trim() === "" ? "Введите название..." : isClientSuggestLoading ? "Поиск..." : "Не найдено"}
+                      onInputChange={handleClientInputChange}
+                      onChange={handleClientChange}
+                      renderOption={(props, option) => (
+                        <li {...props} key={option.id}>
+                          <Typography sx={{ fontSize: "13px", fontWeight: 500 }}>{option.name}</Typography>
+                        </li>
+                      )}
+                      renderInput={(params) => (
+                        <TextField {...params} size="small" placeholder="Выберите клиента..."
+                          sx={{ "& .MuiOutlinedInput-root": { borderRadius: "10px", fontSize: "13px",
+                            "& fieldset": { borderColor: BORDER },
+                            "&.Mui-focused fieldset": { borderColor: ACCENT, borderWidth: "1.5px" } } }}
+                          InputProps={{ ...params.InputProps, endAdornment: (
+                            <>{isClientSuggestLoading && <CircularProgress size={14} />}{params.InputProps.endAdornment}</>
+                          )}} />
+                      )}
+                    />
+                    <Stack direction="row" gap={1} justifyContent="flex-end">
+                      <Button size="small" onClick={handleClientEditCancel}
+                        sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600, color: TEXT_SECONDARY,
+                          border: `1px solid ${BORDER}` }}>
+                        Отмена
+                      </Button>
+                      <Button size="small" variant="contained" onClick={handleClientSave}
+                        disabled={updateCaseClient.isPending || !draftClient}
+                        sx={{ borderRadius: "8px", textTransform: "none", fontWeight: 600,
+                          background: ACCENT, boxShadow: "none", "&:hover": { background: "#1D4ED8", boxShadow: "none" } }}>
+                        {updateCaseClient.isPending ? "..." : "Сохранить"}
+                      </Button>
+                    </Stack>
+                  </Stack>
+                ) : (
+                  <Stack spacing={1.5}>
+                    <Box sx={{
+                      display: "flex", alignItems: "center", gap: 1.5,
+                      px: 1.75, py: 1.25, borderRadius: "10px",
+                      background: ACCENT_SOFT, border: `1px solid ${ACCENT_MID}`,
+                      cursor: "pointer",
+                      "&:hover": { background: "#DBEAFE" },
+                    }}>
+                      <Box sx={{ width: 30, height: 30, borderRadius: "8px", flexShrink: 0,
+                        background: `linear-gradient(135deg, ${ACCENT} 0%, #3B82F6 100%)`,
+                        display: "flex", alignItems: "center", justifyContent: "center",
+                        fontSize: "11px", fontWeight: 700, color: "#fff" }}>
+                        {getInitials(client.name)}
+                      </Box>
+                      <Typography sx={{ fontSize: "13px", fontWeight: 600, color: TEXT_PRIMARY, flex: 1 }}>
+                        {client.name}
+                      </Typography>
+                    </Box>
+                    {canEditCase && (
+                      <Button size="small" startIcon={<Edit sx={{ fontSize: 13 }} />}
+                        onClick={handleClientEditStart}
+                        sx={{ borderRadius: "9px", textTransform: "none", fontWeight: 600, fontSize: "12px",
+                          color: ACCENT, border: `1px solid ${ACCENT_MID}`, background: ACCENT_SOFT,
+                          "&:hover": { background: "#DBEAFE" } }}>
+                        Изменить клиента
+                      </Button>
                     )}
-                  </Box>
-                  <Box sx={{ px: 1, py: 0.35, borderRadius: "7px",
-                    background: ACCENT_SOFT, border: `1px solid ${ACCENT_MID}` }}>
-                    <Typography sx={{ fontSize: "11px", fontWeight: 700, color: ACCENT }}>
-                      {client.type === "legal" ? "Юр. лицо" : client.type === "individual" ? "Физ. лицо" : "Суд"}
-                    </Typography>
-                  </Box>
-                </Box>
+                  </Stack>
+                )}
 
                 <Box sx={{ display: "grid", gridTemplateColumns: { xs: "1fr", sm: "1fr 1fr" }, gap: 2, mb: client.contacts?.length ? 2.5 : 0 }}>
-                  {client.inn && (
-                    <Box>
-                      <InfoLabel label="ИНН" />
-                      <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_PRIMARY }}>{client.inn}</Typography>
-                      </Box>
+                  <Box>
+                    <InfoLabel label="ИНН" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 500, color: client.inn ? TEXT_PRIMARY : TEXT_MUTED }}>
+                        {client.inn || "—"}
+                      </Typography>
                     </Box>
-                  )}
-                  {client.email && (
-                    <Box>
-                      <InfoLabel label="Email" />
-                      <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}`,
-                        display: "flex", alignItems: "center", gap: 1 }}>
-                        <Email sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                  </Box>
+                  <Box>
+                    <InfoLabel label="Email" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}`,
+                      display: "flex", alignItems: "center", gap: 1 }}>
+                      <Email sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                      {client.email ? (
                         <Typography component="a" href={`mailto:${client.email}`}
                           sx={{ fontSize: "14px", fontWeight: 500, color: ACCENT, textDecoration: "none",
                             "&:hover": { textDecoration: "underline" } }}>
                           {client.email}
                         </Typography>
-                      </Box>
+                      ) : (
+                        <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_MUTED }}>—</Typography>
+                      )}
                     </Box>
-                  )}
-                  {client.phone && (
-                    <Box>
-                      <InfoLabel label="Телефон" />
-                      <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}`,
-                        display: "flex", alignItems: "center", gap: 1 }}>
-                        <Phone sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                  </Box>
+                  <Box>
+                    <InfoLabel label="Телефон" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}`,
+                      display: "flex", alignItems: "center", gap: 1 }}>
+                      <Phone sx={{ fontSize: 14, color: TEXT_MUTED }} />
+                      {client.phone ? (
                         <Typography component="a" href={`tel:${client.phone}`}
                           sx={{ fontSize: "14px", fontWeight: 500, color: ACCENT, textDecoration: "none",
                             "&:hover": { textDecoration: "underline" } }}>
                           {client.phone}
                         </Typography>
-                      </Box>
+                      ) : (
+                        <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_MUTED }}>—</Typography>
+                      )}
                     </Box>
-                  )}
-                  {client.legal_address && (
-                    <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
-                      <InfoLabel label="Юридический адрес" />
-                      <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
-                        <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_PRIMARY }}>{client.legal_address}</Typography>
-                      </Box>
+                  </Box>
+                  <Box>
+                    <InfoLabel label="Тип клиента" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 500, color: TEXT_PRIMARY }}>
+                        {client.type === "legal" ? "Юридическое лицо" : 
+                         client.type === "individual" ? "Физическое лицо" : 
+                         client.type === "court" ? "Суд" : "—"}
+                      </Typography>
                     </Box>
-                  )}
+                  </Box>
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <InfoLabel label="Юридический адрес" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 500, color: client.legal_address ? TEXT_PRIMARY : TEXT_MUTED }}>
+                        {client.legal_address || "—"}
+                      </Typography>
+                    </Box>
+                  </Box>
+                  <Box sx={{ gridColumn: { sm: "1 / -1" } }}>
+                    <InfoLabel label="Фактический адрес" />
+                    <Box sx={{ px: 1.75, py: 1.25, borderRadius: "10px", background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+                      <Typography sx={{ fontSize: "14px", fontWeight: 500, color: client.actual_address ? TEXT_PRIMARY : TEXT_MUTED }}>
+                        {client.actual_address || "—"}
+                      </Typography>
+                    </Box>
+                  </Box>
                 </Box>
 
                 {/* Contacts */}

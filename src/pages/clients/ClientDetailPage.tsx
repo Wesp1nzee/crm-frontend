@@ -472,6 +472,7 @@ function ContactDialog({
 // ─── MainInfoFormData ─────────────────────────────────────────────────────────
 
 interface MainInfoFormData {
+  name: string;
   short_name: string;
   inn: string;
   email: string;
@@ -495,6 +496,7 @@ function MainInfoEdit({
   isSaving: boolean;
 }) {
   const [formData, setFormData] = useState<MainInfoFormData>({
+    name: client.name ?? "",
     short_name: client.short_name ?? "",
     inn: client.inn ?? "",
     email: client.email ?? "",
@@ -521,6 +523,14 @@ function MainInfoEdit({
 
   return (
     <Stack spacing={2}>
+      <TextField
+        fullWidth
+        label="Название *"
+        value={formData.name}
+        size="small"
+        onChange={(e) => setFormData((p) => ({ ...p, name: e.target.value }))}
+        sx={fieldSx}
+      />
       <TextField
         fullWidth
         label="Краткое название"
@@ -666,6 +676,7 @@ export function ClientDetailPage() {
   const handleMainInfoSave = async (data: MainInfoFormData) => {
     if (!id) return;
     const updateData: ClientUpdateRequest = {
+      name: data.name || null,
       short_name: data.short_name || null,
       inn: data.inn || null,
       email: data.email || null,
@@ -969,6 +980,17 @@ export function ClientDetailPage() {
                 ) : (
                   <>
                     <Stack spacing={2.25}>
+                      <EditableField
+                        field="name"
+                        value={client.name ?? ""}
+                        label="Название *"
+                        required
+                        editingField={editingField}
+                        editValues={editValues}
+                        onEdit={handleEditField}
+                        onSave={handleSaveField}
+                        onCancel={() => handleCancelField("name")}
+                      />
                       <EditableField
                         field="short_name"
                         value={client.short_name ?? ""}

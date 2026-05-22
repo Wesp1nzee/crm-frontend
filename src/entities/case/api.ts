@@ -45,13 +45,16 @@ export const casesApi = {
   createCase: (data: CaseCreateRequest) => api.post<Case>("/cases", data),
 
   updateCase: (id: string, data: Partial<Case>) =>
-    api.put<Case>(`/cases/${id}`, data),
+    api.patch<Case>(`/cases/${id}`, data),
 
   patchCase: (id: string, data: CasePatchRequest) =>
     api.patch<Case>(`/cases/${id}`, data),
 
   updateCaseExperts: (id: string, data: CaseExpertsUpdateRequest) =>
     api.put<Case>(`/cases/${id}/experts`, data),
+
+  updateCaseClient: (id: string, data: { client_id: string }) =>
+    api.patch<Case>(`/cases/${id}`, { client_id: data.client_id }),
 
   deleteCase: (caseId: string) => api.delete(`/cases/${caseId}`),
 

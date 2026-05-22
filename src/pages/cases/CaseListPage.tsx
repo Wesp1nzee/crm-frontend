@@ -452,6 +452,18 @@ export function CaseListPage() {
                     )}
                   </Box>
                 </TableCell>
+                <TableCell 
+                  width="10%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("execution_date")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Дата выполнения
+                    {filters.sort_field === "execution_date" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
                 <TableCell width="12%">Эксперт</TableCell>
                 <TableCell width="13%" align="center">
                   Действия
@@ -561,6 +573,13 @@ export function CaseListPage() {
                           Number(case_.cost),
                         )}{" "}
                         ₽
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
+                        {case_.execution_date
+                          ? dayjs(case_.execution_date).format("DD.MM.YYYY")
+                          : "—"}
                       </Typography>
                     </TableCell>
                     <TableCell>

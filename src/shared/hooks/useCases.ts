@@ -91,6 +91,23 @@ export const useUpdateCaseExperts = () => {
   });
 };
 
+export const useUpdateCaseClient = () => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      id,
+      data,
+    }: {
+      id: string;
+      data: { client_id: string };
+    }) => casesApi.updateCaseClient(id, data).then((res) => res.data),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["cases"] });
+      queryClient.invalidateQueries({ queryKey: ["case"] });
+    },
+  });
+};
+
 export const useDeleteCase = () => {
   const queryClient = useQueryClient();
   return useMutation({
