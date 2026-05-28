@@ -130,5 +130,5 @@ export interface BulkAssetsRequest {
 export interface DocumentsBulkMoveRequest {
   folder_ids: string[];
   document_ids: string[];
-  target_folder_id: string;
+  target_folder_id: string | null;
 }

@@ -25,10 +25,13 @@ export default defineConfig({
       output: {
         manualChunks: {
           "vendor-react": ["react", "react-dom"],
-          "vendor-mui-material": ["@mui/material"],
+          "vendor-mui-material": [
+            "@mui/material",
+            "@emotion/react",
+            "@emotion/styled",
+          ],
           "vendor-mui-icons": ["@mui/icons-material"],
           "vendor-mui-pickers": ["@mui/x-date-pickers"],
-          "vendor-emotion": ["@emotion/react", "@emotion/styled"],
           "vendor-router": ["react-router-dom"],
           "vendor-query": ["@tanstack/react-query"],
           "vendor-charts": ["recharts"],

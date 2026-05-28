@@ -658,8 +658,8 @@ export function DocumentsPage() {
     }
   };
 
-  const handleBulkMove = async (targetFolderId: string) => {
-    if (!selectedEntries.length || !targetFolderId) return;
+  const handleBulkMove = async (targetFolderId: string | null) => {
+    if (!selectedEntries.length) return;
 
     try {
       await bulkMoveDocuments.mutateAsync({
@@ -2718,12 +2718,10 @@ export function DocumentsPage() {
         </DialogActions>
       </Dialog>
 
-      {/* Диалог выбора папки для перемещения */}
       <FolderPicker
         open={movePickerOpen}
         onClose={() => setMovePickerOpen(false)}
         onChange={(folderId, folderName, caseId) => {
-          // Проверка совместимости case_id
           const selectedCaseIds = new Set(
             selectedEntries
               .map((e) => e.case_id)
@@ -2732,7 +2730,6 @@ export function DocumentsPage() {
           const targetCaseId = caseId ?? null;
 
           if (targetCaseId && selectedCaseIds.size > 0) {
-            // Если у выбранных элементов есть case_id, отличный от целевого — блокируем
             const hasConflict = [...selectedCaseIds].some((id) => id !== targetCaseId);
             if (hasConflict) {
               notificationService.error(
@@ -2741,15 +2738,6 @@ export function DocumentsPage() {
               setMovePickerOpen(false);
               return;
             }
-          }
-
-          // Если среди выбранных элементов есть несколько разных case_id — тоже блокируем
-          if (selectedCaseIds.size > 1) {
-            notificationService.error(
-              "Нельзя одновременно перемещать элементы, привязанные к разным делам.",
-            );
-            setMovePickerOpen(false);
-            return;
           }
 
           setMoveTargetFolderId(folderId);
@@ -2780,7 +2768,7 @@ export function DocumentsPage() {
           <Typography variant="body1" sx={{ mt: 2 }}>
             Переместить <strong>{selectedEntryIds.length}</strong> выбранных
             элементов в папку{" "}
-            <strong>«{moveTargetFolderName || moveTargetFolderId}»</strong>?
+            <strong>«{moveTargetFolderName || moveTargetFolderId || "Корень"}»</strong>?
           </Typography>
           <Alert severity="info" sx={{ mt: 2 }}>
             После перемещения элементы будут доступны в выбранной папке.
@@ -2801,11 +2789,11 @@ export function DocumentsPage() {
           </Button>
           <Button
             onClick={() => {
-              if (moveTargetFolderId) handleBulkMove(moveTargetFolderId);
+              handleBulkMove(moveTargetFolderId);
             }}
             variant="contained"
             color="primary"
-            disabled={bulkMoveDocuments.isPending || !moveTargetFolderId}
+            disabled={bulkMoveDocuments.isPending}
             sx={actionButtonSx}
           >
             {bulkMoveDocuments.isPending ? (
