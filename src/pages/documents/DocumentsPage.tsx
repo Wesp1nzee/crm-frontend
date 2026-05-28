@@ -74,10 +74,12 @@ import {
   useDownloadFolder,
   useDownloadBulkAssets,
   useTrashAssets,
+  useBulkMoveDocuments,
 } from "../../shared/hooks/useDocuments";
 import type { FileSystemEntry } from "../../entities/document/types";
 import type { CaseSuggestion } from "../../entities/case/types";
 import { EditAssetDialog } from "../../shared/ui/EditAssetDialog";
+import { FolderPicker } from "../../shared/ui";
 import { notificationService } from "../../shared/services/notifications";
 import { PaginationControls } from "../../shared/ui/PaginationControls";
 import { usePermissions } from "../../shared/hooks/usePermissions";
@@ -273,6 +275,11 @@ export function DocumentsPage() {
   const [newFolderName, setNewFolderName] = useState("");
   const [_uploadCaseId, setUploadCaseId] = useState<string>("");
   const [uploadTitle, setUploadTitle] = useState("");
+  const [movePickerOpen, setMovePickerOpen] = useState(false);
+  const [moveTargetFolderId, setMoveTargetFolderId] = useState<string | null>(null);
+  const [moveTargetFolderName, setMoveTargetFolderName] = useState<string | null>(null);
+  const [moveTargetCaseId, setMoveTargetCaseId] = useState<string | null>(null);
+  const [moveConfirmOpen, setMoveConfirmOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [scope, setScope] = useState<"my" | "all">("my");
   const [caseSearchQuery, setCaseSearchQuery] = useState("");
@@ -420,6 +427,7 @@ export function DocumentsPage() {
   const updateAsset = useUpdateAsset();
   const downloadBulkAssets = useDownloadBulkAssets();
   const trashAssets = useTrashAssets();
+  const bulkMoveDocuments = useBulkMoveDocuments();
 
   const canShare = user?.role !== "expert";
   const createUserShare = useCreateUserShare();
@@ -647,6 +655,35 @@ export function DocumentsPage() {
     } catch (error) {
       console.error("Ошибка массового перемещения в корзину:", error);
       notificationService.error("Не удалось переместить выбранные элементы в корзину");
+    }
+  };
+
+  const handleBulkMove = async (targetFolderId: string) => {
+    if (!selectedEntries.length || !targetFolderId) return;
+
+    try {
+      await bulkMoveDocuments.mutateAsync({
+        folder_ids: selectedEntries
+          .filter((entry) => entry.type === "folder")
+          .map((entry) => entry.id),
+        document_ids: selectedEntries
+          .filter((entry) => entry.type === "file")
+          .map((entry) => entry.id),
+        target_folder_id: targetFolderId,
+      });
+      notificationService.success(
+        `Перемещено элементов: ${selectedEntries.length}`,
+      );
+      clearSelection();
+      setMovePickerOpen(false);
+      setMoveConfirmOpen(false);
+      setMoveTargetFolderId(null);
+      setMoveTargetFolderName(null);
+      setMoveTargetCaseId(null);
+      refetch();
+    } catch (error) {
+      console.error("Ошибка массового перемещения:", error);
+      notificationService.error("Не удалось переместить выбранные элементы");
     }
   };
 
@@ -1516,11 +1553,15 @@ export function DocumentsPage() {
       {isSelectionMode && (
         <Paper
           sx={{
+            position: "sticky",
+            top: { xs: 64, sm: 72 },
+            zIndex: 10,
             mb: 2,
             borderRadius: 3,
             p: 1.25,
             border: (theme) =>
               `1px solid ${alpha(theme.palette.primary.main, 0.25)}`,
+            boxShadow: 3,
           }}
         >
           <Stack
@@ -1545,6 +1586,19 @@ export function DocumentsPage() {
               </Button>
               <Button
                 size="small"
+                variant="outlined"
+                startIcon={<MoveToInbox />}
+                onClick={() => {
+                  setMoveTargetFolderId(null);
+                  setMoveTargetFolderName(null);
+                  setMoveTargetCaseId(null);
+                  setMovePickerOpen(true);
+                }}
+              >
+                Переместить
+              </Button>
+              <Button
+                size="small"
                 variant="contained"
                 color="error"
                 startIcon={<DeleteSweep />}
@@ -1564,9 +1618,7 @@ export function DocumentsPage() {
         </Paper>
       )}
 
-      {/* Навигация и поиск */}
       <Paper sx={{ p: 2, mb: 2, borderRadius: 4 }}>
-        {/* Mode Switcher */}
         <Box mb={2}>
           <DocumentModeSwitcher
             activeMode={activeMode}
@@ -1574,7 +1626,6 @@ export function DocumentsPage() {
           />
         </Box>
 
-        {/* Folder navigation - only in storage mode */}
         {activeMode === "storage" && (
           <Box mb={1}>
             <Typography
@@ -2663,6 +2714,104 @@ export function DocumentsPage() {
               <CircularProgress size={20} sx={{ mr: 1 }} />
             ) : null}
             В корзину
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Диалог выбора папки для перемещения */}
+      <FolderPicker
+        open={movePickerOpen}
+        onClose={() => setMovePickerOpen(false)}
+        onChange={(folderId, folderName, caseId) => {
+          // Проверка совместимости case_id
+          const selectedCaseIds = new Set(
+            selectedEntries
+              .map((e) => e.case_id)
+              .filter((id): id is string => id !== null && id !== undefined),
+          );
+          const targetCaseId = caseId ?? null;
+
+          if (targetCaseId && selectedCaseIds.size > 0) {
+            // Если у выбранных элементов есть case_id, отличный от целевого — блокируем
+            const hasConflict = [...selectedCaseIds].some((id) => id !== targetCaseId);
+            if (hasConflict) {
+              notificationService.error(
+                "Нельзя переместить элементы, привязанные к делу, в папку другого дела.",
+              );
+              setMovePickerOpen(false);
+              return;
+            }
+          }
+
+          // Если среди выбранных элементов есть несколько разных case_id — тоже блокируем
+          if (selectedCaseIds.size > 1) {
+            notificationService.error(
+              "Нельзя одновременно перемещать элементы, привязанные к разным делам.",
+            );
+            setMovePickerOpen(false);
+            return;
+          }
+
+          setMoveTargetFolderId(folderId);
+          setMoveTargetFolderName(folderName ?? null);
+          setMoveTargetCaseId(targetCaseId);
+          setMoveConfirmOpen(true);
+        }}
+        value={null}
+        excludeCaseFolders={false}
+        title="Выберите целевую папку"
+        confirmText="Выбрать папку"
+      />
+
+      {/* Диалог подтверждения перемещения */}
+      <Dialog
+        open={moveConfirmOpen}
+        onClose={() => {
+          setMoveConfirmOpen(false);
+          setMoveTargetFolderId(null);
+          setMoveTargetFolderName(null);
+          setMoveTargetCaseId(null);
+        }}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Подтверждение перемещения</DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ mt: 2 }}>
+            Переместить <strong>{selectedEntryIds.length}</strong> выбранных
+            элементов в папку{" "}
+            <strong>«{moveTargetFolderName || moveTargetFolderId}»</strong>?
+          </Typography>
+          <Alert severity="info" sx={{ mt: 2 }}>
+            После перемещения элементы будут доступны в выбранной папке.
+          </Alert>
+        </DialogContent>
+        <DialogActions>
+          <Button
+            onClick={() => {
+              setMoveConfirmOpen(false);
+              setMoveTargetFolderId(null);
+              setMoveTargetFolderName(null);
+              setMoveTargetCaseId(null);
+            }}
+            color="primary"
+            sx={actionButtonSx}
+          >
+            Отмена
+          </Button>
+          <Button
+            onClick={() => {
+              if (moveTargetFolderId) handleBulkMove(moveTargetFolderId);
+            }}
+            variant="contained"
+            color="primary"
+            disabled={bulkMoveDocuments.isPending || !moveTargetFolderId}
+            sx={actionButtonSx}
+          >
+            {bulkMoveDocuments.isPending ? (
+              <CircularProgress size={20} sx={{ mr: 1 }} />
+            ) : null}
+            Переместить
           </Button>
         </DialogActions>
       </Dialog>

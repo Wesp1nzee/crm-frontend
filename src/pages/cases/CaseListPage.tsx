@@ -203,16 +203,20 @@ export function CaseListPage() {
     formData: Parameters<typeof createCase.mutateAsync>[0],
   ) => {
     try {
-      await createCase.mutateAsync(formData);
+      const createdCase = await createCase.mutateAsync(formData);
       notificationService.success(
         `Дело "${formData.case_number}" успешно создано`,
       );
       setCreateDialogOpen(false);
       refetch();
+      return createdCase;
     } catch (err: any) {
       notificationService.error(
         err.response?.data?.detail || "Ошибка создания дела",
       );
+      // Mark as handled so the dialog doesn't show a duplicate error
+      (err as any).handled = true;
+      throw err;
     }
   };
 

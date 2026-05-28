@@ -1,4 +1,3 @@
-// src/pages/cases/CreateCaseDialog.tsx
 import React, { useState, useCallback, memo, useMemo, useRef } from "react";
 import {
   Box,
@@ -31,22 +30,26 @@ import {
   Description as DescriptionIcon,
   Person as PersonIcon,
   Add as AddIcon,
-  Business as BusinessIcon,
+  Folder as FolderIcon,
 } from "@mui/icons-material";
 import dayjs from "dayjs";
 import type {
   CaseStatus,
   CaseCreateRequest,
+  Case,
 } from "../../entities/case/types";
 import { useClientsSuggest } from "../../shared/hooks/useClientsSuggest";
 import { useExpertsSuggest } from "../../shared/hooks/useExpertsSuggest";
 import { useCreateClient } from "../../shared/hooks/useClients";
-import type {
-  ClientCreateRequest as ClientCreateRequestType,
-} from "../../entities/client/types";
+import { useUploadDocument, useCreateFolder } from "../../shared/hooks/useDocuments";
+import type { ClientCreateRequest as ClientCreateRequestType } from "../../entities/client/types";
 import { ClientCreateDialog } from "../clients/ClientCreateDialog";
 import { notificationService } from "../../shared/services/notifications";
 import AddressSuggestInput from "../../shared/ui/AddressSuggestInput";
+import {
+  CaseDocumentZone,
+  type CaseDocumentZoneHandle,
+} from "./CaseDocumentZone";
 
 const INPUT_HEIGHT = 54;
 
@@ -115,6 +118,7 @@ export function createInitialFormData(): CaseCreateRequest {
     registration_date: null,
     additional_materials_date: null,
     execution_date: null,
+    parent_folder_id: null,
   };
 }
 
@@ -144,6 +148,7 @@ function normalizeCasePayload(formData: CaseCreateRequest) {
     registration_date: formData.registration_date || null,
     additional_materials_date: formData.additional_materials_date || null,
     execution_date: formData.execution_date || null,
+    parent_folder_id: formData.parent_folder_id || null,
   };
 }
 
@@ -359,7 +364,7 @@ interface CreateCaseDialogProps {
   open: boolean;
   isPending: boolean;
   onClose: () => void;
-  onSubmit: (data: CaseCreateRequest) => Promise<void>;
+  onSubmit: (data: CaseCreateRequest) => Promise<Case>;
 }
 
 export const CreateCaseDialog = memo(
@@ -399,6 +404,10 @@ export const CreateCaseDialog = memo(
       registration_date: "",
     });
 
+    const [selectedFolderId, setSelectedFolderId] = useState<string | null>(null);
+    const [selectedFolderName, setSelectedFolderName] = useState<string | null>(null);
+    const documentZoneRef = useRef<CaseDocumentZoneHandle>(null);
+
     // ===== HOOKS =====
     const {
       suggestions,
@@ -415,6 +424,8 @@ export const CreateCaseDialog = memo(
     } = useExpertsSuggest();
 
     const createClient = useCreateClient();
+    const uploadDocument = useUploadDocument();
+    const createFolder = useCreateFolder();
 
     // ===== MEMOIZED VALUES =====
     const isFormValid = useMemo(
@@ -461,6 +472,9 @@ export const CreateCaseDialog = memo(
       setSelectedClient(null);
       setSelectedExperts([]);
       setClientCreatedFromDialog(false);
+      setSelectedFolderId(null);
+      setSelectedFolderName(null);
+      documentZoneRef.current?.clear();
       clearSuggestions();
       clearExpertSuggestions();
     }, [clearSuggestions, clearExpertSuggestions]);
@@ -544,7 +558,7 @@ export const CreateCaseDialog = memo(
         newErrors.object_type = "Обязательное поле";
       if (!formData.object_address.trim())
         newErrors.object_address = "Обязательное поле";
-      
+
       // Валидация execution_date >= start_date
       if (formData.execution_date && formData.start_date) {
         const execDate = dayjs(formData.execution_date);
@@ -553,16 +567,156 @@ export const CreateCaseDialog = memo(
           newErrors.execution_date = "Дата выполнения не может быть раньше даты начала";
         }
       }
-      
+
       setErrors(newErrors);
       return Object.keys(newErrors).length === 0;
     }, [formData]);
 
+    // ── Upload queued assets after case creation (folder-hierarchy-aware) ─
+    const uploadQueuedAssets = useCallback(
+      async (caseId: string) => {
+        const zone = documentZoneRef.current;
+        if (!zone) return;
+
+        const queuedFiles = zone.getFiles();
+        const queuedFolders = zone.getFolders();
+
+        if (queuedFiles.length === 0 && queuedFolders.length === 0) return;
+
+        const total = queuedFiles.length + queuedFolders.length;
+        let completed = 0;
+        let failed = 0;
+
+        // Map local folder ID → backend folder ID
+        const folderIdMap = new Map<string, string>();
+
+        // Create folders respecting parentLocalId hierarchy.
+        // Sort so that parents are created before children.
+        const sortedFolders = [...queuedFolders];
+        // Simple topological sort: folders without parentLocalId first, then those whose parent is already in the list
+        sortedFolders.sort((a, b) => {
+          const aHasNoParent = !a.parentLocalId || folderIdMap.has(a.parentLocalId);
+          const bHasNoParent = !b.parentLocalId || folderIdMap.has(b.parentLocalId);
+          if (aHasNoParent && !bHasNoParent) return -1;
+          if (!aHasNoParent && bHasNoParent) return 1;
+          return 0;
+        });
+
+        // Multiple passes to handle dependency chains
+        const remaining = new Set(sortedFolders.map((f) => f.id));
+        let progress = true;
+        while (remaining.size > 0 && progress) {
+          progress = false;
+          for (const qf of sortedFolders) {
+            if (!remaining.has(qf.id)) continue;
+            const parentBackendId = qf.parentLocalId
+              ? folderIdMap.get(qf.parentLocalId) || selectedFolderId
+              : selectedFolderId;
+
+            // If parent isn't created yet, skip this pass
+            if (qf.parentLocalId && !folderIdMap.has(qf.parentLocalId)) continue;
+
+            try {
+              const created = await createFolder.mutateAsync({
+                name: qf.name,
+                case_id: caseId,
+                parent_id: parentBackendId,
+              });
+              folderIdMap.set(qf.id, created.id);
+              completed++;
+              remaining.delete(qf.id);
+              progress = true;
+            } catch {
+              failed++;
+              remaining.delete(qf.id);
+              progress = true;
+              notificationService.error(`Ошибка создания папки: ${qf.name}`);
+            }
+          }
+        }
+
+        // Upload files into their respective parent folders
+        for (const qf of queuedFiles) {
+          try {
+            const targetFolderId = qf.parentLocalId
+              ? folderIdMap.get(qf.parentLocalId) || selectedFolderId
+              : selectedFolderId;
+
+            await uploadDocument.mutateAsync({
+              file: qf.file,
+              case_id: caseId,
+              folder_id: targetFolderId,
+            });
+            completed++;
+          } catch {
+            failed++;
+            notificationService.error(`Ошибка загрузки: ${qf.name}`);
+          }
+        }
+
+        if (completed > 0 && failed === 0) {
+          notificationService.success(
+            `Загружено ${completed} из ${total} элементов`,
+          );
+        } else if (failed > 0) {
+          notificationService.warning(
+            `Загружено ${completed} из ${total} (${failed} ошибок)`,
+          );
+        }
+
+        zone.clear();
+      },
+      [uploadDocument, createFolder, selectedFolderId],
+    );
+
+    // ── Submit handler ────────────────────────────────────────────
     const handleSubmit = useCallback(async () => {
       if (!validateForm()) return;
-      const normalizedData = normalizeCasePayload(formData);
-      await onSubmit(normalizedData as unknown as CaseCreateRequest);
-    }, [formData, validateForm, onSubmit]);
+
+      try {
+        const normalizedData = normalizeCasePayload(formData);
+        const createdCase = await onSubmit({
+          ...normalizedData,
+          parent_folder_id: selectedFolderId || undefined,
+        } as unknown as CaseCreateRequest);
+
+        // Upload queued files/folders with the created case ID
+        await uploadQueuedAssets(createdCase.id);
+
+        setSelectedFolderId(null);
+        setSelectedFolderName(null);
+        onClose();
+      } catch (err: any) {
+        // Error from case creation — already handled by the parent.
+        // We re-throw only if it's not already notified.
+        if (!err?.handled) {
+          notificationService.error(
+            err?.response?.data?.detail || "Ошибка создания дела",
+          );
+        }
+      }
+    }, [formData, validateForm, onSubmit, selectedFolderId, uploadQueuedAssets, onClose]);
+
+    const handleFolderSelect = useCallback(
+      (folderId: string | null, folderName?: string | null) => {
+        setSelectedFolderId(folderId);
+        setSelectedFolderName(folderName ?? null);
+      },
+      [],
+    );
+
+    const handleCreateRootFolder = useCallback(
+      async (name: string, parentFolderId: string | null): Promise<{ id: string; name: string }> => {
+        const created = await createFolder.mutateAsync({
+          name,
+          parent_id: parentFolderId ?? null,
+        });
+        setSelectedFolderId(created.id);
+        setSelectedFolderName(created.name);
+        return { id: created.id, name: created.name };
+      },
+      [createFolder],
+    );
 
     const handleClientInputChange = useCallback(
       (_e: any, newInputValue: string, reason: string) => {
@@ -666,7 +820,7 @@ export const CreateCaseDialog = memo(
         <Dialog
           open={open}
           onClose={handleClose}
-          maxWidth="lg"
+          maxWidth="xl"
           fullWidth
           TransitionComponent={Fade}
           transitionDuration={240}
@@ -676,7 +830,8 @@ export const CreateCaseDialog = memo(
               borderRadius: "16px",
               boxShadow: "0 24px 48px -12px rgba(0,0,0,0.18)",
               overflow: "hidden",
-              maxHeight: "90vh",
+              maxHeight: "94vh",
+              height: "auto",
             },
           }}
         >
@@ -1362,6 +1517,21 @@ export const CreateCaseDialog = memo(
                     boxSizing: "border-box",
                   },
                 }}
+              />
+            </FormSection>
+
+            <FormSection>
+              <SectionHeader
+                icon={<FolderIcon sx={{ fontSize: 18 }} />}
+                title="Расположение и документы"
+                subtitle="Корневая папка дела и файлы для загрузки"
+              />
+              <CaseDocumentZone
+                ref={documentZoneRef}
+                selectedFolderId={selectedFolderId}
+                selectedFolderName={selectedFolderName}
+                onFolderSelect={handleFolderSelect}
+                onCreateRootFolder={handleCreateRootFolder}
               />
             </FormSection>
           </DialogContent>

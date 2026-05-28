@@ -12,4 +12,41 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    target: "es2020",
+    minify: "terser",
+    terserOptions: {
+      compress: {
+        drop_console: true,
+        drop_debugger: true,
+      },
+    },
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "vendor-react": ["react", "react-dom"],
+          "vendor-mui-material": ["@mui/material"],
+          "vendor-mui-icons": ["@mui/icons-material"],
+          "vendor-mui-pickers": ["@mui/x-date-pickers"],
+          "vendor-emotion": ["@emotion/react", "@emotion/styled"],
+          "vendor-router": ["react-router-dom"],
+          "vendor-query": ["@tanstack/react-query"],
+          "vendor-charts": ["recharts"],
+          "vendor-forms": [
+            "react-hook-form",
+            "@hookform/resolvers",
+            "zod",
+          ],
+          "vendor-utils": [
+            "dayjs",
+            "dompurify",
+            "axios",
+            "react-helmet-async",
+            "framer-motion",
+            "date-fns",
+          ],
+        },
+      },
+    },
+  },
 });

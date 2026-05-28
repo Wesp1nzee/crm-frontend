@@ -13,6 +13,7 @@ import type {
   FolderDownloadRequest,
   BulkAssetsDownloadRequest,
   BulkAssetsRequest,
+  DocumentsBulkMoveRequest,
 } from "./types";
 
 export const documentsApi = {
@@ -212,5 +213,12 @@ export const documentsApi = {
 
   trashAssets: async (payload: BulkAssetsRequest): Promise<void> => {
     await api.post("/documents/trash", payload);
+  },
+
+  bulkMove: async (
+    payload: DocumentsBulkMoveRequest,
+  ): Promise<Record<string, string>> => {
+    const { data } = await api.patch("/documents/bulk-move", payload);
+    return data;
   },
 };

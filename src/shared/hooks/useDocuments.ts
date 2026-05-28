@@ -11,6 +11,7 @@ import type {
   DocumentDownloadRequest,
   FolderDownloadRequest,
   BulkAssetsDownloadRequest,
+  DocumentsBulkMoveRequest,
 } from "../../entities/document/types";
 import type { CaseSuggestion } from "../../entities/case/types";
 
@@ -29,6 +30,7 @@ export const useCreateFolder = () => {
       documentsApi.createFolder(folderData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -41,6 +43,7 @@ export const useUploadDocument = () => {
       documentsApi.uploadDocument(uploadData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -75,6 +78,7 @@ export const useDeleteDocument = () => {
     mutationFn: (documentId: string) => documentsApi.deleteDocument(documentId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -86,6 +90,7 @@ export const useDeleteFolder = () => {
     mutationFn: (folderId: string) => documentsApi.deleteFolder(folderId),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -107,6 +112,7 @@ export const useUpdateAsset = () => {
       documentsApi.updateAsset(updateData),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -126,6 +132,7 @@ export const useDeleteBulkAssets = () => {
       documentsApi.deleteBulk(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -159,6 +166,7 @@ export const useRestoreAssets = () => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents", "trash"] });
       queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };
@@ -171,6 +179,19 @@ export const useDeleteTrashAssets = () => {
       documentsApi.deleteTrashAssets(payload),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["documents", "trash"] });
+    },
+  });
+};
+
+export const useBulkMoveDocuments = () => {
+  const queryClient = useQueryClient();
+
+  return useMutation({
+    mutationFn: (payload: DocumentsBulkMoveRequest) =>
+      documentsApi.bulkMove(payload),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["documents"] });
+      queryClient.invalidateQueries({ queryKey: ["folders"] });
     },
   });
 };

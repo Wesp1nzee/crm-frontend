@@ -164,6 +164,7 @@ export interface CaseCreateRequest {
   registration_date?: string | null;
   additional_materials_date?: string | null;
   execution_date?: string | null;
+  parent_folder_id?: string | null;
 }
 
 export interface CasePatchRequest {
