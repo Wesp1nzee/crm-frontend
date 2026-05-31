@@ -445,7 +445,7 @@ export function CaseListPage() {
                   </Box>
                 </TableCell>
                 <TableCell 
-                  width="10%"
+                  width="8%"
                   sx={{ cursor: "pointer", userSelect: "none" }}
                   onClick={() => handleSortClick("cost")}
                 >
@@ -457,7 +457,19 @@ export function CaseListPage() {
                   </Box>
                 </TableCell>
                 <TableCell 
-                  width="10%"
+                  width="8%"
+                  sx={{ cursor: "pointer", userSelect: "none" }}
+                  onClick={() => handleSortClick("remaining_debt")}
+                >
+                  <Box display="flex" alignItems="center" gap={0.5}>
+                    Остаток долга
+                    {filters.sort_field === "remaining_debt" && (
+                      filters.sort_order === "asc" ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />
+                    )}
+                  </Box>
+                </TableCell>
+                <TableCell 
+                  width="9%"
                   sx={{ cursor: "pointer", userSelect: "none" }}
                   onClick={() => handleSortClick("execution_date")}
                 >
@@ -581,6 +593,13 @@ export function CaseListPage() {
                     </TableCell>
                     <TableCell>
                       <Typography variant="body2" fontWeight="medium">
+                        {Number(case_.remaining_debt) > 0
+                          ? `${new Intl.NumberFormat("ru-RU").format(Number(case_.remaining_debt))} ₽`
+                          : "—"}
+                      </Typography>
+                    </TableCell>
+                    <TableCell>
+                      <Typography variant="body2" fontWeight="medium">
                         {case_.execution_date
                           ? dayjs(case_.execution_date).format("DD.MM.YYYY")
                           : "—"}
@@ -654,7 +673,7 @@ export function CaseListPage() {
               })}
               {cases.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={9} align="center" sx={{ py: 6 }}>
+                  <TableCell colSpan={10} align="center" sx={{ py: 6 }}>
                     <Stack spacing={2} alignItems="center">
                       <Box
                         sx={{
