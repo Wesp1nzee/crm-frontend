@@ -2751,7 +2751,6 @@ export function DocumentsPage() {
         confirmText="Выбрать папку"
       />
 
-      {/* Диалог подтверждения перемещения */}
       <Dialog
         open={moveConfirmOpen}
         onClose={() => {

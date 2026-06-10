@@ -1,0 +1,7 @@
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+
+Sitemap: https://ooo-ekspertiza.ru/sitemap.xml
+Host: ooo-ekspertiza.ru

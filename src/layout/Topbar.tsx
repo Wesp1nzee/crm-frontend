@@ -96,9 +96,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
           </Typography>
         </Box>
 
-        {/* Пустое пространство для растягивания */}
         <Box sx={{ flexGrow: 1 }} />
-        {/* Правая часть: иконки уведомлений и профиля */}
         <Box sx={{ display: "flex", alignItems: "center" }}>
 
           <IconButton
